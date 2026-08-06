@@ -33,6 +33,7 @@ export interface Product {
   inStock?: boolean;
   reference?: string;
   brand?: string;
+  item_type?: "ARTICLE" | "PACK";
 }
 
 interface ProductCardProps {
@@ -97,6 +98,10 @@ export default function ProductCard({
 
     addToCart({
       id: p.id,
+      item_type:
+        p.item_type ||
+        "ARTICLE",
+      slug: p.slug,
       designation: p.designation,
       price: Number(p.price),
       quantity: 1,

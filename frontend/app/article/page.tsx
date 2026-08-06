@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   BadgeCheck,
   Check,
+  ChevronLeft,
   ChevronRight,
   Heart,
   LoaderCircle,
@@ -524,6 +525,48 @@ function ArticleContent() {
       );
     }, [product]);
 
+  const activeImageIndex =
+    Math.max(
+      0,
+      images.findIndex(
+        (image) =>
+          image === selectedImage,
+      ),
+    );
+
+  function showPreviousImage() {
+    if (images.length <= 1) {
+      return;
+    }
+
+    const previousIndex =
+      activeImageIndex <= 0
+        ? images.length - 1
+        : activeImageIndex - 1;
+
+    setSelectedImage(
+      images[previousIndex],
+    );
+    setImageError(false);
+  }
+
+  function showNextImage() {
+    if (images.length <= 1) {
+      return;
+    }
+
+    const nextIndex =
+      activeImageIndex >=
+      images.length - 1
+        ? 0
+        : activeImageIndex + 1;
+
+    setSelectedImage(
+      images[nextIndex],
+    );
+    setImageError(false);
+  }
+
   const stock =
     Number(
       product.stock_quantity ??
@@ -536,17 +579,53 @@ function ArticleContent() {
       ? product.inStock
       : stock > 0;
 
+  const oldPrice =
+    Number(
+      product.old_price || 0,
+    );
+
   const promotion =
-    product.old_price &&
-    product.old_price >
-      product.price
+    oldPrice > product.price
       ? Math.round(
-          ((product.old_price -
+          ((oldPrice -
             product.price) /
-            product.old_price) *
+            oldPrice) *
             100,
         )
       : null;
+
+  useEffect(() => {
+    function handleGalleryKeyboard(
+      event: KeyboardEvent,
+    ) {
+      if (images.length <= 1) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        showPreviousImage();
+      }
+
+      if (event.key === "ArrowRight") {
+        showNextImage();
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleGalleryKeyboard,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleGalleryKeyboard,
+      );
+    };
+  }, [
+    activeImageIndex,
+    images,
+  ]);
 
   function handleAddToCart() {
     if (!inStock) {
@@ -555,6 +634,8 @@ function ArticleContent() {
 
     addToCart({
       id: product.id,
+      item_type: "ARTICLE",
+      slug: product.slug,
       designation:
         product.designation,
       price: Number(
@@ -652,9 +733,16 @@ function ArticleContent() {
               }}
             >
               <div className="relative overflow-hidden rounded-[34px] border border-zinc-200 bg-zinc-50">
-                {promotion && (
-                  <span className="absolute left-5 top-5 z-10 rounded-full bg-orange-500 px-4 py-2 text-xs font-black text-white shadow-lg shadow-orange-500/20">
+                {promotion !== null &&
+                  promotion > 0 && (
+                  <span className="absolute left-5 top-5 z-20 rounded-full bg-orange-500 px-4 py-2 text-xs font-black text-white shadow-lg shadow-orange-500/20">
                     -{promotion} %
+                  </span>
+                )}
+
+                {images.length > 1 && (
+                  <span className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2 rounded-full bg-zinc-950/80 px-3 py-1.5 text-xs font-black text-white backdrop-blur">
+                    {activeImageIndex + 1} / {images.length}
                   </span>
                 )}
 
@@ -669,7 +757,7 @@ function ArticleContent() {
                         !current,
                     )
                   }
-                  className="absolute right-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white/90 shadow backdrop-blur"
+                  className="absolute right-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white/90 shadow backdrop-blur"
                 >
                   <Heart
                     className={`h-5 w-5 ${
@@ -680,7 +768,29 @@ function ArticleContent() {
                   />
                 </motion.button>
 
-                <div className="flex aspect-square items-center justify-center p-5 sm:p-8 lg:p-10">
+                {images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={showPreviousImage}
+                      aria-label="Image précédente"
+                      className="absolute left-4 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-white/90 text-zinc-800 shadow-lg backdrop-blur transition hover:scale-105 hover:bg-orange-500 hover:text-white"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={showNextImage}
+                      aria-label="Image suivante"
+                      className="absolute right-4 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-white/90 text-zinc-800 shadow-lg backdrop-blur transition hover:scale-105 hover:bg-orange-500 hover:text-white"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </>
+                )}
+
+                <div className="flex aspect-square items-center justify-center overflow-hidden bg-zinc-100">
                   <AnimatePresence
                     mode="wait"
                     initial={false}
@@ -697,10 +807,6 @@ function ArticleContent() {
                         alt={
                           product.designation
                         }
-                        /*
-                         * Image principale prioritaire :
-                         * téléchargement immédiat et décodage asynchrone.
-                         */
                         loading="eager"
                         fetchPriority="high"
                         decoding="async"
@@ -711,19 +817,22 @@ function ArticleContent() {
                         }
                         initial={{
                           opacity: 0,
-                          scale: 0.98,
+                          x: 16,
+                          scale: 0.985,
                         }}
                         animate={{
                           opacity: 1,
+                          x: 0,
                           scale: 1,
                         }}
                         exit={{
                           opacity: 0,
+                          x: -16,
                         }}
                         transition={{
-                          duration: 0.25,
+                          duration: 0.28,
                         }}
-                        className="h-full w-full object-contain"
+                        className="h-full w-full object-cover"
                       />
                     ) : (
                       <motion.div
@@ -747,49 +856,66 @@ function ArticleContent() {
                 </div>
               </div>
 
-              {images.length >
-                1 && (
-                <div className="mt-4 flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {images.map(
-                    (image) => {
-                      const active =
-                        image ===
-                        selectedImage;
+              {images.length > 1 && (
+                <div className="mt-4 rounded-[24px] border border-zinc-200 bg-zinc-50 p-3 shadow-sm">
+                  <div className="flex items-center justify-between gap-3 px-1 pb-3">
+                    <strong className="text-sm font-black text-zinc-800">
+                      Galerie produit
+                    </strong>
 
-                      return (
-                        <button
-                          key={
-                            image
-                          }
-                          type="button"
-                          onClick={() => {
-                            setSelectedImage(
-                              image,
-                            );
+                    <span className="text-xs font-bold text-zinc-400">
+                      {images.length} photo
+                      {images.length > 1 ? "s" : ""}
+                    </span>
+                  </div>
 
-                            setImageError(
-                              false,
-                            );
-                          }}
-                          className={`h-20 w-20 shrink-0 overflow-hidden rounded-2xl border bg-white p-2 transition ${
-                            active
-                              ? "border-orange-500 ring-4 ring-orange-500/10"
-                              : "border-zinc-200 hover:border-orange-300"
-                          }`}
-                        >
-                          <img
-                            src={
-                              image
-                            }
-                            alt=""
-                            loading="lazy"
-                            decoding="async"
-                            className="h-full w-full object-contain"
-                          />
-                        </button>
-                      );
-                    },
-                  )}
+                  <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:thin] [scrollbar-color:#f97316_transparent]">
+                    {images.map(
+                      (image, index) => {
+                        const active =
+                          image ===
+                          selectedImage;
+
+                        return (
+                          <button
+                            key={`${image}-${index}`}
+                            type="button"
+                            onClick={() => {
+                              setSelectedImage(
+                                image,
+                              );
+
+                              setImageError(
+                                false,
+                              );
+                            }}
+                            aria-label={`Afficher l’image ${index + 1}`}
+                            className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border bg-zinc-100 transition ${
+                              active
+                                ? "border-orange-500 ring-4 ring-orange-500/10"
+                                : "border-zinc-200 hover:border-orange-300"
+                            }`}
+                          >
+                            <img
+                              src={image}
+                              alt={`${product.designation} ${index + 1}`}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full rounded-xl object-cover"
+                            />
+
+                            <span className={`absolute bottom-1 right-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[9px] font-black ${
+                              active
+                                ? "bg-orange-500 text-white"
+                                : "bg-zinc-950/70 text-white"
+                            }`}>
+                              {index + 1}
+                            </span>
+                          </button>
+                        );
+                      },
+                    )}
+                  </div>
                 </div>
               )}
             </motion.div>
@@ -874,12 +1000,11 @@ function ArticleContent() {
                   </span>
                 </strong>
 
-                {product.old_price &&
-                  product.old_price >
-                    product.price && (
+                {oldPrice >
+                  product.price && (
                   <span className="ml-3 text-lg text-zinc-400 line-through">
                     {formatPrice(
-                      product.old_price,
+                      oldPrice,
                     )}{" "}
                     DA
                   </span>

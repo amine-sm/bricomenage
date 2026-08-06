@@ -39,6 +39,7 @@ import type { Product } from "@/components/ProductCard";
 const demoProducts: Product[] = [
   {
     id: 1,
+    slug: "marteau-professionnel",
     designation:
       "Marteau professionnel",
     price: 1200,
@@ -56,6 +57,7 @@ const demoProducts: Product[] = [
   },
   {
     id: 2,
+    slug: "chaise-de-jardin",
     designation:
       "Chaise de jardin",
     price: 4500,
@@ -73,6 +75,7 @@ const demoProducts: Product[] = [
   },
   {
     id: 3,
+    slug: "parasol-deporte",
     designation:
       "Parasol déporté",
     price: 18500,
@@ -89,6 +92,7 @@ const demoProducts: Product[] = [
   },
   {
     id: 4,
+    slug: "perceuse-750-w",
     designation:
       "Perceuse 750 W",
     price: 12900,
@@ -305,6 +309,8 @@ function ProductContent() {
 
     addToCart({
       id: product.id,
+      item_type: "ARTICLE",
+      slug: product.slug,
       designation:
         product.designation,
       price: Number(

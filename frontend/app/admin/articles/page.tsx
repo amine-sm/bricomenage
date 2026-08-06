@@ -279,6 +279,11 @@ export default function ArticlesPage() {
     setSelectedFilePreviews,
   ] = useState<string[]>([]);
 
+  const [
+    existingImages,
+    setExistingImages,
+  ] = useState<string[]>([]);
+
   const load = useCallback(
     async () => {
       setLoading(true);
@@ -670,6 +675,7 @@ export default function ArticlesPage() {
     setSelectedFilePreviews(
       [],
     );
+    setExistingImages([]);
     setError("");
     setModalOpen(true);
   }
@@ -677,17 +683,35 @@ export default function ArticlesPage() {
   function openEditModal(
     article: Article,
   ) {
+    const articleImages = [
+      ...new Set(
+        Array.isArray(
+          article.images,
+        ) &&
+        article.images.length > 0
+          ? article.images
+          : article.image
+            ? [article.image]
+            : [],
+      ),
+    ];
+
     setEditing(article);
     setSelectedFiles([]);
     setSelectedFilePreviews(
       [],
     );
+    setExistingImages(
+      articleImages,
+    );
     setError("");
     setModalOpen(true);
   }
 
-  function closeModal() {
-    if (saving) {
+  function closeModal(
+    force = false,
+  ) {
+    if (saving && !force) {
       return;
     }
 
@@ -697,28 +721,98 @@ export default function ArticlesPage() {
     setSelectedFilePreviews(
       [],
     );
+    setExistingImages([]);
   }
 
   function handleFilesChange(
     event: ChangeEvent<HTMLInputElement>,
   ) {
-    const files =
+    const incomingFiles =
       Array.from(
         event.target.files ||
           [],
-      ).slice(0, 6);
+      );
 
-    selectedFilePreviews.forEach(
-      (url) =>
-        URL.revokeObjectURL(url),
+    const availableSlots =
+      Math.max(
+        0,
+        10 -
+          existingImages.length -
+          selectedFiles.length,
+      );
+
+    const filesToAdd =
+      incomingFiles.slice(
+        0,
+        availableSlots,
+      );
+
+    if (filesToAdd.length === 0) {
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedFiles(
+      (current) => [
+        ...current,
+        ...filesToAdd,
+      ],
     );
 
-    setSelectedFiles(files);
-
     setSelectedFilePreviews(
-      files.map((file) =>
-        URL.createObjectURL(file),
-      ),
+      (current) => [
+        ...current,
+        ...filesToAdd.map(
+          (file) =>
+            URL.createObjectURL(
+              file,
+            ),
+        ),
+      ],
+    );
+
+    event.target.value = "";
+  }
+
+  function removeExistingImage(
+    image: string,
+  ) {
+    setExistingImages(
+      (current) =>
+        current.filter(
+          (value) =>
+            value !== image,
+        ),
+    );
+  }
+
+  function removeSelectedImage(
+    index: number,
+  ) {
+    setSelectedFilePreviews(
+      (current) => {
+        const preview =
+          current[index];
+
+        if (preview) {
+          URL.revokeObjectURL(
+            preview,
+          );
+        }
+
+        return current.filter(
+          (_, itemIndex) =>
+            itemIndex !== index,
+        );
+      },
+    );
+
+    setSelectedFiles(
+      (current) =>
+        current.filter(
+          (_, itemIndex) =>
+            itemIndex !== index,
+        ),
     );
   }
 
@@ -756,6 +850,21 @@ export default function ArticlesPage() {
         );
       }
 
+      if (editing) {
+        form.set(
+          "existing_images",
+          JSON.stringify(
+            existingImages,
+          ),
+        );
+
+        form.set(
+          "main_image",
+          existingImages[0] ||
+            "",
+        );
+      }
+
       selectedFiles.forEach(
         (file) => {
           form.append(
@@ -787,7 +896,7 @@ export default function ArticlesPage() {
           : "Article ajouté avec succès.",
       );
 
-      closeModal();
+      closeModal(true);
 
       await load();
     } catch (requestError) {
@@ -859,9 +968,9 @@ export default function ArticlesPage() {
   return (
     <AdminShell>
       <div className="space-y-7">
-        <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+        <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
+            <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600 shadow-sm">
               <Boxes className="h-4 w-4" />
               Gestion du catalogue
             </span>
@@ -897,7 +1006,7 @@ export default function ArticlesPage() {
               onClick={
                 openCreateModal
               }
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-1 hover:bg-orange-600 hover:shadow-xl"
             >
               <Plus className="h-5 w-5" />
               Ajouter un article
@@ -980,7 +1089,7 @@ export default function ArticlesPage() {
           />
         </section>
 
-        <section className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-gradient-to-br from-white to-orange-50/20 p-4 shadow-sm sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(240px,1fr)_200px_200px_180px_180px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
@@ -1200,7 +1309,7 @@ export default function ArticlesPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm">
+        <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
           {loading ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center gap-4">
               <LoaderCircle className="h-10 w-10 animate-spin text-orange-500" />
@@ -1212,7 +1321,7 @@ export default function ArticlesPage() {
           ) : paginatedItems.length ===
             0 ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center px-6 text-center">
-              <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 text-orange-500">
+              <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 text-orange-400">
                 <PackageSearch className="h-10 w-10" />
               </span>
 
@@ -1241,7 +1350,7 @@ export default function ArticlesPage() {
               "table" ? (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[1050px] text-left text-sm">
-                    <thead className="border-b border-zinc-200 bg-zinc-50/80">
+                    <thead className="border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-orange-50/50">
                       <tr className="text-xs font-black uppercase tracking-[0.08em] text-zinc-500">
                         <th className="px-5 py-4">
                           Article
@@ -1389,6 +1498,15 @@ export default function ArticlesPage() {
           previews={
             selectedFilePreviews
           }
+          existingImages={
+            existingImages
+          }
+          onRemoveExistingImage={
+            removeExistingImage
+          }
+          onRemoveSelectedImage={
+            removeSelectedImage
+          }
           onClose={closeModal}
           onSubmit={submit}
           onFilesChange={
@@ -1442,7 +1560,7 @@ function StatCard({
   iconClassName,
 }: StatCardProps) {
   return (
-    <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="group relative overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
       <div className="flex items-start justify-between gap-4">
         <span
           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconClassName}`}
@@ -1491,7 +1609,7 @@ function FilterSelect({
         )
       }
       aria-label={ariaLabel}
-      className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+      className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
     >
       {children}
     </select>
@@ -1517,7 +1635,7 @@ function ArticleTableRow({
     getStockStatus(article);
 
   return (
-    <tr className="border-b border-zinc-100 transition last:border-b-0 hover:bg-orange-50/25">
+    <tr className="border-b border-zinc-100 transition last:border-b-0 hover:bg-orange-50/40">
       <td className="px-5 py-4">
         <div className="flex min-w-[280px] items-center gap-4">
           <ArticleImage
@@ -1795,7 +1913,7 @@ function ArticleMobileCard({
                 )}
               </strong>
 
-              <span className="text-sm font-black text-orange-500">
+              <span className="text-sm font-black text-orange-400">
                 DA
               </span>
             </div>
@@ -2120,6 +2238,13 @@ interface ArticleModalProps {
   saving: boolean;
   error: string;
   previews: string[];
+  existingImages: string[];
+  onRemoveExistingImage: (
+    image: string,
+  ) => void;
+  onRemoveSelectedImage: (
+    index: number,
+  ) => void;
   onClose: () => void;
   onSubmit: (
     event: FormEvent<HTMLFormElement>,
@@ -2136,19 +2261,22 @@ function ArticleModal({
   saving,
   error,
   previews,
+  existingImages,
+  onRemoveExistingImage,
+  onRemoveSelectedImage,
   onClose,
   onSubmit,
   onFilesChange,
 }: ArticleModalProps) {
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-zinc-950/55 p-3 backdrop-blur-sm sm:p-5">
+    <div className="fixed inset-0 z-[130] overflow-y-auto bg-zinc-950/65 p-3 backdrop-blur-md sm:p-5">
       <form
         onSubmit={onSubmit}
-        className="mx-auto my-4 w-full max-w-4xl overflow-hidden rounded-[30px] bg-white shadow-2xl"
+        className="mx-auto my-4 w-full max-w-4xl overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-2xl"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-5 sm:px-7">
+        <div className="relative flex items-start justify-between gap-4 overflow-hidden bg-gradient-to-r from-zinc-950 via-zinc-900 to-orange-950 px-5 py-6 text-white sm:px-7">
           <div>
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-orange-400">
               Catalogue
             </span>
 
@@ -2158,7 +2286,7 @@ function ArticleModal({
                 : "Ajouter un article"}
             </h2>
 
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-1 text-sm text-zinc-300">
               Complétez les informations ci-dessous.
             </p>
           </div>
@@ -2285,7 +2413,7 @@ function ArticleModal({
                   ""
                 }
                 required
-                className="mt-2 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                className="mt-2 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
               >
                 <option value="">
                   Choisir une catégorie
@@ -2317,7 +2445,7 @@ function ArticleModal({
                   editing?.supplier_id ||
                   ""
                 }
-                className="mt-2 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                className="mt-2 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
               >
                 <option value="">
                   Aucun fournisseur
@@ -2340,17 +2468,6 @@ function ArticleModal({
               </select>
             </label>
 
-            <div className="sm:col-span-2">
-              <Field
-                name="image"
-                label="URL de l’image principale"
-                value={
-                  editing?.image
-                }
-                placeholder="https://..."
-              />
-            </div>
-
             <label className="sm:col-span-2 text-sm font-black text-zinc-700">
               Télécharger des images
 
@@ -2358,7 +2475,7 @@ function ArticleModal({
                 <ImagePlus className="h-8 w-8 text-orange-500" />
 
                 <strong className="mt-2 text-sm text-zinc-700">
-                  Sélectionner jusqu’à 6 images
+                  Sélectionner jusqu’à 10 images
                 </strong>
 
                 <span className="mt-1 text-xs font-normal text-zinc-400">
@@ -2366,7 +2483,6 @@ function ArticleModal({
                 </span>
 
                 <input
-                  name="upload_images"
                   type="file"
                   multiple
                   accept="image/jpeg,image/png,image/webp"
@@ -2377,49 +2493,102 @@ function ArticleModal({
                 />
               </span>
             </label>
-
-            {(previews.length >
-              0 ||
-              editing?.image) && (
+            {(existingImages.length > 0 ||
+              previews.length > 0) && (
               <div className="sm:col-span-2">
-                <span className="text-sm font-black text-zinc-700">
-                  Aperçu
-                </span>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-black text-zinc-700">
+                    Aperçu des images
+                  </span>
 
-                <div className="mt-3 flex flex-wrap gap-3">
-                  {previews.length >
-                  0 ? (
-                    previews.map(
-                      (
-                        preview,
-                        index,
-                      ) => (
+                  <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-black text-orange-600">
+                    {existingImages.length +
+                      previews.length}
+                    /10
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-5">
+                  {existingImages.map(
+                    (
+                      image,
+                      index,
+                    ) => (
+                      <div
+                        key={image}
+                        className="group relative aspect-square overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100"
+                      >
                         <img
-                          key={
-                            preview
-                          }
-                          src={
-                            preview
-                          }
-                          alt={`Aperçu ${
+                          src={image}
+                          alt={`Image existante ${
                             index + 1
                           }`}
-                          className="h-24 w-24 rounded-2xl border border-zinc-200 object-cover"
+                          className="h-full w-full object-cover"
                         />
-                      ),
-                    )
-                  ) : editing?.image ? (
-                    <img
-                      src={
-                        editing.image
-                      }
-                      alt={
-                        editing.designation
-                      }
-                      className="h-24 w-24 rounded-2xl border border-zinc-200 object-cover"
-                    />
-                  ) : null}
+
+                        {index === 0 && (
+                          <span className="absolute bottom-2 left-2 rounded-full bg-zinc-950/80 px-2.5 py-1 text-[9px] font-black uppercase text-white backdrop-blur">
+                            Principale
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onRemoveExistingImage(
+                              image,
+                            )
+                          }
+                          aria-label="Supprimer cette image"
+                          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition hover:scale-110 hover:bg-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ),
+                  )}
+
+                  {previews.map(
+                    (
+                      preview,
+                      index,
+                    ) => (
+                      <div
+                        key={preview}
+                        className="group relative aspect-square overflow-hidden rounded-2xl border-2 border-orange-200 bg-orange-50"
+                      >
+                        <img
+                          src={preview}
+                          alt={`Nouvelle image ${
+                            index + 1
+                          }`}
+                          className="h-full w-full object-cover"
+                        />
+
+                        <span className="absolute bottom-2 left-2 rounded-full bg-orange-500 px-2.5 py-1 text-[9px] font-black uppercase text-white">
+                          Nouvelle
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onRemoveSelectedImage(
+                              index,
+                            )
+                          }
+                          aria-label="Retirer cette nouvelle image"
+                          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition hover:scale-110 hover:bg-red-700"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ),
+                  )}
                 </div>
+
+                <p className="mt-3 text-xs leading-5 text-zinc-400">
+                  Cliquez sur le bouton X pour retirer une image. La première image conservée devient l’image principale.
+                </p>
               </div>
             )}
 
@@ -2433,7 +2602,7 @@ function ArticleModal({
                   ""
                 }
                 placeholder="Décrivez les caractéristiques principales de l’article..."
-                className="mt-2 min-h-32 w-full resize-y rounded-2xl border border-zinc-200 p-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                className="mt-2 min-h-32 w-full resize-y rounded-2xl border border-zinc-200 p-4 text-sm outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
               />
             </label>
           </div>
@@ -2509,7 +2678,7 @@ function Field({
         }
         min={min}
         step={step}
-        className="mt-2 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+        className="mt-2 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
       />
     </label>
   );
@@ -2530,8 +2699,8 @@ function ArticlePreviewModal({
     getStockStatus(article);
 
   return (
-    <div className="fixed inset-0 z-[110] overflow-y-auto bg-zinc-950/55 p-4 backdrop-blur-sm">
-      <div className="mx-auto my-8 w-full max-w-2xl overflow-hidden rounded-[30px] bg-white shadow-2xl">
+    <div className="fixed inset-0 z-[140] overflow-y-auto bg-zinc-950/65 p-4 backdrop-blur-md">
+      <div className="mx-auto my-8 w-full max-w-2xl overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-2xl">
         <div className="relative aspect-[16/8] bg-zinc-100">
           {article.image ? (
             <img

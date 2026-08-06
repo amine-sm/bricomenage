@@ -665,9 +665,9 @@ export default function SuppliersPage() {
   return (
     <AdminShell>
       <div className="space-y-7">
-        <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+        <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
+            <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600 shadow-sm">
               <Truck className="h-4 w-4" />
               Gestion des partenaires
             </span>
@@ -703,7 +703,7 @@ export default function SuppliersPage() {
               onClick={
                 openCreateModal
               }
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-0.5 hover:bg-orange-600"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:-translate-y-1 hover:bg-orange-600 hover:shadow-xl"
             >
               <Plus className="h-5 w-5" />
               Ajouter un fournisseur
@@ -770,7 +770,7 @@ export default function SuppliersPage() {
           />
         </section>
 
-        <section className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-gradient-to-br from-white to-orange-50/20 p-4 shadow-sm sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(260px,1fr)_210px_210px_210px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
@@ -962,7 +962,7 @@ export default function SuppliersPage() {
         ) : paginatedItems.length ===
           0 ? (
           <section className="flex min-h-[420px] flex-col items-center justify-center rounded-[28px] border border-zinc-200 bg-white px-6 text-center shadow-sm">
-            <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 text-orange-500">
+            <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 text-orange-400">
               <Building2 className="h-10 w-10" />
             </span>
 
@@ -1021,10 +1021,10 @@ export default function SuppliersPage() {
                 )}
               </section>
             ) : (
-              <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm">
+              <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[1180px] text-left text-sm">
-                    <thead className="border-b border-zinc-200 bg-zinc-50/80">
+                    <thead className="border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-orange-50/50">
                       <tr className="text-xs font-black uppercase tracking-[0.08em] text-zinc-500">
                         <th className="px-5 py-4">
                           Fournisseur
@@ -1094,7 +1094,7 @@ export default function SuppliersPage() {
               </section>
             )}
 
-            <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm">
+            <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
               <Pagination
                 currentPage={
                   safeCurrentPage
@@ -1181,7 +1181,7 @@ function StatCard({
   iconClassName,
 }: StatCardProps) {
   return (
-    <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="group relative overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
       <span
         className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconClassName}`}
       >
@@ -1228,7 +1228,7 @@ function FilterSelect({
         )
       }
       aria-label={ariaLabel}
-      className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+      className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
     >
       {children}
     </select>
@@ -1296,7 +1296,7 @@ function SupplierCard({
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-500">
+        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-400">
           Fournisseur #{supplier.id}
         </span>
 
@@ -1457,10 +1457,10 @@ function SupplierTableRow({
     );
 
   return (
-    <tr className="border-b border-zinc-100 transition last:border-b-0 hover:bg-orange-50/25">
+    <tr className="border-b border-zinc-100 transition last:border-b-0 hover:bg-orange-50/40">
       <td className="px-5 py-4">
         <div className="flex min-w-[240px] items-center gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-400">
             <Building2 className="h-6 w-6" />
           </span>
 
@@ -1746,14 +1746,14 @@ function SupplierModal({
   onSubmit,
 }: SupplierModalProps) {
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-zinc-950/55 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[130] overflow-y-auto bg-zinc-950/65 p-4 backdrop-blur-md">
       <form
         onSubmit={onSubmit}
-        className="mx-auto my-6 w-full max-w-3xl overflow-hidden rounded-[30px] bg-white shadow-2xl"
+        className="mx-auto my-6 w-full max-w-3xl overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-2xl"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-5 sm:px-7">
+        <div className="relative flex items-start justify-between gap-4 overflow-hidden bg-gradient-to-r from-zinc-950 via-zinc-900 to-orange-950 px-5 py-6 text-white sm:px-7">
           <div>
-            <span className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-orange-400">
               Partenaires
             </span>
 
@@ -1763,7 +1763,7 @@ function SupplierModal({
                 : "Ajouter un fournisseur"}
             </h2>
 
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-1 text-sm text-zinc-300">
               Renseignez ses coordonnées et informations fiscales.
             </p>
           </div>
@@ -1860,7 +1860,7 @@ function SupplierModal({
                   ""
                 }
                 placeholder="Adresse complète du fournisseur..."
-                className="mt-2 min-h-28 w-full resize-y rounded-2xl border border-zinc-200 p-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                className="mt-2 min-h-28 w-full resize-y rounded-2xl border border-zinc-200 p-4 text-sm outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
               />
             </label>
 
@@ -1956,7 +1956,7 @@ function Field({
         placeholder={
           placeholder
         }
-        className="mt-2 h-12 w-full rounded-xl border border-zinc-200 px-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+        className="mt-2 h-12 w-full rounded-xl border border-zinc-200 px-4 text-sm outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
       />
     </label>
   );
@@ -1979,8 +1979,8 @@ function SupplierPreviewModal({
     );
 
   return (
-    <div className="fixed inset-0 z-[110] overflow-y-auto bg-zinc-950/55 p-4 backdrop-blur-sm">
-      <div className="mx-auto my-8 w-full max-w-2xl overflow-hidden rounded-[30px] bg-white shadow-2xl">
+    <div className="fixed inset-0 z-[140] overflow-y-auto bg-zinc-950/65 p-4 backdrop-blur-md">
+      <div className="mx-auto my-8 w-full max-w-2xl overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-2xl">
         <div className="relative overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-orange-950 p-7 text-white">
           <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-orange-500/20 blur-3xl" />
 

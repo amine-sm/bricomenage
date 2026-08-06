@@ -95,6 +95,11 @@ function getStockStatus(
 
 export default function StockPage() {
   const [
+    mounted,
+    setMounted,
+  ] = useState(false);
+
+  const [
     items,
     setItems,
   ] = useState<Article[]>([]);
@@ -176,8 +181,19 @@ export default function StockPage() {
   );
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+
     load();
-  }, [load]);
+  }, [
+    load,
+    mounted,
+  ]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -455,12 +471,20 @@ export default function StockPage() {
     setStockFilter("all");
   }
 
+  if (!mounted) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <LoaderCircle className="h-10 w-10 animate-spin text-orange-500" />
+      </main>
+    );
+  }
+
   return (
     <AdminShell>
       <div className="space-y-7">
-        <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+        <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
+            <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600 shadow-sm">
               <PackagePlus className="h-4 w-4" />
               Gestion des quantités
             </span>
@@ -543,7 +567,7 @@ export default function StockPage() {
           />
         </section>
 
-        <section className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-gradient-to-br from-white to-orange-50/20 p-4 shadow-sm sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[minmax(260px,1fr)_220px]">
             <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
@@ -583,7 +607,7 @@ export default function StockPage() {
                     .value as StockFilter,
                 )
               }
-              className="h-12 rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+              className="h-12 rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
             >
               <option value="all">
                 Tous les stocks
@@ -632,7 +656,7 @@ export default function StockPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm">
+        <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition hover:shadow-md">
           {loading ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center gap-4">
               <LoaderCircle className="h-10 w-10 animate-spin text-orange-500" />
@@ -644,7 +668,7 @@ export default function StockPage() {
           ) : paginatedItems.length ===
             0 ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center px-6 text-center">
-              <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 text-orange-500">
+              <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 text-orange-400">
                 <PackagePlus className="h-10 w-10" />
               </span>
 
@@ -659,7 +683,7 @@ export default function StockPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="border-b border-zinc-200 bg-zinc-50/80">
+                <thead className="border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-orange-50/50">
                   <tr className="text-xs font-black uppercase tracking-[0.08em] text-zinc-500">
                     <th className="px-5 py-4">
                       Article
@@ -756,7 +780,7 @@ function StatCard({
   className: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="group relative overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
       <span
         className={`inline-flex rounded-2xl px-3 py-2 text-xs font-black ${className}`}
       >
@@ -790,7 +814,7 @@ function StockTableRow({
     getStockStatus(article);
 
   return (
-    <tr className="border-b border-zinc-100 transition last:border-b-0 hover:bg-orange-50/25">
+    <tr className="border-b border-zinc-100 transition last:border-b-0 hover:bg-orange-50/40">
       <td className="px-5 py-4">
         <div className="flex min-w-[260px] items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100">
@@ -865,7 +889,7 @@ function StockTableRow({
             defaultValue={
               article.stock_quantity
             }
-            className="h-11 rounded-xl border border-zinc-200 px-3 text-sm font-bold outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+            className="h-11 rounded-xl border border-zinc-200 px-3 text-sm font-bold outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
           />
 
           <input
@@ -876,7 +900,7 @@ function StockTableRow({
               article.min_stock ||
               0
             }
-            className="h-11 rounded-xl border border-zinc-200 px-3 text-sm font-bold outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+            className="h-11 rounded-xl border border-zinc-200 px-3 text-sm font-bold outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
           />
 
           <button

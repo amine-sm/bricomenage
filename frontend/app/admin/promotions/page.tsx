@@ -65,6 +65,7 @@ type Promotion = {
   starts_at?: string;
   ends_at?: string;
   is_active: number | boolean;
+  is_effective_active?: number | boolean;
   article_count?: number;
   articles?: PromotionArticle[];
   created_at?: string;
@@ -101,16 +102,32 @@ function formatPrice(value: number) {
   return new Intl.NumberFormat("fr-DZ").format(Number(value || 0));
 }
 
-function toLocalInputValue(value?: string) {
-  if (!value) return "";
+function toLocalInputValue(
+  value?: string,
+) {
+  if (!value) {
+    return "";
+  }
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60_000)
-    .toISOString()
+  return String(value)
+    .replace(" ", "T")
+    .replace(/Z$/i, "")
     .slice(0, 16);
+}
+
+function toApiDateTime(
+  value: string,
+) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized =
+    value.replace("T", " ");
+
+  return normalized.length === 16
+    ? `${normalized}:00`
+    : normalized.slice(0, 19);
 }
 
 function formatDate(value?: string) {
@@ -125,23 +142,28 @@ function formatDate(value?: string) {
   }).format(date);
 }
 
-function isActivePromotion(promotion: Promotion) {
-  if (!(promotion.is_active === true || Number(promotion.is_active) === 1)) {
-    return false;
+function isActivePromotion(
+  promotion: Promotion,
+) {
+  if (
+    promotion.is_effective_active !==
+      undefined
+  ) {
+    return (
+      promotion.is_effective_active ===
+        true ||
+      Number(
+        promotion.is_effective_active,
+      ) === 1
+    );
   }
 
-  const now = Date.now();
-  const startsAt = promotion.starts_at
-    ? new Date(promotion.starts_at).getTime()
-    : null;
-  const endsAt = promotion.ends_at
-    ? new Date(promotion.ends_at).getTime()
-    : null;
-
-  if (startsAt && startsAt > now) return false;
-  if (endsAt && endsAt < now) return false;
-
-  return true;
+  return (
+    promotion.is_active === true ||
+    Number(
+      promotion.is_active,
+    ) === 1
+  );
 }
 
 export default function PromotionsPage() {
@@ -154,6 +176,12 @@ export default function PromotionsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [
+    promotionToDelete,
+    setPromotionToDelete,
+  ] = useState<Promotion | null>(
+    null,
+  );
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -208,6 +236,47 @@ export default function PromotionsPage() {
       "table",
     );
   }, []);
+
+  useEffect(() => {
+    function handleEscape(
+      event: KeyboardEvent,
+    ) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (detail) {
+        setDetail(null);
+        return;
+      }
+
+      if (promotionToDelete) {
+        setPromotionToDelete(null);
+        return;
+      }
+
+      if (modalOpen && !saving) {
+        closeModal();
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleEscape,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleEscape,
+      );
+    };
+  }, [
+    detail,
+    modalOpen,
+    promotionToDelete,
+    saving,
+  ]);
 
   function changeViewMode(mode: ViewMode) {
     setViewMode(mode);
@@ -359,8 +428,13 @@ export default function PromotionsPage() {
     }
   }
 
-  function closeModal() {
-    if (saving) return;
+  function closeModal(
+    force = false,
+  ) {
+    if (saving && !force) {
+      return;
+    }
+
     setModalOpen(false);
     setForm(EMPTY_FORM);
     setArticleQuery("");
@@ -441,8 +515,14 @@ export default function PromotionsPage() {
             description: form.description.trim(),
             discount_type: form.discount_type,
             discount_value: discount,
-            starts_at: form.starts_at || null,
-            ends_at: form.ends_at || null,
+            starts_at:
+              toApiDateTime(
+                form.starts_at,
+              ),
+            ends_at:
+              toApiDateTime(
+                form.ends_at,
+              ),
             is_active: form.is_active,
             articleIds: form.articleIds,
           }),
@@ -455,7 +535,7 @@ export default function PromotionsPage() {
           : "Promotion créée et appliquée aux articles sélectionnés.",
       );
 
-      closeModal();
+      closeModal(true);
       await load();
     } catch (requestError) {
       setError(
@@ -468,22 +548,43 @@ export default function PromotionsPage() {
     }
   }
 
-  async function remove(promotion: Promotion) {
-    if (!window.confirm(`Supprimer la promotion « ${promotion.name} » ?`)) {
+  function requestDelete(
+    promotion: Promotion,
+  ) {
+    setPromotionToDelete(
+      promotion,
+    );
+  }
+
+  async function confirmDelete() {
+    if (!promotionToDelete) {
       return;
     }
 
-    setDeletingId(promotion.id);
+    setDeletingId(
+      promotionToDelete.id,
+    );
     setError("");
     setSuccess("");
 
     try {
-      await apiFetch(`/admin/promotions/${promotion.id}`, {
-        method: "DELETE",
-        headers: adminHeaders(),
-      });
+      await apiFetch(
+        `/admin/promotions/${promotionToDelete.id}`,
+        {
+          method: "DELETE",
+          headers:
+            adminHeaders(),
+        },
+      );
 
-      setSuccess("Promotion supprimée avec succès.");
+      setSuccess(
+        "Promotion supprimée avec succès.",
+      );
+
+      setPromotionToDelete(
+        null,
+      );
+
       await load();
     } catch (requestError) {
       setError(
@@ -499,24 +600,26 @@ export default function PromotionsPage() {
   return (
     <AdminShell>
       <div className="space-y-7">
-        <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
-              <CirclePercent className="h-4 w-4" />
-              Campagnes commerciales
-            </span>
+        <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-300/35 blur-3xl" />
 
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">
-              Promotions
-            </h1>
+          <div className="relative flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
+                <CirclePercent className="h-4 w-4" />
+                Gestion des campagnes
+              </span>
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
-              Créez une réduction et sélectionnez précisément les articles
-              auxquels elle doit être appliquée.
-            </p>
-          </div>
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">
+                Promotions
+              </h1>
 
-          <div className="flex flex-wrap gap-3">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
+                Gérez les réductions, les périodes d’activation et les produits concernés.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={load}
@@ -537,6 +640,7 @@ export default function PromotionsPage() {
               <Plus className="h-5 w-5" />
               Nouvelle promotion
             </button>
+            </div>
           </div>
         </section>
 
@@ -756,7 +860,7 @@ export default function PromotionsPage() {
 
                         <button
                           type="button"
-                          onClick={() => remove(promotion)}
+                          onClick={() => requestDelete(promotion)}
                           disabled={deletingId === promotion.id}
                           className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-50 text-xs font-black text-red-700 transition hover:bg-red-600 hover:text-white disabled:opacity-60"
                         >
@@ -867,7 +971,7 @@ export default function PromotionsPage() {
 
                               <button
                                 type="button"
-                                onClick={() => remove(promotion)}
+                                onClick={() => requestDelete(promotion)}
                                 disabled={deletingId === promotion.id}
                                 className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-600 hover:text-white disabled:opacity-60"
                                 aria-label="Supprimer la promotion"
@@ -899,31 +1003,48 @@ export default function PromotionsPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-zinc-950/55 p-3 backdrop-blur-sm sm:p-5">
+        <div
+          className="fixed inset-0 z-[120] overflow-y-auto bg-zinc-950/60 p-3 backdrop-blur-sm sm:p-5"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeModal();
+            }
+          }}
+        >
           <form
             onSubmit={submit}
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+            role="dialog"
+            aria-modal="true"
             className="mx-auto my-4 w-full max-w-6xl overflow-hidden rounded-[30px] bg-white shadow-2xl"
           >
-            <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-5 sm:px-7">
+            <div className="relative flex items-start justify-between gap-4 overflow-hidden bg-gradient-to-r from-zinc-950 via-zinc-900 to-orange-950 px-5 py-6 text-white sm:px-7">
+              <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-orange-500/25 blur-3xl" />
               <div>
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">
+                <span className="relative text-xs font-black uppercase tracking-[0.16em] text-orange-400">
                   Promotion produits
                 </span>
 
-                <h2 className="mt-2 text-2xl font-black">
+                <h2 className="relative mt-2 text-2xl font-black">
                   {form.id ? "Modifier la promotion" : "Nouvelle promotion"}
                 </h2>
 
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="relative mt-1 text-sm text-zinc-300">
                   Configurez la réduction puis choisissez les produits concernés.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={closeModal}
+                onClick={() => closeModal()}
                 disabled={saving}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600"
+                aria-label="Fermer"
+                className="relative z-30 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition hover:scale-105 hover:bg-orange-500 active:scale-95"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1157,7 +1278,7 @@ export default function PromotionsPage() {
             <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 bg-zinc-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-7">
               <button
                 type="button"
-                onClick={closeModal}
+                onClick={() => closeModal()}
                 disabled={saving}
                 className="min-h-12 rounded-2xl border border-zinc-200 bg-white px-6 text-sm font-black text-zinc-600"
               >
@@ -1186,11 +1307,110 @@ export default function PromotionsPage() {
         </div>
       )}
 
+
+      {promotionToDelete && (
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-zinc-950/65 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setPromotionToDelete(
+                null,
+              );
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="bg-gradient-to-r from-zinc-950 to-red-950 p-6 text-white">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500">
+                <Trash2 className="h-6 w-6" />
+              </span>
+
+              <h2 className="mt-5 text-2xl font-black">
+                Supprimer la promotion ?
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                La promotion «{" "}
+                <strong className="text-white">
+                  {promotionToDelete.name}
+                </strong>
+                {" "}» et ses associations aux articles seront supprimées.
+              </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 p-5 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setPromotionToDelete(
+                    null,
+                  )
+                }
+                disabled={
+                  deletingId ===
+                  promotionToDelete.id
+                }
+                className="min-h-12 rounded-2xl border border-zinc-200 bg-white px-6 text-sm font-black text-zinc-600"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={
+                  deletingId ===
+                  promotionToDelete.id
+                }
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-red-600 px-6 text-sm font-black text-white shadow-lg shadow-red-600/20 disabled:opacity-60"
+              >
+                {deletingId ===
+                promotionToDelete.id ? (
+                  <LoaderCircle className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-5 w-5" />
+                )}
+
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {detail && (
-        <div className="fixed inset-0 z-[110] overflow-y-auto bg-zinc-950/55 p-4 backdrop-blur-sm">
-          <div className="mx-auto my-6 w-full max-w-4xl overflow-hidden rounded-[30px] bg-white shadow-2xl">
-            <div className="flex items-start justify-between bg-zinc-950 p-6 text-white">
-              <div>
+        <div
+          className="fixed inset-0 z-[130] overflow-y-auto bg-zinc-950/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setDetail(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="mx-auto my-6 w-full max-w-5xl overflow-hidden rounded-[30px] bg-white shadow-2xl"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="relative flex items-start justify-between overflow-hidden bg-gradient-to-r from-zinc-950 via-zinc-900 to-orange-950 p-6 text-white">
+              <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-orange-500/25 blur-3xl" />
+              <div className="relative z-10 pr-14">
                 <span className="text-xs font-black uppercase tracking-wider text-orange-400">
                   Détail promotion
                 </span>
@@ -1204,7 +1424,8 @@ export default function PromotionsPage() {
               <button
                 type="button"
                 onClick={() => setDetail(null)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10"
+                aria-label="Fermer"
+                className="absolute right-4 top-4 z-30 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/10 transition hover:scale-105 hover:bg-orange-500 active:scale-95"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1226,48 +1447,69 @@ export default function PromotionsPage() {
 
               <h3 className="mt-7 font-black">Produits concernés</h3>
 
-              <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[650px] text-left text-sm">
-                    <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
-                      <tr>
-                        <th className="p-4">Produit</th>
-                        <th className="p-4">Prix initial</th>
-                        <th className="p-4">Prix promotionnel</th>
-                        <th className="p-4">Économie</th>
-                      </tr>
-                    </thead>
+              <div className="mt-4 grid gap-3">
+                {(detail.articles || []).map(
+                  (article) => {
+                    const economy =
+                      Number(
+                        article.original_price,
+                      ) -
+                      Number(
+                        article.promotional_price,
+                      );
 
-                    <tbody>
-                      {(detail.articles || []).map((article) => (
-                        <tr key={article.id} className="border-t border-zinc-100">
-                          <td className="p-4">
-                            <strong>{article.designation}</strong>
-                            <small className="block text-zinc-400">
-                              {article.reference || "-"}
-                            </small>
-                          </td>
+                    return (
+                      <article
+                        key={article.id}
+                        className="group grid gap-4 rounded-2xl border border-zinc-200 bg-white p-3 transition hover:border-orange-200 hover:bg-orange-50/20 hover:shadow-md sm:grid-cols-[88px_minmax(0,1fr)_auto] sm:items-center"
+                      >
+                        <div className="h-24 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 sm:h-[88px]">
+                          {article.image ? (
+                            <img
+                              src={article.image}
+                              alt={article.designation}
+                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <Package className="h-8 w-8 text-zinc-300" />
+                            </div>
+                          )}
+                        </div>
 
-                          <td className="p-4 text-zinc-500 line-through">
-                            {formatPrice(article.original_price)} DA
-                          </td>
+                        <div className="min-w-0">
+                          <h4 className="truncate font-black text-zinc-950">
+                            {article.designation}
+                          </h4>
 
-                          <td className="p-4 font-black text-orange-600">
-                            {formatPrice(article.promotional_price)} DA
-                          </td>
+                          <span className="mt-1 block text-xs text-zinc-400">
+                            {article.reference || "Sans référence"}
+                          </span>
 
-                          <td className="p-4 font-bold text-emerald-600">
-                            {formatPrice(
-                              article.original_price -
-                                article.promotional_price,
-                            )}{" "}
-                            DA
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <span className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs font-bold text-zinc-500 line-through">
+                              {formatPrice(article.original_price)} DA
+                            </span>
+
+                            <span className="rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs font-black text-orange-700">
+                              {formatPrice(article.promotional_price)} DA
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl bg-zinc-950 px-4 py-3 text-white sm:min-w-[140px] sm:text-right">
+                          <span className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                            Économie
+                          </span>
+
+                          <strong className="mt-1 block whitespace-nowrap text-lg font-black text-emerald-400">
+                            {formatPrice(economy)} DA
+                          </strong>
+                        </div>
+                      </article>
+                    );
+                  },
+                )}
               </div>
             </div>
           </div>
@@ -1291,7 +1533,7 @@ function StatCard({
   className: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="group rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
       <span
         className={`flex h-12 w-12 items-center justify-center rounded-2xl ${className}`}
       >

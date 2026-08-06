@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Clock3,
   Eye,
+  ImageIcon,
   LoaderCircle,
   MapPin,
   PackageCheck,
@@ -64,7 +65,11 @@ type Order = {
 
 type OrderItem = {
   id: number;
+  article_id?: number | null;
+  pack_id?: number | null;
+  item_type?: "ARTICLE" | "PACK";
   designation: string;
+  image?: string | null;
   quantity: number;
   unit_price: number;
   line_total: number;
@@ -199,6 +204,27 @@ function normalizeStatus(
   return STATUSES.includes(status)
     ? status
     : "NOUVELLE";
+}
+
+function productImageUrl(
+  value?: string | null,
+) {
+  if (!value) {
+    return "";
+  }
+
+  if (
+    value.startsWith("http://") ||
+    value.startsWith("https://") ||
+    value.startsWith("/")
+  ) {
+    return value;
+  }
+
+  return `/${value.replace(
+    /^\/+/, 
+    "",
+  )}`;
 }
 
 export default function OrdersPage() {
@@ -634,23 +660,26 @@ export default function OrdersPage() {
   return (
     <AdminShell>
       <div className="space-y-7">
-        <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
-              <ClipboardList className="h-4 w-4" />
-              Gestion des ventes
-            </span>
+        <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-300/35 blur-3xl" />
 
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">
-              Commandes
-            </h1>
+          <div className="relative flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
+                <ClipboardList className="h-4 w-4" />
+                Gestion des ventes
+              </span>
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
-              Consultez les commandes, mettez à jour leur statut et suivez leur historique.
-            </p>
-          </div>
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">
+                Commandes
+              </h1>
 
-          <button
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
+                Consultez les commandes, gérez leur statut et suivez chaque étape de livraison.
+              </p>
+            </div>
+
+            <button
             type="button"
             onClick={load}
             disabled={loading}
@@ -663,8 +692,9 @@ export default function OrdersPage() {
                   : ""
               }`}
             />
-            Actualiser
-          </button>
+              Actualiser
+            </button>
+          </div>
         </section>
 
         {success && (
@@ -723,9 +753,11 @@ export default function OrdersPage() {
           />
         </section>
 
-        <section className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <section className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="pointer-events-none absolute -left-16 -top-20 h-44 w-44 rounded-full bg-orange-100/40 blur-3xl" />
+          <div className="relative">
           <div className="grid gap-4 xl:grid-cols-[minmax(280px,1fr)_200px_190px_210px]">
-            <div className="relative">
+            <div className="relative z-10 pr-14">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
 
               <input
@@ -860,6 +892,7 @@ export default function OrdersPage() {
               Réinitialiser les filtres
             </button>
           </div>
+          </div>
         </section>
 
         <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm">
@@ -889,7 +922,7 @@ export default function OrdersPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1180px] text-left text-sm">
-                <thead className="border-b border-zinc-200 bg-zinc-50/80">
+                <thead className="border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-orange-50/40">
                   <tr className="text-xs font-black uppercase tracking-[0.08em] text-zinc-500">
                     <th className="px-5 py-4">
                       Commande
@@ -1017,6 +1050,19 @@ export default function OrdersPage() {
           }
         />
       )}
+      <style jsx global>{`
+        @keyframes modalIn {
+          from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.985);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
     </AdminShell>
   );
 }
@@ -1038,22 +1084,23 @@ function StatCard({
   iconClassName,
 }: StatCardProps) {
   return (
-    <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="group relative overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-orange-100/50 blur-2xl transition group-hover:scale-125" />
       <span
-        className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconClassName}`}
+        className={`relative flex h-12 w-12 items-center justify-center rounded-2xl ${iconClassName}`}
       >
         <Icon className="h-6 w-6" />
       </span>
 
-      <strong className="mt-5 block text-2xl font-black leading-tight text-zinc-950">
+      <strong className="relative mt-5 block text-2xl font-black leading-tight text-zinc-950">
         {value}
       </strong>
 
-      <span className="mt-1 block text-sm font-black text-zinc-700">
+      <span className="relative mt-1 block text-sm font-black text-zinc-700">
         {label}
       </span>
 
-      <p className="mt-1 text-xs leading-5 text-zinc-400">
+      <p className="relative mt-1 text-xs leading-5 text-zinc-400">
         {description}
       </p>
     </div>
@@ -1179,7 +1226,9 @@ function OrderTableRow({
           <button
             type="button"
             onClick={onOpen}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition hover:bg-orange-500 hover:text-white"
+            title="Voir le détail"
+            aria-label="Voir le détail de la commande"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition hover:scale-105 hover:bg-orange-500 hover:text-white active:scale-95"
           >
             <Eye className="h-4 w-4" />
           </button>
@@ -1207,16 +1256,61 @@ function OrderDetailModal({
       detail.order.status,
     );
 
+  useEffect(() => {
+    function handleEscape(
+      event: KeyboardEvent,
+    ) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleEscape,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleEscape,
+      );
+    };
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-[110] overflow-y-auto bg-zinc-950/55 p-4 backdrop-blur-sm">
-      <div className="mx-auto my-5 w-full max-w-5xl overflow-hidden rounded-[30px] bg-white shadow-2xl">
+    <div
+      className="fixed inset-0 z-[140] overflow-y-auto bg-zinc-950/60 p-4 backdrop-blur-sm"
+      onMouseDown={(event) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Détail de la commande"
+        className="mx-auto my-5 w-full max-w-5xl animate-[modalIn_.25s_ease-out] overflow-hidden rounded-[30px] bg-white shadow-2xl"
+        onMouseDown={(event) =>
+          event.stopPropagation()
+        }
+      >
         <div className="relative overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-orange-950 p-6 text-white sm:p-7">
-          <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-orange-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-orange-500/20 blur-3xl" />
 
           <button
             type="button"
-            onClick={onClose}
-            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur transition hover:bg-white/20"
+            aria-label="Fermer le détail de la commande"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onClose();
+            }}
+            className="absolute right-4 top-4 z-30 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/15 text-white shadow-lg backdrop-blur transition hover:scale-105 hover:bg-orange-500 active:scale-95"
           >
             <X className="h-5 w-5" />
           </button>
@@ -1241,6 +1335,26 @@ function OrderDetailModal({
                   .created_at,
               )}
             </p>
+          </div>
+        </div>
+
+        <div className="border-b border-zinc-200 bg-orange-50/50 px-5 py-3 sm:px-7">
+          <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-zinc-600">
+            <span className="inline-flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-orange-500" />
+              Commande #{detail.order.id}
+            </span>
+
+            <span className="inline-flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-orange-500" />
+              {formatDate(detail.order.created_at)}
+            </span>
+
+            <span className="inline-flex items-center gap-2">
+              <PackageCheck className="h-4 w-4 text-orange-500" />
+              {detail.items.length} produit
+              {detail.items.length > 1 ? "s" : ""}
+            </span>
           </div>
         </div>
 
@@ -1331,67 +1445,86 @@ function OrderDetailModal({
                 </span>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[560px] text-left text-sm">
-                  <thead className="bg-white text-xs uppercase text-zinc-400">
-                    <tr>
-                      <th className="px-4 py-3">
-                        Article
-                      </th>
+              <div className="grid gap-3 p-4">
+                {detail.items.map(
+                  (item) => {
+                    const image =
+                      productImageUrl(
+                        item.image,
+                      );
 
-                      <th className="px-4 py-3">
-                        Prix unitaire
-                      </th>
+                    return (
+                      <article
+                        key={item.id}
+                        className="group grid gap-4 rounded-2xl border border-zinc-200 bg-white p-3 transition hover:border-orange-200 hover:bg-orange-50/20 hover:shadow-md sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center"
+                      >
+                        <div className="relative h-24 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 sm:h-[92px]">
+                          {image ? (
+                            <img
+                              src={image}
+                              alt={
+                                item.designation
+                              }
+                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-300">
+                              <ImageIcon className="h-7 w-7" />
 
-                      <th className="px-4 py-3">
-                        Qté
-                      </th>
+                              <span className="text-[10px] font-bold uppercase tracking-wider">
+                                Sans image
+                              </span>
+                            </div>
+                          )}
 
-                      <th className="px-4 py-3 text-right">
-                        Total
-                      </th>
-                    </tr>
-                  </thead>
+                          <span className="absolute left-2 top-2 rounded-lg bg-zinc-950/80 px-2 py-1 text-[9px] font-black text-white backdrop-blur">
+                            {item.item_type ===
+                            "PACK"
+                              ? "Pack"
+                              : "Article"}
+                          </span>
+                        </div>
 
-                  <tbody>
-                    {detail.items.map(
-                      (item) => (
-                        <tr
-                          key={
-                            item.id
-                          }
-                          className="border-t border-zinc-100"
-                        >
-                          <td className="px-4 py-3 font-bold text-zinc-800">
+                        <div className="min-w-0">
+                          <h4 className="truncate text-sm font-black text-zinc-950 sm:text-base">
                             {
                               item.designation
                             }
-                          </td>
+                          </h4>
 
-                          <td className="px-4 py-3 text-zinc-500">
-                            {formatPrice(
-                              item.unit_price,
-                            )}{" "}
-                            DA
-                          </td>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs font-bold text-zinc-600">
+                              {formatPrice(
+                                item.unit_price,
+                              )}{" "}
+                              DA / unité
+                            </span>
 
-                          <td className="px-4 py-3 font-bold text-zinc-700">
-                            {
-                              item.quantity
-                            }
-                          </td>
+                            <span className="rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs font-black text-orange-700">
+                              Quantité :{" "}
+                              {
+                                item.quantity
+                              }
+                            </span>
+                          </div>
+                        </div>
 
-                          <td className="px-4 py-3 text-right font-black text-zinc-950">
+                        <div className="rounded-2xl bg-zinc-950 px-4 py-3 text-left text-white sm:min-w-[135px] sm:text-right">
+                          <span className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                            Total
+                          </span>
+
+                          <strong className="mt-1 block whitespace-nowrap text-lg font-black text-orange-400">
                             {formatPrice(
                               item.line_total,
                             )}{" "}
                             DA
-                          </td>
-                        </tr>
-                      ),
-                    )}
-                  </tbody>
-                </table>
+                          </strong>
+                        </div>
+                      </article>
+                    );
+                  },
+                )}
               </div>
             </section>
           </div>
@@ -1450,7 +1583,12 @@ function OrderDetailModal({
               </h3>
 
               <div className="mt-4 space-y-4">
-                {detail.history.map(
+                {detail.history.length === 0 ? (
+                  <div className="rounded-2xl bg-zinc-50 p-4 text-center text-xs font-semibold text-zinc-400">
+                    Aucun historique disponible.
+                  </div>
+                ) : (
+                  detail.history.map(
                   (
                     history,
                     index,
@@ -1492,6 +1630,7 @@ function OrderDetailModal({
                       )}
                     </div>
                   ),
+                )
                 )}
               </div>
             </section>

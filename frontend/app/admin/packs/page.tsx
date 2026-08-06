@@ -137,6 +137,10 @@ export default function PacksPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [
+    packToDelete,
+    setPackToDelete,
+  ] = useState<Pack | null>(null);
 
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -190,6 +194,47 @@ export default function PacksPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [query, statusFilter]);
+
+  useEffect(() => {
+    function handleEscape(
+      event: KeyboardEvent,
+    ) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (detail) {
+        setDetail(null);
+        return;
+      }
+
+      if (packToDelete) {
+        setPackToDelete(null);
+        return;
+      }
+
+      if (modalOpen && !saving) {
+        closeModal();
+      }
+    }
+
+    window.addEventListener(
+      "keydown",
+      handleEscape,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "keydown",
+        handleEscape,
+      );
+    };
+  }, [
+    detail,
+    modalOpen,
+    packToDelete,
+    saving,
+  ]);
 
   useEffect(() => {
     const savedView = window.localStorage.getItem("admin-packs-view");
@@ -386,8 +431,12 @@ export default function PacksPage() {
     }
   }
 
-  function closeModal() {
-    if (saving) return;
+  function closeModal(
+    force = false,
+  ) {
+    if (saving && !force) {
+      return;
+    }
 
     setModalOpen(false);
     setForm(EMPTY_FORM);
@@ -483,7 +532,7 @@ export default function PacksPage() {
           : "Pack créé avec les produits sélectionnés.",
       );
 
-      closeModal();
+      closeModal(true);
       await load();
     } catch (requestError) {
       setError(
@@ -496,22 +545,37 @@ export default function PacksPage() {
     }
   }
 
-  async function remove(pack: Pack) {
-    if (!window.confirm(`Supprimer le pack « ${pack.name} » ?`)) {
+  function requestDelete(
+    pack: Pack,
+  ) {
+    setPackToDelete(pack);
+  }
+
+  async function confirmDelete() {
+    if (!packToDelete) {
       return;
     }
 
-    setDeletingId(pack.id);
+    setDeletingId(
+      packToDelete.id,
+    );
     setError("");
     setSuccess("");
 
     try {
-      await apiFetch(`/admin/packs/${pack.id}`, {
-        method: "DELETE",
-        headers: adminHeaders(),
-      });
+      await apiFetch(
+        `/admin/packs/${packToDelete.id}`,
+        {
+          method: "DELETE",
+          headers:
+            adminHeaders(),
+        },
+      );
 
-      setSuccess("Pack supprimé avec succès.");
+      setSuccess(
+        "Pack supprimé avec succès.",
+      );
+      setPackToDelete(null);
       await load();
     } catch (requestError) {
       setError(
@@ -527,24 +591,26 @@ export default function PacksPage() {
   return (
     <AdminShell>
       <div className="space-y-7">
-        <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
-              <Boxes className="h-4 w-4" />
-              Offres groupées
-            </span>
+        <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-300/35 blur-3xl" />
 
-            <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">
-              Packs
-            </h1>
+          <div className="relative flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-orange-600">
+                <Boxes className="h-4 w-4" />
+                Gestion des offres groupées
+              </span>
 
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
-              Regroupez plusieurs articles, définissez leur quantité et proposez
-              un prix global avantageux.
-            </p>
-          </div>
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">
+                Packs
+              </h1>
 
-          <div className="flex flex-wrap gap-3">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
+                Composez vos packs, gérez les quantités, les prix, le stock réel et leur visibilité.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
             <button
               type="button"
               onClick={load}
@@ -565,6 +631,7 @@ export default function PacksPage() {
               <Plus className="h-5 w-5" />
               Nouveau pack
             </button>
+            </div>
           </div>
         </section>
 
@@ -809,7 +876,7 @@ export default function PacksPage() {
                           label="Supprimer"
                           icon={deletingId === pack.id ? LoaderCircle : Trash2}
                           className="bg-red-50 text-red-700 hover:bg-red-600 hover:text-white"
-                          onClick={() => remove(pack)}
+                          onClick={() => requestDelete(pack)}
                           disabled={deletingId === pack.id}
                           spin={deletingId === pack.id}
                         />
@@ -956,7 +1023,7 @@ export default function PacksPage() {
 
                                 <button
                                   type="button"
-                                  onClick={() => remove(pack)}
+                                  onClick={() => requestDelete(pack)}
                                   disabled={deletingId === pack.id}
                                   className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-600 hover:text-white disabled:opacity-60"
                                   aria-label="Supprimer le pack"
@@ -988,31 +1055,48 @@ export default function PacksPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-[100] overflow-y-auto bg-zinc-950/55 p-3 backdrop-blur-sm sm:p-5">
+        <div
+          className="fixed inset-0 z-[120] overflow-y-auto bg-zinc-950/60 p-3 backdrop-blur-sm sm:p-5"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeModal();
+            }
+          }}
+        >
           <form
             onSubmit={submit}
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+            role="dialog"
+            aria-modal="true"
             className="mx-auto my-4 w-full max-w-6xl overflow-hidden rounded-[30px] bg-white shadow-2xl"
           >
-            <div className="flex items-start justify-between gap-4 border-b border-zinc-200 px-5 py-5 sm:px-7">
+            <div className="relative flex items-start justify-between gap-4 overflow-hidden bg-gradient-to-r from-zinc-950 via-zinc-900 to-orange-950 px-5 py-6 text-white sm:px-7">
+              <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-orange-500/25 blur-3xl" />
               <div>
-                <span className="text-xs font-black uppercase tracking-[0.16em] text-orange-500">
+                <span className="relative text-xs font-black uppercase tracking-[0.16em] text-orange-400">
                   Composition du pack
                 </span>
 
-                <h2 className="mt-2 text-2xl font-black">
+                <h2 className="relative mt-2 text-2xl font-black">
                   {form.id ? "Modifier le pack" : "Nouveau pack"}
                 </h2>
 
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="relative mt-1 text-sm text-zinc-300">
                   Sélectionnez plusieurs articles et définissez leur quantité.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={closeModal}
+                onClick={() => closeModal()}
                 disabled={saving}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600"
+                aria-label="Fermer"
+                className="relative z-30 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/10 text-white transition hover:scale-105 hover:bg-orange-500 active:scale-95"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1084,18 +1168,6 @@ export default function PacksPage() {
                       }))
                     }
                     placeholder={String(normalTotal || 0)}
-                  />
-
-                  <Field
-                    label="URL de l’image"
-                    value={form.image}
-                    onChange={(value) =>
-                      setForm((current) => ({
-                        ...current,
-                        image: value,
-                      }))
-                    }
-                    placeholder="https://..."
                   />
 
                   <label className="block text-sm font-black text-zinc-700">
@@ -1277,7 +1349,7 @@ export default function PacksPage() {
             <div className="flex flex-col-reverse gap-3 border-t border-zinc-200 bg-zinc-50 px-5 py-4 sm:flex-row sm:justify-end sm:px-7">
               <button
                 type="button"
-                onClick={closeModal}
+                onClick={() => closeModal()}
                 disabled={saving}
                 className="min-h-12 rounded-2xl border border-zinc-200 bg-white px-6 text-sm font-black text-zinc-600"
               >
@@ -1306,15 +1378,109 @@ export default function PacksPage() {
         </div>
       )}
 
+
+      {packToDelete && (
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-zinc-950/65 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setPackToDelete(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md overflow-hidden rounded-[28px] bg-white shadow-2xl"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="bg-gradient-to-r from-zinc-950 to-red-950 p-6 text-white">
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500">
+                <Trash2 className="h-6 w-6" />
+              </span>
+
+              <h2 className="mt-5 text-2xl font-black">
+                Supprimer le pack ?
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-zinc-300">
+                Le pack «{" "}
+                <strong className="text-white">
+                  {packToDelete.name}
+                </strong>
+                {" "}» et sa composition seront supprimés.
+              </p>
+            </div>
+
+            <div className="flex flex-col-reverse gap-3 p-5 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  setPackToDelete(null)
+                }
+                disabled={
+                  deletingId ===
+                  packToDelete.id
+                }
+                className="min-h-12 rounded-2xl border border-zinc-200 bg-white px-6 text-sm font-black text-zinc-600"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={
+                  deletingId ===
+                  packToDelete.id
+                }
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-red-600 px-6 text-sm font-black text-white shadow-lg shadow-red-600/20 disabled:opacity-60"
+              >
+                {deletingId ===
+                packToDelete.id ? (
+                  <LoaderCircle className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-5 w-5" />
+                )}
+
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {detail && (
-        <div className="fixed inset-0 z-[110] overflow-y-auto bg-zinc-950/55 p-4 backdrop-blur-sm">
-          <div className="mx-auto my-6 w-full max-w-4xl overflow-hidden rounded-[30px] bg-white shadow-2xl">
+        <div
+          className="fixed inset-0 z-[130] overflow-y-auto bg-zinc-950/60 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              setDetail(null);
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="mx-auto my-6 w-full max-w-5xl overflow-hidden rounded-[30px] bg-white shadow-2xl"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
             <div className="relative overflow-hidden bg-zinc-950 p-6 text-white">
               {detail.image && (
                 <img
                   src={detail.image}
                   alt={detail.name}
-                  className="absolute inset-0 h-full w-full object-cover opacity-25"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-25"
                 />
               )}
 
@@ -1323,7 +1489,8 @@ export default function PacksPage() {
               <button
                 type="button"
                 onClick={() => setDetail(null)}
-                className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10"
+                aria-label="Fermer"
+                className="absolute right-4 top-4 z-30 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/10 transition hover:scale-105 hover:bg-orange-500 active:scale-95"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1380,47 +1547,59 @@ export default function PacksPage() {
 
               <h3 className="mt-7 font-black">Composition du pack</h3>
 
-              <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[650px] text-left text-sm">
-                    <thead className="bg-zinc-50 text-xs uppercase text-zinc-500">
-                      <tr>
-                        <th className="p-4">Produit</th>
-                        <th className="p-4">Prix</th>
-                        <th className="p-4">Quantité</th>
-                        <th className="p-4 text-right">Total</th>
-                      </tr>
-                    </thead>
+              <div className="mt-4 grid gap-3">
+                {(detail.articles || []).map(
+                  (article) => (
+                    <article
+                      key={article.id}
+                      className="group grid gap-4 rounded-2xl border border-zinc-200 bg-white p-3 transition hover:border-orange-200 hover:bg-orange-50/20 hover:shadow-md sm:grid-cols-[88px_minmax(0,1fr)_auto] sm:items-center"
+                    >
+                      <div className="h-24 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 sm:h-[88px]">
+                        {article.image ? (
+                          <img
+                            src={article.image}
+                            alt={article.designation}
+                            className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Package className="h-8 w-8 text-zinc-300" />
+                          </div>
+                        )}
+                      </div>
 
-                    <tbody>
-                      {(detail.articles || []).map((article) => (
-                        <tr
-                          key={article.id}
-                          className="border-t border-zinc-100"
-                        >
-                          <td className="p-4">
-                            <strong>{article.designation}</strong>
-                            <small className="block text-zinc-400">
-                              {article.reference || "-"}
-                            </small>
-                          </td>
+                      <div className="min-w-0">
+                        <h4 className="truncate font-black text-zinc-950">
+                          {article.designation}
+                        </h4>
 
-                          <td className="p-4">
-                            {formatPrice(article.price)} DA
-                          </td>
+                        <span className="mt-1 block text-xs text-zinc-400">
+                          {article.reference || "Sans référence"}
+                        </span>
 
-                          <td className="p-4 font-black">
-                            {article.quantity}
-                          </td>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <span className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs font-bold text-zinc-600">
+                            {formatPrice(article.price)} DA / unité
+                          </span>
 
-                          <td className="p-4 text-right font-black">
-                            {formatPrice(article.line_total)} DA
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          <span className="rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs font-black text-orange-700">
+                            Quantité : {article.quantity}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl bg-zinc-950 px-4 py-3 text-white sm:min-w-[140px] sm:text-right">
+                        <span className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                          Total
+                        </span>
+
+                        <strong className="mt-1 block whitespace-nowrap text-lg font-black text-orange-400">
+                          {formatPrice(article.line_total)} DA
+                        </strong>
+                      </div>
+                    </article>
+                  ),
+                )}
               </div>
             </div>
           </div>
@@ -1444,7 +1623,7 @@ function StatCard({
   className: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm">
+    <div className="group rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
       <span
         className={`flex h-12 w-12 items-center justify-center rounded-2xl ${className}`}
       >

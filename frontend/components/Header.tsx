@@ -38,6 +38,11 @@ import {
 
 import { getCart } from "@/lib/cart";
 
+import {
+  catalogApi,
+  type CatalogCategory,
+} from "@/lib/catalog";
+
 const mainNavigation = [
   {
     label: "Accueil",
@@ -69,58 +74,163 @@ const mainNavigation = [
   },
 ] as const;
 
-const categories = [
-  {
-    label: "Outillage",
-    href:
-      "/articles?categorie=Outillage",
+type HeaderCategory = {
+  id: number;
+  label: string;
+  slug: string;
+  href: string;
+  icon: typeof Hammer;
+  className: string;
+  articleCount: number;
+  image?: string | null;
+};
+
+const fallbackCategories:
+  HeaderCategory[] = [
+    {
+      id: 1,
+      label: "Outillage",
+      slug: "outillage",
+      href:
+        "/articles?categorie=Outillage",
+      icon: Hammer,
+      className:
+        "bg-blue-50 text-blue-600",
+      articleCount: 0,
+    },
+    {
+      id: 2,
+      label: "Jardin",
+      slug: "jardin",
+      href:
+        "/articles?categorie=Jardin",
+      icon: Leaf,
+      className:
+        "bg-emerald-50 text-emerald-600",
+      articleCount: 0,
+    },
+    {
+      id: 3,
+      label: "Mobilier",
+      slug: "mobilier",
+      href:
+        "/articles?categorie=Mobilier",
+      icon: Sofa,
+      className:
+        "bg-orange-50 text-orange-600",
+      articleCount: 0,
+    },
+    {
+      id: 4,
+      label: "Peinture",
+      slug: "peinture",
+      href:
+        "/articles?categorie=Peinture",
+      icon: PaintRoller,
+      className:
+        "bg-rose-50 text-rose-600",
+      articleCount: 0,
+    },
+    {
+      id: 5,
+      label: "Électricité",
+      slug: "electricite",
+      href:
+        "/articles?categorie=Électricité",
+      icon: Zap,
+      className:
+        "bg-yellow-50 text-yellow-600",
+      articleCount: 0,
+    },
+    {
+      id: 6,
+      label: "Plomberie",
+      slug: "plomberie",
+      href:
+        "/articles?categorie=Plomberie",
+      icon: Droplets,
+      className:
+        "bg-cyan-50 text-cyan-600",
+      articleCount: 0,
+    },
+  ];
+
+function getHeaderCategoryVisual(
+  name: string,
+) {
+  const normalized = name
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      "",
+    )
+    .toLowerCase();
+
+  if (
+    normalized.includes("jardin")
+  ) {
+    return {
+      icon: Leaf,
+      className:
+        "bg-emerald-50 text-emerald-600",
+    };
+  }
+
+  if (
+    normalized.includes("mobil")
+  ) {
+    return {
+      icon: Sofa,
+      className:
+        "bg-orange-50 text-orange-600",
+    };
+  }
+
+  if (
+    normalized.includes("peint")
+  ) {
+    return {
+      icon: PaintRoller,
+      className:
+        "bg-rose-50 text-rose-600",
+    };
+  }
+
+  if (
+    normalized.includes("elect")
+  ) {
+    return {
+      icon: Zap,
+      className:
+        "bg-yellow-50 text-yellow-600",
+    };
+  }
+
+  if (
+    normalized.includes("plomb")
+  ) {
+    return {
+      icon: Droplets,
+      className:
+        "bg-cyan-50 text-cyan-600",
+    };
+  }
+
+  return {
     icon: Hammer,
     className:
       "bg-blue-50 text-blue-600",
-  },
-  {
-    label: "Jardin",
-    href:
-      "/articles?categorie=Jardin",
-    icon: Leaf,
-    className:
-      "bg-emerald-50 text-emerald-600",
-  },
-  {
-    label: "Mobilier",
-    href:
-      "/articles?categorie=Mobilier",
-    icon: Sofa,
-    className:
-      "bg-orange-50 text-orange-600",
-  },
-  {
-    label: "Peinture",
-    href:
-      "/articles?categorie=Peinture",
-    icon: PaintRoller,
-    className:
-      "bg-rose-50 text-rose-600",
-  },
-  {
-    label: "Électricité",
-    href:
-      "/articles?categorie=Électricité",
-    icon: Zap,
-    className:
-      "bg-yellow-50 text-yellow-600",
-  },
-  {
-    label: "Plomberie",
-    href:
-      "/articles?categorie=Plomberie",
-    icon: Droplets,
-    className:
-      "bg-cyan-50 text-cyan-600",
-  },
-] as const;
+  };
+}
 
 export default function Header() {
+  const [
+    categories,
+    setCategories,
+  ] = useState<HeaderCategory[]>(
+    fallbackCategories,
+  );
+
   const pathname =
     usePathname();
 
@@ -156,6 +266,76 @@ export default function Header() {
     scrolled,
     setScrolled,
   ] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCategories() {
+      try {
+        const response =
+          await catalogApi.categories();
+
+        if (
+          !active ||
+          !Array.isArray(
+            response.categories,
+          )
+        ) {
+          return;
+        }
+
+        const normalized =
+          response.categories.map(
+            (
+              category:
+                CatalogCategory,
+            ): HeaderCategory => {
+              const visual =
+                getHeaderCategoryVisual(
+                  category.name,
+                );
+
+              return {
+                id: Number(
+                  category.id,
+                ),
+                label:
+                  category.name,
+                slug:
+                  category.slug,
+                href:
+                  `/articles?categorie=${encodeURIComponent(
+                    category.name,
+                  )}`,
+                articleCount:
+                  Number(
+                    category.article_count ||
+                      0,
+                  ),
+                image:
+                  category.image ||
+                  null,
+                ...visual,
+              };
+            },
+          );
+
+        setCategories(normalized);
+      } catch {
+        /*
+         * Les catégories de secours
+         * restent visibles si l’API
+         * est indisponible.
+         */
+      }
+    }
+
+    void loadCategories();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     function refreshCart() {
@@ -599,7 +779,7 @@ export default function Header() {
                           return (
                             <motion.div
                               key={
-                                category.label
+                                category.id
                               }
                               initial={{
                                 opacity: 0,
@@ -626,17 +806,30 @@ export default function Header() {
                                 }`}
                               >
                                 <span
-                                  className={`flex h-11 w-11 items-center justify-center rounded-xl ${
+                                  className={`relative flex h-12 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl ${
                                     active
                                       ? "bg-orange-500 text-white"
                                       : category.className
                                   }`}
                                 >
-                                  <Icon className="h-5 w-5" />
+                                  {category.image ? (
+                                    <img
+                                      src={category.image}
+                                      alt={category.label}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <Icon className="h-5 w-5" />
+                                  )}
+
+                                  {category.image && active && (
+                                    <span className="absolute inset-0 ring-2 ring-inset ring-orange-500" />
+                                  )}
                                 </span>
 
-                                <strong
-                                  className={`text-sm ${
+                                <div className="min-w-0">
+                                  <strong
+                                    className={`block truncate text-sm ${
                                     active
                                       ? "text-orange-600"
                                       : "text-zinc-800 group-hover:text-orange-600"
@@ -645,7 +838,15 @@ export default function Header() {
                                   {
                                     category.label
                                   }
-                                </strong>
+                                  </strong>
+
+                                  <span className="mt-0.5 block text-[10px] font-semibold text-zinc-400">
+                                    {category.articleCount} article
+                                    {category.articleCount > 1
+                                      ? "s"
+                                      : ""}
+                                  </span>
+                                </div>
 
                                 {active && (
                                   <span className="ml-auto h-2 w-2 rounded-full bg-orange-500" />
@@ -838,7 +1039,7 @@ export default function Header() {
                             return (
                               <Link
                                 key={
-                                  category.label
+                                  category.id
                                 }
                                 href={
                                   category.href
@@ -850,18 +1051,35 @@ export default function Header() {
                                 }`}
                               >
                                 <span
-                                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                                  className={`flex h-12 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl ${
                                     active
                                       ? "bg-orange-500 text-white"
                                       : category.className
                                   }`}
                                 >
-                                  <Icon className="h-5 w-5" />
+                                  {category.image ? (
+                                    <img
+                                      src={category.image}
+                                      alt={category.label}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <Icon className="h-5 w-5" />
+                                  )}
                                 </span>
 
-                                {
-                                  category.label
-                                }
+                                <span className="min-w-0 flex-1">
+                                  <strong className="block truncate">
+                                    {category.label}
+                                  </strong>
+
+                                  <small className="mt-0.5 block text-[10px] text-zinc-400">
+                                    {category.articleCount} article
+                                    {category.articleCount > 1
+                                      ? "s"
+                                      : ""}
+                                  </small>
+                                </span>
 
                                 {active ? (
                                   <span className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-orange-500 text-white">

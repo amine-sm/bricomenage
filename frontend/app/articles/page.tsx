@@ -1,670 +1,1014 @@
 "use client";
 
+import Link from "next/link";
 import {
   useDeferredValue,
   useEffect,
   useMemo,
   useState,
 } from "react";
-
 import {
   useSearchParams,
 } from "next/navigation";
-
 import {
-  ArrowDownAZ,
   Boxes,
-  ChevronDown,
+  Eye,
   LoaderCircle,
+  ArrowUpDown,
   PackageSearch,
+  RotateCcw,
   Search,
+  ShoppingCart,
   SlidersHorizontal,
   Sparkles,
-  X,
+  Tag,
 } from "lucide-react";
+import {
+  motion,
+} from "framer-motion";
 
 import ProductCard, {
   type Product,
 } from "@/components/ProductCard";
-
 import {
-  apiFetch,
-} from "@/lib/api";
+  addToCart,
+} from "@/lib/cart";
+import {
+  catalogApi,
+  type CatalogArticle,
+  type CatalogPack,
+} from "@/lib/catalog";
 
-const CACHE_KEY =
-  "bricomenage-articles-cache-v1";
-
-const INITIAL_VISIBLE_COUNT = 12;
-const LOAD_MORE_COUNT = 12;
-
-const demoProducts: Product[] = [
-  {
-    id: 1,
-    slug: "marteau-professionnel",
-    designation:
-      "Marteau professionnel",
-    price: 1200,
-    old_price: 1500,
-    category: "Outillage",
-    description:
-      "Marteau robuste avec manche ergonomique.",
-    image:
-      "https://images.unsplash.com/photo-1607870411590-d5e9e06da09a?auto=format&fit=crop&w=700&q=75",
-    stock_quantity: 20,
-    rating: 4.8,
-    reviews: 124,
-    reference: "MAR-001",
-    brand: "BricoPro",
-  },
-  {
-    id: 2,
-    slug: "chaise-de-jardin",
-    designation:
-      "Chaise de jardin",
-    price: 4500,
-    old_price: 5200,
-    category: "Jardin",
-    description:
-      "Chaise confortable adaptée aux jardins et terrasses.",
-    image:
-      "https://images.pexels.com/photos/17976470/pexels-photo-17976470/free-photo-of-wooden-chair-in-the-garden.jpeg?auto=compress&cs=tinysrgb&w=700",
-    stock_quantity: 15,
-    rating: 4.6,
-    reviews: 89,
-    reference: "CHA-002",
-    brand: "GardenHome",
-  },
-  {
-    id: 3,
-    slug: "parasol-deporte",
-    designation:
-      "Parasol déporté",
-    price: 18500,
-    category: "Jardin",
-    description:
-      "Parasol déporté idéal pour protéger votre terrasse du soleil.",
-    image:
-      "https://images.pexels.com/photos/13872652/pexels-photo-13872652.jpeg?auto=compress&cs=tinysrgb&w=700",
-    stock_quantity: 8,
-    rating: 4.9,
-    reviews: 56,
-    reference: "PAR-003",
-    brand: "GardenHome",
-  },
-  {
-    id: 4,
-    slug: "perceuse-750-w",
-    designation:
-      "Perceuse 750 W",
-    price: 12900,
-    old_price: 14900,
-    category:
-      "Électroportatif",
-    description:
-      "Perceuse électrique puissante de 750 W pour vos travaux.",
-    image:
-      "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=700&q=75",
-    stock_quantity: 12,
-    rating: 4.7,
-    reviews: 203,
-    reference: "PER-004",
-    brand: "BricoPro",
-  },
-];
+type CatalogMode =
+  | "articles"
+  | "promotions"
+  | "packs";
 
 type SortOption =
-  | "default"
+  | "newest"
+  | "name-asc"
+  | "name-desc"
   | "price-asc"
-  | "price-desc"
-  | "name-asc";
+  | "price-desc";
 
-function createSlug(
-  value: string,
+type StockOption =
+  | "all"
+  | "available"
+  | "unavailable";
+
+type PackWithImages =
+  CatalogPack & {
+    article_images?: string[];
+    images?: string[];
+    articles?: Array<{
+      image?: string | null;
+      images?: string[];
+    }>;
+  };
+
+function formatPrice(
+  value: number,
 ) {
-  return value
-    .normalize("NFD")
-    .replace(
-      /[\u0300-\u036f]/g,
-      "",
-    )
-    .toLowerCase()
-    .replace(
-      /[^a-z0-9]+/g,
-      "-",
-    )
-    .replace(
-      /^-+|-+$/g,
-      "",
-    );
+  return new Intl.NumberFormat(
+    "fr-DZ",
+  ).format(value);
 }
 
-function normalizeProduct(
-  product: Product,
+function articleToProduct(
+  article: CatalogArticle,
 ): Product {
   return {
-    ...product,
-    id: Number(product.id),
-    price: Number(product.price),
+    id: Number(article.id),
+    slug: article.slug,
+    designation:
+      article.designation,
+    price: Number(article.price),
     old_price:
-      product.old_price !==
-      undefined
-        ? Number(
-            product.old_price,
-          )
-        : undefined,
-    stock_quantity:
-      product.stock_quantity !==
-      undefined
-        ? Number(
-            product.stock_quantity,
-          )
-        : undefined,
-    slug:
-      product.slug ||
-      createSlug(
-        product.designation,
-      ),
+      article.old_price === null ||
+      article.old_price === undefined
+        ? undefined
+        : Number(article.old_price),
+    category:
+      article.category ||
+      "Article",
+    description:
+      article.description ||
+      undefined,
+    image:
+      article.image ||
+      undefined,
+    images:
+      article.images,
+    stock_quantity: Number(
+      article.stock_quantity || 0,
+    ),
+    rating: Number(
+      article.rating || 0,
+    ),
+    reviews: Number(
+      article.reviews || 0,
+    ),
+    reference:
+      article.reference ||
+      undefined,
+    brand:
+      article.brand ||
+      undefined,
+    inStock:
+      article.inStock,
+    item_type: "ARTICLE",
   };
 }
 
-function readCachedProducts():
-  Product[] | null {
-  if (
-    typeof window ===
-    "undefined"
-  ) {
-    return null;
+function PackCard({
+  pack,
+}: {
+  pack: PackWithImages;
+}) {
+  const [added, setAdded] =
+    useState(false);
+
+  function addPack() {
+    if (!pack.inStock) return;
+
+    addToCart({
+      id: pack.id,
+      item_type: "PACK",
+      slug: pack.slug,
+      designation: pack.name,
+      price: Number(pack.price),
+      image:
+        cardImages[0] ||
+        undefined,
+      quantity: 1,
+    });
+
+    setAdded(true);
+    window.setTimeout(
+      () => setAdded(false),
+      1600,
+    );
   }
 
-  try {
-    const saved =
-      window.sessionStorage.getItem(
-        CACHE_KEY,
+  const packImages =
+    useMemo(() => {
+      const articleImages =
+        (pack.articles || [])
+          .flatMap(
+            (article) => [
+              article.image,
+              ...(article.images || []),
+            ],
+          )
+          .filter(
+            (
+              image,
+            ): image is string =>
+              Boolean(image),
+          );
+
+      return Array.from(
+        new Set(
+          [
+            pack.image,
+            ...(pack.images || []),
+            ...(pack.article_images || []),
+            ...articleImages,
+          ].filter(
+            (
+              image,
+            ): image is string =>
+              Boolean(image),
+          ),
+        ),
       );
+    }, [pack]);
 
-    if (!saved) {
-      return null;
-    }
+  const cardImages =
+    packImages.slice(0, 4);
 
-    const parsed =
-      JSON.parse(saved);
+  const reduction =
+    pack.old_price &&
+    pack.old_price >
+      pack.price
+      ? Math.round(
+          ((pack.old_price -
+            pack.price) /
+            pack.old_price) *
+            100,
+        )
+      : null;
 
-    if (
-      !Array.isArray(parsed) ||
-      parsed.length === 0
-    ) {
-      return null;
-    }
+  return (
+    <motion.article
+      initial={{
+        opacity: 0,
+        y: 24,
+      }}
+      whileInView={{
+        opacity: 1,
+        y: 0,
+      }}
+      viewport={{
+        once: true,
+      }}
+      whileHover={{
+        y: -7,
+      }}
+      className="group flex h-full flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition-shadow hover:shadow-xl"
+    >
+      <Link
+        href={`/pack?slug=${encodeURIComponent(
+          pack.slug,
+        )}`}
+        className="relative block aspect-square overflow-hidden bg-zinc-100"
+      >
+        {cardImages.length === 0 ? (
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200">
+            <Boxes className="h-20 w-20 text-zinc-300" />
+          </div>
+        ) : cardImages.length === 1 ? (
+          <img
+            src={cardImages[0]}
+            alt={pack.name}
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+          />
+        ) : cardImages.length === 2 ? (
+          <div className="grid h-full grid-cols-2 gap-1 bg-zinc-200">
+            {cardImages.map(
+              (
+                image,
+                index,
+              ) => (
+                <div
+                  key={`${image}-${index}`}
+                  className="relative overflow-hidden bg-zinc-100"
+                >
+                  <img
+                    src={image}
+                    alt={`${pack.name} ${index + 1}`}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
 
-    return parsed.map(
-      normalizeProduct,
-    );
-  } catch {
-    return null;
-  }
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+                </div>
+              ),
+            )}
+          </div>
+        ) : (
+          <div className="grid h-full grid-cols-2 grid-rows-2 gap-1 bg-zinc-200">
+            {cardImages.map(
+              (
+                image,
+                index,
+              ) => (
+                <div
+                  key={`${image}-${index}`}
+                  className={`relative overflow-hidden bg-zinc-100 ${
+                    cardImages.length === 3 &&
+                    index === 0
+                      ? "row-span-2"
+                      : ""
+                  }`}
+                >
+                  <img
+                    src={image}
+                    alt={`${pack.name} ${index + 1}`}
+                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  />
+
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+                </div>
+              ),
+            )}
+          </div>
+        )}
+
+        <span className="absolute left-4 top-4 rounded-full bg-zinc-950 px-3 py-1.5 text-[11px] font-black uppercase text-white shadow-lg">
+          Pack
+        </span>
+
+        {cardImages.length > 1 && (
+          <span className="absolute bottom-4 right-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-black text-zinc-800 shadow-lg backdrop-blur">
+            {cardImages.length} photos
+          </span>
+        )}
+
+        {reduction !== null &&
+          reduction > 0 && (
+          <span className="absolute right-4 top-4 rounded-full bg-orange-500 px-3 py-1.5 text-[11px] font-black text-white">
+            -{reduction} %
+          </span>
+        )}
+      </Link>
+
+      <div className="flex flex-1 flex-col p-5">
+        <p className="text-xs font-black uppercase tracking-wider text-orange-500">
+          {pack.article_count} article
+          {pack.article_count > 1
+            ? "s"
+            : ""}
+        </p>
+
+        <Link
+          href={`/pack?slug=${encodeURIComponent(
+            pack.slug,
+          )}`}
+          className="mt-2 block text-xl font-black text-zinc-950 transition hover:text-orange-600"
+        >
+          {pack.name}
+        </Link>
+
+        <p className="mt-3 line-clamp-3 text-sm leading-6 text-zinc-500">
+          {pack.description ||
+            "Ensemble complet à prix avantageux."}
+        </p>
+
+        <div className="mt-auto pt-5">
+          <div className="flex items-end gap-2">
+            <strong className="text-2xl font-black text-zinc-950">
+              {formatPrice(
+                pack.price,
+              )}{" "}
+              DA
+            </strong>
+
+            {Number(pack.old_price || 0) >
+              Number(pack.price) && (
+              <span className="pb-1 text-sm text-zinc-400 line-through">
+                {formatPrice(
+                  Number(
+                    pack.old_price || 0,
+                  ),
+                )}{" "}
+                DA
+              </span>
+            )}
+          </div>
+
+          <div className="mt-5 grid grid-cols-[1fr_auto] gap-2">
+            <button
+              type="button"
+              disabled={!pack.inStock}
+              onClick={addPack}
+              className={`flex min-h-12 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-black text-white transition ${
+                !pack.inStock
+                  ? "cursor-not-allowed bg-zinc-300"
+                  : added
+                    ? "bg-emerald-500"
+                    : "bg-zinc-950 hover:bg-orange-500"
+              }`}
+            >
+              <ShoppingCart className="h-5 w-5" />
+
+              {!pack.inStock
+                ? "Pack indisponible"
+                : added
+                  ? "Pack ajouté"
+                  : "Ajouter le pack"}
+            </button>
+
+            <Link
+              href={`/pack?slug=${encodeURIComponent(
+                pack.slug,
+              )}`}
+              aria-label={`Voir ${pack.name}`}
+              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 transition hover:border-orange-400 hover:bg-orange-500 hover:text-white"
+            >
+              <Eye className="h-5 w-5" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </motion.article>
+  );
 }
 
-function saveCachedProducts(
-  products: Product[],
-) {
-  try {
-    window.sessionStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify(products),
-    );
-  } catch {
-    /*
-     * Le cache est optionnel.
-     */
-  }
-}
-
-export default function Articles() {
+export default function ArticlesPage() {
   const searchParams =
     useSearchParams();
 
-  const categoryFromUrl =
+  const mode: CatalogMode =
+    searchParams.get("pack") ===
+    "1"
+      ? "packs"
+      : searchParams.get(
+            "promotion",
+          ) === "1"
+        ? "promotions"
+        : "articles";
+
+  const category =
     searchParams.get(
       "categorie",
-    );
+    ) || "";
 
-  const promotionOnly =
-    searchParams.get(
-      "promotion",
-    ) === "1";
-
-  /*
-   * Les produits de démonstration s'affichent
-   * immédiatement. Aucun écran de chargement
-   * ne bloque la page.
-   */
-  const [
-    items,
-    setItems,
-  ] = useState<Product[]>(
-    demoProducts,
-  );
-
-  const [
-    query,
-    setQuery,
-  ] = useState("");
-
-  /*
-   * Évite de recalculer toute la liste à chaque
-   * frappe rapide dans le champ de recherche.
-   */
-  const deferredQuery =
-    useDeferredValue(query);
-
-  const [
-    selectedCategory,
-    setSelectedCategory,
-  ] = useState(
-    categoryFromUrl ||
-      "Toutes",
-  );
+  const [query, setQuery] =
+    useState("");
 
   const [
     sortBy,
     setSortBy,
   ] = useState<SortOption>(
-    "default",
+    "newest",
   );
 
   const [
-    visibleCount,
-    setVisibleCount,
-  ] = useState(
-    INITIAL_VISIBLE_COUNT,
+    stockFilter,
+    setStockFilter,
+  ] = useState<StockOption>(
+    "all",
   );
 
   const [
-    refreshing,
-    setRefreshing,
-  ] = useState(false);
+    minPrice,
+    setMinPrice,
+  ] = useState("");
+
+  const [
+    maxPrice,
+    setMaxPrice,
+  ] = useState("");
+
+  const deferredQuery =
+    useDeferredValue(query);
+
+  const [articles, setArticles] =
+    useState<Product[]>([]);
+
+  const [packs, setPacks] =
+    useState<PackWithImages[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState("");
 
   useEffect(() => {
-    setSelectedCategory(
-      categoryFromUrl ||
-        "Toutes",
-    );
-
-    setVisibleCount(
-      INITIAL_VISIBLE_COUNT,
-    );
-  }, [categoryFromUrl]);
-
-  useEffect(() => {
-    /*
-     * 1. Lire immédiatement le cache.
-     * 2. Actualiser ensuite en arrière-plan.
-     */
-    const cached =
-      readCachedProducts();
-
-    if (
-      cached &&
-      cached.length > 0
-    ) {
-      setItems(cached);
-    }
-
     let active = true;
-    const controller =
-      new AbortController();
 
-    async function loadArticles() {
-      setRefreshing(true);
+    async function load() {
+      setLoading(true);
+      setError("");
 
       try {
-        const response =
-          await apiFetch<{
-            articles:
-              Product[];
-          }>("/articles", {
-            signal:
-              controller.signal,
-          });
+        if (mode === "packs") {
+          const response =
+            await catalogApi.packs({
+              limit: "100",
+            });
 
-        if (
-          !active ||
-          !Array.isArray(
-            response.articles,
-          ) ||
-          response.articles
-            .length === 0
-        ) {
+          if (active) {
+            setPacks(
+              (response.packs ||
+                []) as PackWithImages[],
+            );
+            setArticles([]);
+          }
+
           return;
         }
 
-        const normalized =
-          response.articles.map(
-            normalizeProduct,
-          );
+        if (
+          mode === "promotions"
+        ) {
+          const response =
+            await catalogApi.promotions({
+              limit: "200",
+            });
 
-        setItems(normalized);
-        saveCachedProducts(
-          normalized,
-        );
-      } catch {
-        /*
-         * Le catalogue déjà affiché reste visible
-         * si le serveur est lent ou indisponible.
-         */
+          if (active) {
+            setArticles(
+              (
+                response.articles ||
+                []
+              ).map(
+                articleToProduct,
+              ),
+            );
+            setPacks([]);
+          }
+
+          return;
+        }
+
+        const response =
+          await catalogApi.articles({
+            limit: "200",
+            ...(category
+              ? {
+                  categorie:
+                    category,
+                }
+              : {}),
+          });
+
+        if (active) {
+          setArticles(
+            (
+              response.articles ||
+              []
+            ).map(
+              articleToProduct,
+            ),
+          );
+          setPacks([]);
+        }
+      } catch (loadError) {
+        if (active) {
+          setError(
+            loadError instanceof
+              Error
+              ? loadError.message
+              : "Impossible de charger le catalogue.",
+          );
+        }
       } finally {
         if (active) {
-          setRefreshing(false);
+          setLoading(false);
         }
       }
     }
 
-    /*
-     * Laisser d'abord le navigateur afficher
-     * la page, puis lancer l'appel réseau.
-     */
-    const timer =
-      window.setTimeout(
-        loadArticles,
-        0,
-      );
+    void load();
 
     return () => {
       active = false;
-      controller.abort();
-
-      window.clearTimeout(
-        timer,
-      );
     };
-  }, []);
+  }, [category, mode]);
 
-  const categories =
+  const filteredArticles =
     useMemo(() => {
-      const unique =
-        new Set<string>();
-
-      for (
-        const item of items
-      ) {
-        if (item.category) {
-          unique.add(
-            item.category,
-          );
-        }
-      }
-
-      return [
-        "Toutes",
-        ...Array.from(
-          unique,
-        ),
-      ];
-    }, [items]);
-
-  const filteredItems =
-    useMemo(() => {
-      const normalizedQuery =
+      const term =
         deferredQuery
           .trim()
           .toLocaleLowerCase(
             "fr",
           );
 
-      const result =
-        items.filter(
-          (item) => {
-            const designation =
-              item.designation.toLocaleLowerCase(
-                "fr",
-              );
+      const minimum =
+        minPrice === ""
+          ? null
+          : Number(minPrice);
 
-            const category =
-              item.category.toLocaleLowerCase(
-                "fr",
-              );
+      const maximum =
+        maxPrice === ""
+          ? null
+          : Number(maxPrice);
 
+      const filtered =
+        articles.filter(
+          (article) => {
             const matchesSearch =
-              !normalizedQuery ||
-              designation.includes(
-                normalizedQuery,
-              ) ||
-              category.includes(
-                normalizedQuery,
+              !term ||
+              [
+                article.designation,
+                article.category,
+                article.reference,
+                article.brand,
+              ]
+                .filter(Boolean)
+                .some((value) =>
+                  String(value)
+                    .toLocaleLowerCase(
+                      "fr",
+                    )
+                    .includes(term),
+                );
+
+            const price =
+              Number(
+                article.price || 0,
               );
 
-            const matchesCategory =
-              selectedCategory ===
-                "Toutes" ||
-              item.category ===
-                selectedCategory;
+            const matchesMinPrice =
+              minimum === null ||
+              Number.isNaN(minimum) ||
+              price >= minimum;
 
-            const matchesPromotion =
-              !promotionOnly ||
-              Boolean(
-                item.old_price &&
-                  item.old_price >
-                    item.price,
-              );
+            const matchesMaxPrice =
+              maximum === null ||
+              Number.isNaN(maximum) ||
+              price <= maximum;
+
+            const available =
+              Number(
+                article.stock_quantity ||
+                  0,
+              ) > 0 &&
+              article.inStock !== false;
+
+            const matchesStock =
+              stockFilter === "all" ||
+              (stockFilter ===
+                "available" &&
+                available) ||
+              (stockFilter ===
+                "unavailable" &&
+                !available);
 
             return (
               matchesSearch &&
-              matchesCategory &&
-              matchesPromotion
+              matchesMinPrice &&
+              matchesMaxPrice &&
+              matchesStock
             );
           },
         );
 
-      if (
-        sortBy === "default"
-      ) {
-        return result;
-      }
-
-      return [...result].sort(
+      return [...filtered].sort(
         (a, b) => {
-          if (
-            sortBy ===
-            "price-asc"
-          ) {
-            return (
-              a.price -
-              b.price
-            );
-          }
+          switch (sortBy) {
+            case "name-asc":
+              return a.designation.localeCompare(
+                b.designation,
+                "fr",
+              );
 
-          if (
-            sortBy ===
-            "price-desc"
-          ) {
-            return (
-              b.price -
-              a.price
-            );
-          }
+            case "name-desc":
+              return b.designation.localeCompare(
+                a.designation,
+                "fr",
+              );
 
-          return a.designation.localeCompare(
-            b.designation,
+            case "price-asc":
+              return (
+                Number(a.price) -
+                Number(b.price)
+              );
+
+            case "price-desc":
+              return (
+                Number(b.price) -
+                Number(a.price)
+              );
+
+            default:
+              return (
+                Number(b.id) -
+                Number(a.id)
+              );
+          }
+        },
+      );
+    }, [
+      articles,
+      deferredQuery,
+      maxPrice,
+      minPrice,
+      sortBy,
+      stockFilter,
+    ]);
+
+  const filteredPacks =
+    useMemo(() => {
+      const term =
+        deferredQuery
+          .trim()
+          .toLocaleLowerCase(
             "fr",
           );
+
+      const minimum =
+        minPrice === ""
+          ? null
+          : Number(minPrice);
+
+      const maximum =
+        maxPrice === ""
+          ? null
+          : Number(maxPrice);
+
+      const filtered =
+        packs.filter(
+          (pack) => {
+            const matchesSearch =
+              !term ||
+              [
+                pack.name,
+                pack.description,
+              ]
+                .filter(Boolean)
+                .some((value) =>
+                  String(value)
+                    .toLocaleLowerCase(
+                      "fr",
+                    )
+                    .includes(term),
+                );
+
+            const price =
+              Number(pack.price || 0);
+
+            const matchesMinPrice =
+              minimum === null ||
+              Number.isNaN(minimum) ||
+              price >= minimum;
+
+            const matchesMaxPrice =
+              maximum === null ||
+              Number.isNaN(maximum) ||
+              price <= maximum;
+
+            const available =
+              pack.inStock !== false &&
+              Number(
+                pack.stock_quantity ||
+                  0,
+              ) > 0;
+
+            const matchesStock =
+              stockFilter === "all" ||
+              (stockFilter ===
+                "available" &&
+                available) ||
+              (stockFilter ===
+                "unavailable" &&
+                !available);
+
+            return (
+              matchesSearch &&
+              matchesMinPrice &&
+              matchesMaxPrice &&
+              matchesStock
+            );
+          },
+        );
+
+      return [...filtered].sort(
+        (a, b) => {
+          switch (sortBy) {
+            case "name-asc":
+              return a.name.localeCompare(
+                b.name,
+                "fr",
+              );
+
+            case "name-desc":
+              return b.name.localeCompare(
+                a.name,
+                "fr",
+              );
+
+            case "price-asc":
+              return (
+                Number(a.price) -
+                Number(b.price)
+              );
+
+            case "price-desc":
+              return (
+                Number(b.price) -
+                Number(a.price)
+              );
+
+            default:
+              return (
+                Number(b.id) -
+                Number(a.id)
+              );
+          }
         },
       );
     }, [
       deferredQuery,
-      items,
-      promotionOnly,
-      selectedCategory,
+      maxPrice,
+      minPrice,
+      packs,
       sortBy,
+      stockFilter,
     ]);
-
-  /*
-   * Avec 3 000 produits, ne rendre que les
-   * premières cartes améliore énormément
-   * les performances.
-   */
-  const visibleItems =
-    useMemo(
-      () =>
-        filteredItems.slice(
-          0,
-          visibleCount,
-        ),
-      [
-        filteredItems,
-        visibleCount,
-      ],
-    );
-
-  const remainingCount =
-    Math.max(
-      0,
-      filteredItems.length -
-        visibleItems.length,
-    );
-
-  useEffect(() => {
-    setVisibleCount(
-      INITIAL_VISIBLE_COUNT,
-    );
-  }, [
-    deferredQuery,
-    promotionOnly,
-    selectedCategory,
-    sortBy,
-  ]);
 
   function resetFilters() {
     setQuery("");
-    setSelectedCategory(
-      "Toutes",
-    );
-    setSortBy("default");
-    setVisibleCount(
-      INITIAL_VISIBLE_COUNT,
-    );
+    setSortBy("newest");
+    setStockFilter("all");
+    setMinPrice("");
+    setMaxPrice("");
   }
+
+  const hasActiveFilters =
+    Boolean(query.trim()) ||
+    sortBy !== "newest" ||
+    stockFilter !== "all" ||
+    minPrice !== "" ||
+    maxPrice !== "";
+
+  const title =
+    mode === "packs"
+      ? "Nos packs"
+      : mode === "promotions"
+        ? "Articles en promotion"
+        : category
+          ? `Articles : ${category}`
+          : "Tous les articles";
+
+  const description =
+    mode === "packs"
+      ? "Découvrez uniquement les packs actifs enregistrés dans la base de données."
+      : mode ===
+          "promotions"
+        ? "Retrouvez uniquement les articles liés à une promotion active."
+        : "Consultez les articles actifs enregistrés dans votre catalogue.";
+
+  const count =
+    mode === "packs"
+      ? filteredPacks.length
+      : filteredArticles.length;
 
   return (
     <main className="min-h-screen bg-zinc-50">
-      <section className="relative overflow-hidden border-b border-zinc-200 bg-white">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -right-28 -top-28 h-80 w-80 rounded-full bg-orange-500/10 blur-3xl" />
-
-          <div className="absolute -bottom-32 left-10 h-72 w-72 rounded-full bg-orange-200/20 blur-3xl" />
-        </div>
-
-        <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-orange-600">
-              <Sparkles className="h-4 w-4" />
-              Catalogue BricoMénage
-            </span>
-
-            {refreshing && (
-              <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-bold text-zinc-500 shadow-sm">
-                <LoaderCircle className="h-3.5 w-3.5 animate-spin text-orange-500" />
-                Actualisation...
-              </span>
+      <section className="border-b border-zinc-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+          <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-wider text-orange-600">
+            {mode === "packs" ? (
+              <Boxes className="h-4 w-4" />
+            ) : mode ===
+              "promotions" ? (
+              <Tag className="h-4 w-4" />
+            ) : (
+              <PackageSearch className="h-4 w-4" />
             )}
-          </div>
+            Catalogue BricoMénage
+          </span>
 
-          <h1 className="mt-5 text-4xl font-black tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl">
-            Découvrez tous
-            <span className="block text-orange-500">
-              nos articles
-            </span>
+          <h1 className="mt-5 text-4xl font-black tracking-tight text-zinc-950 sm:text-5xl">
+            {title}
           </h1>
+
+          <p className="mt-4 max-w-2xl leading-7 text-zinc-500">
+            {description}
+          </p>
+
+          <div className="mt-7 flex flex-wrap gap-2">
+            <Link
+              href="/articles"
+              className={`rounded-xl px-4 py-2.5 text-sm font-black transition ${
+                mode === "articles"
+                  ? "bg-zinc-950 text-white"
+                  : "border border-zinc-200 bg-white text-zinc-600 hover:border-orange-300"
+              }`}
+            >
+              Articles
+            </Link>
+
+            <Link
+              href="/articles?promotion=1"
+              className={`rounded-xl px-4 py-2.5 text-sm font-black transition ${
+                mode ===
+                "promotions"
+                  ? "bg-orange-500 text-white"
+                  : "border border-zinc-200 bg-white text-zinc-600 hover:border-orange-300"
+              }`}
+            >
+              Promotions
+            </Link>
+
+            <Link
+              href="/articles?pack=1"
+              className={`rounded-xl px-4 py-2.5 text-sm font-black transition ${
+                mode === "packs"
+                  ? "bg-zinc-950 text-white"
+                  : "border border-zinc-200 bg-white text-zinc-600 hover:border-orange-300"
+              }`}
+            >
+              Packs
+            </Link>
+          </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-        <div className="rounded-[28px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="pointer-events-none absolute -left-20 -top-20 h-48 w-48 rounded-full bg-orange-100/50 blur-3xl" />
 
-              <input
-                type="search"
-                value={query}
-                onChange={(
-                  event,
-                ) =>
-                  setQuery(
-                    event.target
-                      .value,
-                  )
-                }
-                placeholder="Rechercher un article..."
-                className="min-h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-11 text-sm outline-none transition focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
-              />
+          <div className="relative">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
+                  <SlidersHorizontal className="h-5 w-5" />
+                </span>
 
-              {query && (
-                <button
-                  type="button"
-                  aria-label="Effacer la recherche"
-                  onClick={() =>
-                    setQuery("")
-                  }
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 transition hover:text-orange-500"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+                <div>
+                  <h2 className="font-black text-zinc-950">
+                    Filtrer les résultats
+                  </h2>
+
+                  <p className="text-xs text-zinc-500">
+                    Recherchez et triez les produits selon vos besoins.
+                  </p>
+                </div>
+              </div>
+
+              <span className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-4 py-2 text-sm font-black text-zinc-600">
+                <Sparkles className="h-4 w-4 text-orange-500" />
+                {count} résultat
+                {count > 1 ? "s" : ""}
+              </span>
             </div>
 
-            <div className="relative lg:w-56">
-              <SlidersHorizontal className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(260px,1.5fr)_repeat(4,minmax(140px,1fr))]">
+              <label className="relative block">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+
+                <input
+                  value={query}
+                  onChange={(event) =>
+                    setQuery(
+                      event.target.value,
+                    )
+                  }
+                  placeholder={
+                    mode === "packs"
+                      ? "Rechercher un pack..."
+                      : "Nom, catégorie, référence..."
+                  }
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-4 text-sm outline-none transition focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
+                />
+              </label>
+
+              <label className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">
+                  MIN
+                </span>
+
+                <input
+                  type="number"
+                  min="0"
+                  value={minPrice}
+                  onChange={(event) =>
+                    setMinPrice(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Prix min."
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-white pl-14 pr-3 text-sm font-bold outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                />
+              </label>
+
+              <label className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">
+                  MAX
+                </span>
+
+                <input
+                  type="number"
+                  min="0"
+                  value={maxPrice}
+                  onChange={(event) =>
+                    setMaxPrice(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Prix max."
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-white pl-14 pr-3 text-sm font-bold outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                />
+              </label>
 
               <select
-                value={
-                  selectedCategory
-                }
-                onChange={(
-                  event,
-                ) =>
-                  setSelectedCategory(
+                value={stockFilter}
+                onChange={(event) =>
+                  setStockFilter(
                     event.target
-                      .value,
+                      .value as StockOption,
                   )
                 }
-                className="min-h-14 w-full appearance-none rounded-2xl border border-zinc-200 bg-white pl-11 pr-10 text-sm font-bold outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                className="h-12 rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
               >
-                {categories.map(
-                  (category) => (
-                    <option
-                      key={
-                        category
-                      }
-                      value={
-                        category
-                      }
-                    >
-                      {category}
-                    </option>
-                  ),
-                )}
+                <option value="all">
+                  Tous les stocks
+                </option>
+
+                <option value="available">
+                  Disponible
+                </option>
+
+                <option value="unavailable">
+                  Indisponible
+                </option>
               </select>
-
-              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-            </div>
-
-            <div className="relative lg:w-52">
-              <ArrowDownAZ className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
 
               <select
                 value={sortBy}
-                onChange={(
-                  event,
-                ) =>
+                onChange={(event) =>
                   setSortBy(
                     event.target
                       .value as SortOption,
                   )
                 }
-                className="min-h-14 w-full appearance-none rounded-2xl border border-zinc-200 bg-white pl-11 pr-10 text-sm font-bold outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                className="h-12 rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
               >
-                <option value="default">
-                  Tri par défaut
+                <option value="newest">
+                  Plus récents
+                </option>
+
+                <option value="name-asc">
+                  Nom A → Z
+                </option>
+
+                <option value="name-desc">
+                  Nom Z → A
                 </option>
 
                 <option value="price-asc">
@@ -674,131 +1018,110 @@ export default function Articles() {
                 <option value="price-desc">
                   Prix décroissant
                 </option>
-
-                <option value="name-asc">
-                  Nom de A à Z
-                </option>
               </select>
+            </div>
 
-              <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-zinc-500">
+                <ArrowUpDown className="h-4 w-4 text-orange-500" />
+
+                <span>
+                  Tri actuel :
+                </span>
+
+                <strong className="text-zinc-800">
+                  {sortBy === "newest"
+                    ? "Plus récents"
+                    : sortBy ===
+                        "name-asc"
+                      ? "Nom A → Z"
+                      : sortBy ===
+                          "name-desc"
+                        ? "Nom Z → A"
+                        : sortBy ===
+                            "price-asc"
+                          ? "Prix croissant"
+                          : "Prix décroissant"}
+                </strong>
+              </div>
+
+              <button
+                type="button"
+                onClick={resetFilters}
+                disabled={!hasActiveFilters}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 text-xs font-black text-zinc-600 transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Réinitialiser les filtres
+              </button>
             </div>
           </div>
         </div>
 
-        <div className="mb-7 mt-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-2xl font-black text-zinc-950">
-              Nos articles
-            </h2>
-
-            <p className="mt-1 text-sm text-zinc-500">
-              {
-                filteredItems.length
-              }{" "}
-              article
-              {filteredItems.length >
-              1
-                ? "s"
-                : ""}
-            </p>
+        {loading ? (
+          <div className="flex min-h-72 items-center justify-center">
+            <LoaderCircle className="h-9 w-9 animate-spin text-orange-500" />
           </div>
-
-          <button
-            type="button"
-            onClick={
-              resetFilters
-            }
-            className="inline-flex w-fit items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-bold transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
-          >
-            <X className="h-4 w-4" />
-            Réinitialiser
-          </button>
-        </div>
-
-        {visibleItems.length >
-        0 ? (
-          <>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleItems.map(
-                (
-                  product,
-                  index,
-                ) => (
-                  <div
-                    key={
-                      product.id
-                    }
-                    /*
-                     * Le navigateur peut ignorer le rendu
-                     * des cartes hors écran.
-                     */
-                    style={{
-                      contentVisibility:
-                        "auto",
-                      containIntrinsicSize:
-                        "420px",
-                    }}
-                  >
-                    <ProductCard
-                      p={product}
-                    />
-                  </div>
+        ) : error ? (
+          <div className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-bold text-red-700">
+            {error}
+          </div>
+        ) : mode === "packs" ? (
+          filteredPacks.length >
+          0 ? (
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredPacks.map(
+                (pack) => (
+                  <PackCard
+                    key={pack.id}
+                    pack={pack}
+                  />
                 ),
               )}
             </div>
-
-            {remainingCount >
-              0 && (
-              <div className="mt-10 flex justify-center">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setVisibleCount(
-                      (current) =>
-                        current +
-                        LOAD_MORE_COUNT,
-                    )
-                  }
-                  className="inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-7 py-3.5 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-orange-500 hover:shadow-orange-500/20"
-                >
-                  <Boxes className="h-5 w-5" />
-
-                  Afficher plus
-
-                  <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs">
-                    {
-                      remainingCount
-                    }
-                  </span>
-                </button>
-              </div>
+          ) : (
+            <EmptyState
+              label="Aucun pack actif n’est disponible."
+            />
+          )
+        ) : filteredArticles.length >
+          0 ? (
+          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredArticles.map(
+              (article) => (
+                <ProductCard
+                  key={article.id}
+                  p={article}
+                />
+              ),
             )}
-          </>
-        ) : (
-          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-[30px] border border-dashed border-zinc-300 bg-white px-5 text-center">
-            <PackageSearch className="h-14 w-14 text-orange-500" />
-
-            <h3 className="mt-5 text-2xl font-black">
-              Aucun article trouvé
-            </h3>
-
-            <p className="mt-2 text-sm text-zinc-500">
-              Modifiez votre recherche ou réinitialisez les filtres.
-            </p>
-
-            <button
-              type="button"
-              onClick={
-                resetFilters
-              }
-              className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-zinc-950 px-6 py-3 text-white transition hover:bg-orange-500"
-            >
-              <Boxes className="h-4 w-4" />
-              Voir tous les articles
-            </button>
           </div>
+        ) : (
+          <EmptyState
+            label={
+              mode ===
+              "promotions"
+                ? "Aucun article en promotion active."
+                : "Aucun article trouvé."
+            }
+          />
         )}
       </section>
     </main>
+  );
+}
+
+function EmptyState({
+  label,
+}: {
+  label: string;
+}) {
+  return (
+    <div className="mt-8 flex min-h-72 flex-col items-center justify-center rounded-[28px] border border-dashed border-zinc-300 bg-white p-8 text-center">
+      <PackageSearch className="h-14 w-14 text-zinc-300" />
+      <p className="mt-4 font-black text-zinc-700">
+        {label}
+      </p>
+    </div>
   );
 }

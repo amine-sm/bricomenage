@@ -432,14 +432,13 @@ function CartProduct({
 
         {/* Informations */}
         <div className="min-w-0 flex-1">
-          {"type" in item &&
-            item.type && (
-              <span className="mb-2 inline-flex rounded-full bg-orange-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-orange-600">
-                {item.type === "PACK"
-                  ? "Pack"
-                  : "Article"}
-              </span>
-            )}
+          {item.item_type && (
+            <span className="mb-2 inline-flex rounded-full bg-orange-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-orange-600">
+              {item.item_type === "PACK"
+                ? "Pack"
+                : "Article"}
+            </span>
+          )}
 
           <Link
             href={`/produit/?id=${item.id}`}

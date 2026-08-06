@@ -1,49 +1,243 @@
-const express = require("express");
-const asyncHandler = require("../utils/asyncHandler");
-const { requireAdmin } = require("../middlewares/auth");
-const upload = require("../middlewares/upload");
-const controller = require("../controllers/adminController");
+const express =
+  require("express");
 
-const router = express.Router();
+const asyncHandler =
+  require("../utils/asyncHandler");
+
+const {
+  requireAdmin,
+} = require("../middlewares/auth");
+
+const {
+  uploadArticleImages,
+} = require(
+  "../middlewares/upload",
+);
+
+const controller =
+  require("../controllers/adminController");
+
+const promotionController =
+  require("../controllers/promotionController");
+
+const packController =
+  require("../controllers/packController");
+
+const router =
+  express.Router();
 
 router.use(requireAdmin);
 
-router.get("/dashboard", asyncHandler(controller.dashboard));
+router.get(
+  "/dashboard",
+  asyncHandler(
+    controller.dashboard,
+  ),
+);
 
-router.get("/categories", asyncHandler(controller.listCategories));
-router.post("/categories", asyncHandler(controller.createCategory));
-router.put("/categories/:id", asyncHandler(controller.updateCategory));
-router.delete("/categories/:id", asyncHandler(controller.deleteCategory));
+router.get(
+  "/categories",
+  asyncHandler(
+    controller.listCategories,
+  ),
+);
 
-router.get("/articles", asyncHandler(controller.listArticles));
+router.post(
+  "/categories",
+  uploadArticleImages,
+  asyncHandler(
+    controller.createCategory,
+  ),
+);
+
+router.put(
+  "/categories/:id",
+  uploadArticleImages,
+  asyncHandler(
+    controller.updateCategory,
+  ),
+);
+
+router.delete(
+  "/categories/:id",
+  asyncHandler(
+    controller.deleteCategory,
+  ),
+);
+
+/*
+ * Cette route doit être placée
+ * avant /articles/:id.
+ */
+router.get(
+  "/articles/references",
+  asyncHandler(
+    controller.articleReferences,
+  ),
+);
+
+router.get(
+  "/articles",
+  asyncHandler(
+    controller.listArticles,
+  ),
+);
+
+router.get(
+  "/articles/:id",
+  asyncHandler(
+    controller.getArticle,
+  ),
+);
+
 router.post(
   "/articles",
-  upload.array("images", 6),
-  asyncHandler(controller.createArticle)
+  uploadArticleImages,
+  asyncHandler(
+    controller.createArticle,
+  ),
 );
+
 router.put(
   "/articles/:id",
-  upload.array("images", 6),
-  asyncHandler(controller.updateArticle)
+  uploadArticleImages,
+  asyncHandler(
+    controller.updateArticle,
+  ),
 );
-router.delete("/articles/:id", asyncHandler(controller.deleteArticle));
 
-router.get("/suppliers", asyncHandler(controller.listSuppliers));
-router.post("/suppliers", asyncHandler(controller.createSupplier));
-router.put("/suppliers/:id", asyncHandler(controller.updateSupplier));
-router.delete("/suppliers/:id", asyncHandler(controller.deleteSupplier));
+router.patch(
+  "/articles/:id",
+  uploadArticleImages,
+  asyncHandler(
+    controller.updateArticle,
+  ),
+);
 
-router.get("/orders", asyncHandler(controller.listOrders));
-router.get("/orders/:id", asyncHandler(controller.getOrder));
+router.delete(
+  "/articles/:id",
+  asyncHandler(
+    controller.deleteArticle,
+  ),
+);
+
+router.get(
+  "/suppliers",
+  asyncHandler(
+    controller.listSuppliers,
+  ),
+);
+
+router.post(
+  "/suppliers",
+  asyncHandler(
+    controller.createSupplier,
+  ),
+);
+
+router.put(
+  "/suppliers/:id",
+  asyncHandler(
+    controller.updateSupplier,
+  ),
+);
+
+router.delete(
+  "/suppliers/:id",
+  asyncHandler(
+    controller.deleteSupplier,
+  ),
+);
+
+router.get(
+  "/orders",
+  asyncHandler(
+    controller.listOrders,
+  ),
+);
+
+router.get(
+  "/orders/:id",
+  asyncHandler(
+    controller.getOrder,
+  ),
+);
+
 router.patch(
   "/orders/:id/status",
-  asyncHandler(controller.updateOrderStatus)
+  asyncHandler(
+    controller.updateOrderStatus,
+  ),
 );
 
-router.get("/promotions", asyncHandler(controller.listPromotions));
-router.post("/promotions", asyncHandler(controller.createPromotion));
+router.get(
+  "/promotions",
+  asyncHandler(
+    promotionController.listPromotions,
+  ),
+);
 
-router.get("/packs", asyncHandler(controller.listPacks));
-router.post("/packs", asyncHandler(controller.createPack));
+router.get(
+  "/promotions/:id",
+  asyncHandler(
+    promotionController.getPromotion,
+  ),
+);
+
+router.post(
+  "/promotions",
+  asyncHandler(
+    promotionController.createPromotion,
+  ),
+);
+
+router.put(
+  "/promotions/:id",
+  asyncHandler(
+    promotionController.updatePromotion,
+  ),
+);
+
+router.delete(
+  "/promotions/:id",
+  asyncHandler(
+    promotionController.deletePromotion,
+  ),
+);
+
+router.get(
+  "/packs",
+  asyncHandler(
+    packController.listPacks,
+  ),
+);
+
+router.get(
+  "/packs/:id",
+  asyncHandler(
+    packController.getPack,
+  ),
+);
+
+router.post(
+  "/packs",
+  asyncHandler(
+    packController.createPack,
+  ),
+);
+
+router.put(
+  "/packs/:id",
+  asyncHandler(
+    packController.updatePack,
+  ),
+);
+
+router.delete(
+  "/packs/:id",
+  asyncHandler(
+    packController.deletePack,
+  ),
+);
 
 module.exports = router;
