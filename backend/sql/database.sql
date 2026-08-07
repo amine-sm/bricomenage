@@ -165,12 +165,14 @@ CREATE TABLE orders (
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   delivery_fee DECIMAL(12,2) NOT NULL DEFAULT 0,
   total DECIMAL(12,2) NOT NULL DEFAULT 0,
+  stock_deducted TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_orders_tracking (tracking_number),
   INDEX idx_orders_phone (phone),
-  INDEX idx_orders_status (status)
+  INDEX idx_orders_status (status),
+  INDEX idx_orders_created_status (created_at, status)
 ) ENGINE=InnoDB;
 
 CREATE TABLE order_items (
@@ -196,7 +198,8 @@ CREATE TABLE order_items (
     REFERENCES packs(id)
     ON DELETE SET NULL,
   INDEX idx_order_items_order (order_id),
-  INDEX idx_order_items_pack (pack_id)
+  INDEX idx_order_items_pack (pack_id),
+  INDEX idx_order_items_article (article_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE order_history (

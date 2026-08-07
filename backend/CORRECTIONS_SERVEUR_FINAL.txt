@@ -1,0 +1,53 @@
+BRICOMENAGE - CORRECTIONS SERVEUR FINALES
+Date: 07/08/2026
+
+1. PROMOTIONS
+- Création/modification avec articles, PERCENT/FIXED, dates et is_active.
+- États réels: ACTIVE, SCHEDULED, EXPIRED, INACTIVE.
+- PATCH /api/admin/promotions/:id/status avec {"is_active":true|false}.
+- PATCH /api/admin/promotions/:id/toggle.
+- Seules les promotions réellement actives sont appliquées au catalogue et aux commandes.
+- Si plusieurs promotions sont actives sur un article, le prix le plus bas est utilisé.
+- Le client ne peut pas imposer le prix: le backend recalcule le prix.
+
+2. PACKS
+- Stock calculé depuis les composants du pack.
+- Un composant inactif rend le stock calculé du pack égal à 0.
+- PATCH /api/admin/packs/:id/status et /toggle.
+- Un pack déjà présent dans une commande ne peut plus changer de composition.
+- Un pack historique n'est pas supprimé: il est désactivé.
+
+3. COMMANDES / STOCK
+- order_items supporte article_id, pack_id et item_type.
+- Le stock est agrégé si le même article apparaît plusieurs fois ou dans article + pack.
+- Contrôle transactionnel avant décrément.
+- Annulation: restauration une seule fois avec stock_deducted.
+- Réactivation: contrôle du stock puis nouveau décrément.
+- Prix et désignation sont sauvegardés dans order_items pour conserver l'historique.
+
+4. DASHBOARD
+- /api/admin/dashboard utilise dashboardService.
+- Nombre de commandes filtré par période.
+- CA exclut les commandes ANNULEE.
+- Commandes en attente/livrées et faible stock recalculés côté SQL.
+- Graphique des ventes filtré selon jour/semaine/mois/période personnalisée.
+
+5. MYSQL
+- Suppression des anciens restes PostgreSQL dans schema.sql, seed.sql et seedDatabase.js.
+- schema.sql est maintenant aligné sur database.sql MySQL.
+- Migration finale réexécutable sans restauration répétée du stock.
+
+INSTALLATION SUR UNE BASE EXISTANTE
+1) Sauvegarder la base.
+2) Exécuter sql/migration_bricomenage_fix_2026_08_07.sql dans phpMyAdmin.
+3) Remplacer le backend.
+4) npm install
+5) npm run dev
+
+NOUVELLE BASE (ATTENTION: db:init réinitialise la base)
+- npm run db:init
+- npm run db:seed
+- npm run db:seed:data (optionnel)
+
+IMPORTANT
+sql/repair_cancelled_stock_ONCE.sql est OPTIONNEL et ne doit être exécuté qu'une seule fois si l'ancien backend avait annulé des commandes sans restaurer leur stock.

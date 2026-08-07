@@ -30,7 +30,6 @@ import {
   X,
 } from "lucide-react";
 
-import AdminShell from "@/components/AdminShell";
 import {
   adminHeaders,
   apiFetch,
@@ -589,7 +588,7 @@ export default function PacksPage() {
   }
 
   return (
-    <AdminShell>
+    <>
       <div className="space-y-7">
         <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7">
           <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-orange-300/35 blur-3xl" />
@@ -1605,7 +1604,7 @@ export default function PacksPage() {
           </div>
         </div>
       )}
-    </AdminShell>
+    </>
   );
 }
 

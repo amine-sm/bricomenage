@@ -23,6 +23,9 @@ const promotionController =
 const packController =
   require("../controllers/packController");
 
+const dashboardController =
+  require("../controllers/dashboardController");
+
 const router =
   express.Router();
 
@@ -31,7 +34,7 @@ router.use(requireAdmin);
 router.get(
   "/dashboard",
   asyncHandler(
-    controller.dashboard,
+    dashboardController.getDashboard,
   ),
 );
 
@@ -198,6 +201,20 @@ router.put(
   ),
 );
 
+router.patch(
+  "/promotions/:id/status",
+  asyncHandler(
+    promotionController.updatePromotionStatus,
+  ),
+);
+
+router.patch(
+  "/promotions/:id/toggle",
+  asyncHandler(
+    promotionController.togglePromotionStatus,
+  ),
+);
+
 router.delete(
   "/promotions/:id",
   asyncHandler(
@@ -230,6 +247,20 @@ router.put(
   "/packs/:id",
   asyncHandler(
     packController.updatePack,
+  ),
+);
+
+router.patch(
+  "/packs/:id/status",
+  asyncHandler(
+    packController.updatePackStatus,
+  ),
+);
+
+router.patch(
+  "/packs/:id/toggle",
+  asyncHandler(
+    packController.togglePackStatus,
   ),
 );
 

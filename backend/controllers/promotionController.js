@@ -1,44 +1,26 @@
-const pool = require("../config/db");
-const HttpError = require("../utils/httpError");
+const pool = require('../config/db');
+const HttpError = require('../utils/httpError');
 
-const clean = (value) =>
-  String(value ?? "").trim();
+const clean = (value) => String(value ?? '').trim();
 
-function activeValue(value) {
-  return (
-    value === false ||
-    value === 0 ||
-    value === "0" ||
-    String(value).toLowerCase() === "false"
-  )
-    ? 0
-    : 1;
+function activeValue(value, fallback = 1) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (value === true || value === 1 || value === '1') return 1;
+  if (value === false || value === 0 || value === '0') return 0;
+  const normalized = clean(value).toLowerCase();
+  if (['true', 'actif', 'active', 'enabled', 'on'].includes(normalized)) return 1;
+  if (['false', 'inactif', 'inactive', 'disabled', 'off'].includes(normalized)) return 0;
+  throw new HttpError(400, 'Statut de promotion invalide.');
 }
 
 function normalizeSqlDateTime(value) {
   const normalized = clean(value);
-
-  if (!normalized) {
-    return null;
+  if (!normalized) return null;
+  const result = normalized.replace('T', ' ').replace(/Z$/i, '').slice(0, 19);
+  if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?$/.test(result)) {
+    throw new HttpError(400, 'Format de date invalide.');
   }
-
-  /*
-   * Accepte :
-   * 2026-08-06T13:30
-   * 2026-08-06T13:30:00
-   * 2026-08-06 13:30:00
-   *
-   * On conserve une date locale MySQL DATETIME,
-   * sans conversion UTC.
-   */
-  const result = normalized
-    .replace("T", " ")
-    .replace(/Z$/i, "")
-    .slice(0, 19);
-
-  return result.length === 16
-    ? `${result}:00`
-    : result;
+  return result.length === 16 ? `${result}:00` : result;
 }
 
 function parseArticleIds(body) {
@@ -48,608 +30,233 @@ function parseArticleIds(body) {
       ? body.articles
       : [];
 
-  return [
-    ...new Set(
-      source
-        .map((item) =>
-          typeof item === "object"
-            ? Number(item.id)
-            : Number(item),
-        )
-        .filter(
-          (id) =>
-            Number.isInteger(id) &&
-            id > 0,
-        ),
-    ),
-  ];
+  return [...new Set(source
+    .map((item) => (typeof item === 'object' ? Number(item.id ?? item.articleId) : Number(item)))
+    .filter((id) => Number.isInteger(id) && id > 0))];
 }
 
 function validate(body) {
   const name = clean(body.name);
+  const discountType = clean(body.discount_type || 'PERCENT').toUpperCase();
+  const discountValue = Number(body.discount_value);
+  const articleIds = parseArticleIds(body);
+  const startsAt = normalizeSqlDateTime(body.starts_at);
+  const endsAt = normalizeSqlDateTime(body.ends_at);
 
-  const discountType = clean(
-    body.discount_type || "PERCENT",
-  ).toUpperCase();
-
-  const discountValue = Number(
-    body.discount_value,
-  );
-
-  const articleIds =
-    parseArticleIds(body);
-
-  if (!name) {
-    throw new HttpError(
-      400,
-      "Le nom de la promotion est obligatoire.",
-    );
-  }
-
-  if (
-    !["PERCENT", "FIXED"].includes(
-      discountType,
-    )
-  ) {
-    throw new HttpError(
-      400,
-      "Type de réduction invalide.",
-    );
-  }
-
-  if (
-    !Number.isFinite(discountValue) ||
-    discountValue <= 0
-  ) {
-    throw new HttpError(
-      400,
-      "Valeur de réduction invalide.",
-    );
-  }
-
-  if (
-    discountType === "PERCENT" &&
-    discountValue > 100
-  ) {
-    throw new HttpError(
-      400,
-      "Le pourcentage ne peut pas dépasser 100 %.",
-    );
-  }
-
-  if (!articleIds.length) {
-    throw new HttpError(
-      400,
-      "Sélectionnez au moins un article.",
-    );
-  }
-
-  const startsAt = normalizeSqlDateTime(
-    body.starts_at,
-  );
-
-  const endsAt = normalizeSqlDateTime(
-    body.ends_at,
-  );
-
-  if (
-    startsAt &&
-    endsAt &&
-    endsAt <= startsAt
-  ) {
-    throw new HttpError(
-      400,
-      "La date de fin doit être postérieure à la date de début.",
-    );
-  }
+  if (!name) throw new HttpError(400, 'Le nom de la promotion est obligatoire.');
+  if (!['PERCENT', 'FIXED'].includes(discountType)) throw new HttpError(400, 'Type de réduction invalide.');
+  if (!Number.isFinite(discountValue) || discountValue <= 0) throw new HttpError(400, 'Valeur de réduction invalide.');
+  if (discountType === 'PERCENT' && discountValue > 100) throw new HttpError(400, 'Le pourcentage ne peut pas dépasser 100 %.');
+  if (!articleIds.length) throw new HttpError(400, 'Sélectionnez au moins un article.');
+  if (startsAt && endsAt && endsAt <= startsAt) throw new HttpError(400, 'La date de fin doit être postérieure à la date de début.');
 
   return {
     name,
-    description:
-      clean(body.description) || null,
+    description: clean(body.description) || null,
     discountType,
     discountValue,
     startsAt,
     endsAt,
-    isActive: activeValue(
-      body.is_active,
-    ),
+    isActive: activeValue(body.is_active, 1),
     articleIds,
   };
 }
 
-function promotionalPrice(
-  price,
-  type,
-  value,
-) {
+function promotionalPrice(price, type, value) {
   const original = Number(price || 0);
-
-  if (type === "PERCENT") {
-    return Math.max(
-      0,
-      original -
-        (original * Number(value || 0)) /
-          100,
-    );
-  }
-
-  return Math.max(
-    0,
-    original - Number(value || 0),
-  );
+  const discount = Number(value || 0);
+  const result = type === 'PERCENT'
+    ? original - (original * discount) / 100
+    : original - discount;
+  return Math.round(Math.max(0, result) * 100) / 100;
 }
 
-async function fetchPromotion(
-  connection,
-  id,
-) {
-  const [[promotion]] =
-    await connection.query(
-      `
-        SELECT
-          p.*,
-          COUNT(pa.article_id)
-            AS article_count,
+const STATUS_SQL = `
+  CASE
+    WHEN p.is_active = 0 THEN 'INACTIVE'
+    WHEN p.starts_at IS NOT NULL AND p.starts_at > NOW() THEN 'SCHEDULED'
+    WHEN p.ends_at IS NOT NULL AND p.ends_at < NOW() THEN 'EXPIRED'
+    ELSE 'ACTIVE'
+  END
+`;
 
-          CASE
-            WHEN p.is_active = 1
-              AND (
-                p.starts_at IS NULL
-                OR p.starts_at <= NOW()
-              )
-              AND (
-                p.ends_at IS NULL
-                OR p.ends_at >= NOW()
-              )
-            THEN 1
-            ELSE 0
-          END AS is_effective_active
+async function fetchPromotion(connection, id) {
+  const [[promotion]] = await connection.query(
+    `SELECT p.*, COUNT(pa.article_id) AS article_count,
+      ${STATUS_SQL} AS effective_status,
+      CASE WHEN ${STATUS_SQL} = 'ACTIVE' THEN 1 ELSE 0 END AS is_effective_active
+     FROM promotions p
+     LEFT JOIN promotion_articles pa ON pa.promotion_id = p.id
+     WHERE p.id = ?
+     GROUP BY p.id
+     LIMIT 1`,
+    [id],
+  );
 
-        FROM promotions p
+  if (!promotion) return null;
 
-        LEFT JOIN promotion_articles pa
-          ON pa.promotion_id = p.id
-
-        WHERE p.id = ?
-
-        GROUP BY p.id
-
-        LIMIT 1
-      `,
-      [id],
-    );
-
-  if (!promotion) {
-    return null;
-  }
-
-  const [articles] =
-    await connection.query(
-      `
-        SELECT
-          a.id,
-          a.designation,
-          a.reference,
-          a.image,
-          a.price,
-          a.stock_quantity
-
-        FROM promotion_articles pa
-
-        INNER JOIN articles a
-          ON a.id = pa.article_id
-
-        WHERE pa.promotion_id = ?
-
-        ORDER BY a.designation ASC
-      `,
-      [id],
-    );
+  const [articles] = await connection.query(
+    `SELECT a.id,a.designation,a.reference,a.image,a.price,a.stock_quantity,a.is_active
+     FROM promotion_articles pa
+     INNER JOIN articles a ON a.id = pa.article_id
+     WHERE pa.promotion_id = ?
+     ORDER BY a.designation ASC`,
+    [id],
+  );
 
   return {
     ...promotion,
-    article_count: Number(
-      promotion.article_count || 0,
-    ),
-    is_effective_active: Boolean(
-      promotion.is_effective_active,
-    ),
-    articles: articles.map(
-      (article) => ({
-        ...article,
-        original_price: Number(
-          article.price || 0,
-        ),
-        promotional_price:
-          promotionalPrice(
-            article.price,
-            promotion.discount_type,
-            promotion.discount_value,
-          ),
-      }),
-    ),
+    article_count: Number(promotion.article_count || 0),
+    is_active: Boolean(Number(promotion.is_active)),
+    is_effective_active: Boolean(Number(promotion.is_effective_active)),
+    articles: articles.map((article) => ({
+      ...article,
+      is_active: Boolean(Number(article.is_active)),
+      original_price: Number(article.price || 0),
+      promotional_price: promotionalPrice(article.price, promotion.discount_type, promotion.discount_value),
+    })),
   };
 }
 
+async function verifyArticles(connection, articleIds) {
+  const placeholders = articleIds.map(() => '?').join(',');
+  const [rows] = await connection.query(
+    `SELECT id,designation,price,is_active FROM articles WHERE id IN (${placeholders})`,
+    articleIds,
+  );
+  if (rows.length !== articleIds.length) throw new HttpError(400, 'Un article sélectionné est introuvable.');
+  return rows;
+}
+
 async function listPromotions(req, res) {
-  const [rows] = await pool.query(`
-    SELECT
-      p.*,
-      COUNT(pa.article_id)
-        AS article_count,
+  const status = clean(req.query.status).toUpperCase();
+  const search = clean(req.query.search || req.query.q);
+  const where = [];
+  const params = [];
 
-      CASE
-        WHEN p.is_active = 1
-          AND (
-            p.starts_at IS NULL
-            OR p.starts_at <= NOW()
-          )
-          AND (
-            p.ends_at IS NULL
-            OR p.ends_at >= NOW()
-          )
-        THEN 1
-        ELSE 0
-      END AS is_effective_active
+  if (search) {
+    where.push('(p.name LIKE ? OR p.description LIKE ?)');
+    const term = `%${search}%`;
+    params.push(term, term);
+  }
 
-    FROM promotions p
+  if (['ACTIVE', 'ACTIF'].includes(status)) where.push(`${STATUS_SQL} = 'ACTIVE'`);
+  if (['INACTIVE', 'INACTIF'].includes(status)) where.push(`${STATUS_SQL} = 'INACTIVE'`);
+  if (['SCHEDULED', 'PROGRAMMEE', 'PROGRAMMÉE'].includes(status)) where.push(`${STATUS_SQL} = 'SCHEDULED'`);
+  if (['EXPIRED', 'EXPIREE', 'EXPIRÉE'].includes(status)) where.push(`${STATUS_SQL} = 'EXPIRED'`);
 
-    LEFT JOIN promotion_articles pa
-      ON pa.promotion_id = p.id
-
-    GROUP BY p.id
-
-    ORDER BY p.created_at DESC
-  `);
+  const [rows] = await pool.query(
+    `SELECT p.*,COUNT(pa.article_id) AS article_count,
+      ${STATUS_SQL} AS effective_status,
+      CASE WHEN ${STATUS_SQL} = 'ACTIVE' THEN 1 ELSE 0 END AS is_effective_active
+     FROM promotions p
+     LEFT JOIN promotion_articles pa ON pa.promotion_id = p.id
+     ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+     GROUP BY p.id
+     ORDER BY p.created_at DESC`,
+    params,
+  );
 
   return res.json({
     success: true,
-    promotions: rows.map(
-      (promotion) => ({
-        ...promotion,
-        article_count: Number(
-          promotion.article_count || 0,
-        ),
-        is_effective_active: Boolean(
-          promotion.is_effective_active,
-        ),
-      }),
-    ),
+    promotions: rows.map((p) => ({
+      ...p,
+      article_count: Number(p.article_count || 0),
+      is_active: Boolean(Number(p.is_active)),
+      is_effective_active: Boolean(Number(p.is_effective_active)),
+    })),
   });
 }
 
 async function getPromotion(req, res) {
-  const promotion =
-    await fetchPromotion(
-      pool,
-      Number(req.params.id),
-    );
-
-  if (!promotion) {
-    throw new HttpError(
-      404,
-      "Promotion introuvable.",
-    );
-  }
-
-  return res.json(promotion);
-}
-
-async function verifyArticles(
-  connection,
-  articleIds,
-) {
-  const placeholders =
-    articleIds.map(() => "?").join(",");
-
-  const [[result]] =
-    await connection.query(
-      `
-        SELECT COUNT(*) AS total
-        FROM articles
-        WHERE id IN (${placeholders})
-      `,
-      articleIds,
-    );
-
-  if (
-    Number(result.total) !==
-    articleIds.length
-  ) {
-    throw new HttpError(
-      400,
-      "Un article sélectionné est introuvable.",
-    );
-  }
+  const promotion = await fetchPromotion(pool, Number(req.params.id));
+  if (!promotion) throw new HttpError(404, 'Promotion introuvable.');
+  return res.json({ success: true, promotion, ...promotion });
 }
 
 async function createPromotion(req, res) {
   const data = validate(req.body);
-  const connection =
-    await pool.getConnection();
-
+  const cn = await pool.getConnection();
   try {
-    await connection.beginTransaction();
-
-    await verifyArticles(
-      connection,
-      data.articleIds,
+    await cn.beginTransaction();
+    await verifyArticles(cn, data.articleIds);
+    const [result] = await cn.query(
+      `INSERT INTO promotions(name,description,discount_type,discount_value,starts_at,ends_at,is_active)
+       VALUES(?,?,?,?,?,?,?)`,
+      [data.name, data.description, data.discountType, data.discountValue, data.startsAt, data.endsAt, data.isActive],
     );
-
-    const [result] =
-      await connection.query(
-        `
-          INSERT INTO promotions (
-            name,
-            description,
-            discount_type,
-            discount_value,
-            starts_at,
-            ends_at,
-            is_active
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-          data.name,
-          data.description,
-          data.discountType,
-          data.discountValue,
-          data.startsAt,
-          data.endsAt,
-          data.isActive,
-        ],
-      );
-
-    const promotionId =
-      Number(result.insertId);
-
-    await connection.query(
-      `
-        INSERT INTO promotion_articles (
-          promotion_id,
-          article_id
-        )
-        VALUES ?
-      `,
-      [
-        data.articleIds.map(
-          (articleId) => [
-            promotionId,
-            articleId,
-          ],
-        ),
-      ],
+    const id = Number(result.insertId);
+    await cn.query(
+      'INSERT INTO promotion_articles(promotion_id,article_id) VALUES ?',
+      [data.articleIds.map((articleId) => [id, articleId])],
     );
-
-    await connection.commit();
-
-    const promotion =
-      await fetchPromotion(
-        pool,
-        promotionId,
-      );
-
-    return res.status(201).json({
-      success: true,
-      message:
-        "Promotion créée avec succès.",
-      promotion,
-    });
+    await cn.commit();
+    const promotion = await fetchPromotion(pool, id);
+    return res.status(201).json({ success: true, message: 'Promotion créée avec succès.', promotion });
   } catch (error) {
-    await connection.rollback();
+    await cn.rollback();
     throw error;
   } finally {
-    connection.release();
+    cn.release();
   }
 }
 
 async function updatePromotion(req, res) {
   const id = Number(req.params.id);
   const data = validate(req.body);
-  const connection =
-    await pool.getConnection();
-
+  const cn = await pool.getConnection();
   try {
-    await connection.beginTransaction();
+    await cn.beginTransaction();
+    const [[existing]] = await cn.query('SELECT id FROM promotions WHERE id=? FOR UPDATE', [id]);
+    if (!existing) throw new HttpError(404, 'Promotion introuvable.');
+    await verifyArticles(cn, data.articleIds);
 
-    const [[existing]] =
-      await connection.query(
-        `
-          SELECT id
-          FROM promotions
-          WHERE id = ?
-          FOR UPDATE
-        `,
-        [id],
-      );
-
-    if (!existing) {
-      throw new HttpError(
-        404,
-        "Promotion introuvable.",
-      );
-    }
-
-    await verifyArticles(
-      connection,
-      data.articleIds,
+    await cn.query(
+      `UPDATE promotions SET name=?,description=?,discount_type=?,discount_value=?,starts_at=?,ends_at=?,is_active=? WHERE id=?`,
+      [data.name, data.description, data.discountType, data.discountValue, data.startsAt, data.endsAt, data.isActive, id],
     );
-
-    await connection.query(
-      `
-        UPDATE promotions
-        SET
-          name = ?,
-          description = ?,
-          discount_type = ?,
-          discount_value = ?,
-          starts_at = ?,
-          ends_at = ?,
-          is_active = ?
-        WHERE id = ?
-      `,
-      [
-        data.name,
-        data.description,
-        data.discountType,
-        data.discountValue,
-        data.startsAt,
-        data.endsAt,
-        data.isActive,
-        id,
-      ],
+    await cn.query('DELETE FROM promotion_articles WHERE promotion_id=?', [id]);
+    await cn.query(
+      'INSERT INTO promotion_articles(promotion_id,article_id) VALUES ?',
+      [data.articleIds.map((articleId) => [id, articleId])],
     );
-
-    const [currentRows] =
-      await connection.query(
-        `
-          SELECT article_id
-          FROM promotion_articles
-          WHERE promotion_id = ?
-        `,
-        [id],
-      );
-
-    const currentIds =
-      currentRows.map(
-        (row) =>
-          Number(row.article_id),
-      );
-
-    const currentSet =
-      new Set(currentIds);
-
-    const requestedSet =
-      new Set(data.articleIds);
-
-    const toAdd =
-      data.articleIds.filter(
-        (articleId) =>
-          !currentSet.has(articleId),
-      );
-
-    const toRemove =
-      currentIds.filter(
-        (articleId) =>
-          !requestedSet.has(articleId),
-      );
-
-    if (toAdd.length > 0) {
-      await connection.query(
-        `
-          INSERT IGNORE INTO
-            promotion_articles (
-              promotion_id,
-              article_id
-            )
-          VALUES ?
-        `,
-        [
-          toAdd.map(
-            (articleId) => [
-              id,
-              articleId,
-            ],
-          ),
-        ],
-      );
-    }
-
-    if (toRemove.length > 0) {
-      const placeholders =
-        toRemove.map(() => "?").join(",");
-
-      await connection.query(
-        `
-          DELETE FROM promotion_articles
-          WHERE promotion_id = ?
-            AND article_id IN (
-              ${placeholders}
-            )
-        `,
-        [
-          id,
-          ...toRemove,
-        ],
-      );
-    }
-
-    await connection.commit();
-
-    const promotion =
-      await fetchPromotion(pool, id);
-
-    return res.json({
-      success: true,
-      message:
-        "Promotion modifiée avec succès.",
-      promotion,
-    });
+    await cn.commit();
+    const promotion = await fetchPromotion(pool, id);
+    return res.json({ success: true, message: 'Promotion modifiée avec succès.', promotion });
   } catch (error) {
-    await connection.rollback();
+    await cn.rollback();
     throw error;
   } finally {
-    connection.release();
+    cn.release();
   }
 }
 
-async function deletePromotion(req, res) {
+async function updatePromotionStatus(req, res) {
   const id = Number(req.params.id);
-  const connection =
-    await pool.getConnection();
+  const requested = req.body.is_active ?? req.body.active ?? req.body.status;
+  const isActive = activeValue(requested);
+  const [result] = await pool.query('UPDATE promotions SET is_active=? WHERE id=?', [isActive, id]);
+  if (!result.affectedRows) throw new HttpError(404, 'Promotion introuvable.');
+  const promotion = await fetchPromotion(pool, id);
+  return res.json({
+    success: true,
+    message: isActive ? 'Promotion activée.' : 'Promotion désactivée.',
+    promotion,
+  });
+}
 
-  try {
-    await connection.beginTransaction();
+async function togglePromotionStatus(req, res) {
+  const id = Number(req.params.id);
+  const [[promotion]] = await pool.query('SELECT id,is_active FROM promotions WHERE id=?', [id]);
+  if (!promotion) throw new HttpError(404, 'Promotion introuvable.');
+  req.body = { ...req.body, is_active: Number(promotion.is_active) ? 0 : 1 };
+  return updatePromotionStatus(req, res);
+}
 
-    const [[promotion]] =
-      await connection.query(
-        `
-          SELECT id
-          FROM promotions
-          WHERE id = ?
-          FOR UPDATE
-        `,
-        [id],
-      );
-
-    if (!promotion) {
-      throw new HttpError(
-        404,
-        "Promotion introuvable.",
-      );
-    }
-
-    await connection.query(
-      `
-        DELETE FROM promotion_articles
-        WHERE promotion_id = ?
-      `,
-      [id],
-    );
-
-    await connection.query(
-      `
-        DELETE FROM promotions
-        WHERE id = ?
-      `,
-      [id],
-    );
-
-    await connection.commit();
-
-    return res.json({
-      success: true,
-      message:
-        "Promotion supprimée.",
-    });
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+async function deletePromotion(req, res) {
+  const [result] = await pool.query('DELETE FROM promotions WHERE id=?', [req.params.id]);
+  if (!result.affectedRows) throw new HttpError(404, 'Promotion introuvable.');
+  return res.json({ success: true, message: 'Promotion supprimée.' });
 }
 
 module.exports = {
@@ -657,5 +264,7 @@ module.exports = {
   getPromotion,
   createPromotion,
   updatePromotion,
+  updatePromotionStatus,
+  togglePromotionStatus,
   deletePromotion,
 };

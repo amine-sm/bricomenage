@@ -1188,37 +1188,107 @@ async function deleteArticle(
   req,
   res,
 ) {
-  const article =
-    await getArticleRow(
-      req.params.id,
-    );
+  const id = Number(req.params.id);
 
-  if (!article) {
+  if (
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
     throw new HttpError(
-      404,
-      "Article introuvable.",
+      400,
+      "Identifiant article invalide.",
     );
   }
 
-  /*
-   * Désactivation au lieu d'un DELETE réel :
-   * cela protège les anciennes commandes,
-   * promotions et packs.
-   */
-  await pool.query(
-    `
-      UPDATE articles
-      SET is_active = 0
-      WHERE id = ?
-    `,
-    [req.params.id],
-  );
+  const connection =
+    await pool.getConnection();
 
-  return res.json({
-    success: true,
-    message:
-      "Article désactivé avec succès.",
-  });
+  try {
+    await connection.beginTransaction();
+
+    const [[article]] =
+      await connection.query(
+        `
+          SELECT
+            id,
+            designation
+          FROM articles
+          WHERE id = ?
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [id],
+      );
+
+    if (!article) {
+      throw new HttpError(
+        404,
+        "Article introuvable.",
+      );
+    }
+
+    await connection.query(
+      `
+        DELETE FROM promotion_articles
+        WHERE article_id = ?
+      `,
+      [id],
+    );
+
+    await connection.query(
+      `
+        DELETE FROM pack_items
+        WHERE article_id = ?
+      `,
+      [id],
+    );
+
+    const [result] =
+      await connection.query(
+        `
+          DELETE FROM articles
+          WHERE id = ?
+        `,
+        [id],
+      );
+
+    if (!result.affectedRows) {
+      throw new HttpError(
+        404,
+        "Article introuvable.",
+      );
+    }
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      message:
+        "Article supprimé définitivement avec succès.",
+      deletedArticle: {
+        id,
+        designation:
+          article.designation,
+      },
+    });
+  } catch (error) {
+    await connection.rollback();
+
+    if (
+      error.code ===
+        "ER_ROW_IS_REFERENCED_2" ||
+      Number(error.errno) === 1451
+    ) {
+      throw new HttpError(
+        409,
+        "Impossible de supprimer cet article car il est encore référencé par une autre donnée.",
+      );
+    }
+
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function listSuppliers(
@@ -1534,68 +1604,122 @@ async function updateOrderStatus(
   req,
   res,
 ) {
-  const status = clean(
-    req.body.status,
-  ).toUpperCase();
+  const ALLOWED = new Set([
+    "NOUVELLE",
+    "CONFIRMEE",
+    "EN_PREPARATION",
+    "EXPEDIEE",
+    "EN_LIVRAISON",
+    "LIVREE",
+    "ANNULEE",
+  ]);
 
-  const label =
-    clean(req.body.label) ||
-    status;
+  const status = clean(req.body.status).toUpperCase();
+  const label = clean(req.body.label) || status;
+  const description = clean(req.body.description) || null;
 
-  const description =
-    clean(
-      req.body.description,
-    ) || null;
-
-  if (!status) {
-    throw new HttpError(
-      400,
-      "Le statut est obligatoire.",
-    );
+  if (!ALLOWED.has(status)) {
+    throw new HttpError(400, "Statut de commande invalide.");
   }
 
-  const connection =
-    await pool.getConnection();
+  const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
 
+    const [[order]] = await connection.query(
+      `SELECT id,status,stock_deducted FROM orders WHERE id=? FOR UPDATE`,
+      [req.params.id],
+    );
+
+    if (!order) {
+      throw new HttpError(404, "Commande introuvable.");
+    }
+
+    if (String(order.status) === status) {
+      await connection.rollback();
+      return res.json({ success: true, message: "La commande possède déjà ce statut." });
+    }
+
+    const [items] = await connection.query(
+      `SELECT article_id,pack_id,item_type,quantity FROM order_items WHERE order_id=? FOR UPDATE`,
+      [req.params.id],
+    );
+
+    const stockNeeds = new Map();
+    const addNeed = (articleId, qty) => {
+      stockNeeds.set(Number(articleId), (stockNeeds.get(Number(articleId)) || 0) + Number(qty));
+    };
+
+    for (const item of items) {
+      if (item.item_type === "PACK") {
+        const [parts] = await connection.query(
+          `SELECT article_id,quantity FROM pack_items WHERE pack_id=?`,
+          [item.pack_id],
+        );
+        for (const part of parts) {
+          addNeed(part.article_id, Number(part.quantity) * Number(item.quantity));
+        }
+      } else if (item.article_id) {
+        addNeed(item.article_id, item.quantity);
+      }
+    }
+
+    // Annulation : remettre le stock UNE SEULE FOIS.
+    if (status === "ANNULEE" && Number(order.stock_deducted) === 1) {
+      for (const [articleId, qty] of stockNeeds.entries()) {
+        await connection.query(
+          `UPDATE articles SET stock_quantity = stock_quantity + ? WHERE id = ?`,
+          [qty, articleId],
+        );
+      }
+      await connection.query(`UPDATE orders SET stock_deducted=0 WHERE id=?`, [req.params.id]);
+    }
+
+    // Réactivation d'une commande annulée : vérifier puis redéduire le stock.
+    if (status !== "ANNULEE" && Number(order.stock_deducted) === 0) {
+      for (const [articleId, qty] of stockNeeds.entries()) {
+        const [[article]] = await connection.query(
+          `SELECT id,designation,stock_quantity,is_active FROM articles WHERE id=? FOR UPDATE`,
+          [articleId],
+        );
+        if (!article || !Number(article.is_active)) {
+          throw new HttpError(409, "Un article de cette commande n’est plus disponible.");
+        }
+        if (Number(article.stock_quantity) < qty) {
+          throw new HttpError(409, `Stock insuffisant pour ${article.designation}.`);
+        }
+      }
+
+      for (const [articleId, qty] of stockNeeds.entries()) {
+        const [result] = await connection.query(
+          `UPDATE articles SET stock_quantity=stock_quantity-? WHERE id=? AND stock_quantity>=?`,
+          [qty, articleId, qty],
+        );
+        if (!result.affectedRows) {
+          throw new HttpError(409, "Le stock a changé. Impossible de réactiver la commande.");
+        }
+      }
+      await connection.query(`UPDATE orders SET stock_deducted=1 WHERE id=?`, [req.params.id]);
+    }
+
     await connection.query(
-      `
-        UPDATE orders
-        SET status = ?
-        WHERE id = ?
-      `,
-      [
-        status,
-        req.params.id,
-      ],
+      `UPDATE orders SET status = ? WHERE id = ?`,
+      [status, req.params.id],
     );
 
     await connection.query(
-      `
-        INSERT INTO order_history (
-          order_id,
-          status,
-          label,
-          description
-        )
-        VALUES (?, ?, ?, ?)
-      `,
-      [
-        req.params.id,
-        status,
-        label,
-        description,
-      ],
+      `INSERT INTO order_history(order_id,status,label,description) VALUES (?,?,?,?)`,
+      [req.params.id, status, label, description],
     );
 
     await connection.commit();
 
     return res.json({
       success: true,
-      message:
-        "Statut de la commande modifié.",
+      message: status === "ANNULEE"
+        ? "Commande annulée et stock restauré."
+        : "Statut de la commande modifié.",
     });
   } catch (error) {
     await connection.rollback();

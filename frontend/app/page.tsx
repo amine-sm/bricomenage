@@ -85,75 +85,6 @@ interface SectionHeadingProps {
   label: string;
 }
 
-const fallbackCategories: Category[] = [
-  {
-    id: 1,
-    name: "Outillage",
-    slug: "outillage",
-    description: "Outils manuels et accessoires",
-    articleCount: 0,
-    icon: Hammer,
-    href: "/articles/?categorie=Outillage",
-    iconClassName: "text-blue-600",
-    iconBackground: "bg-blue-50",
-  },
-  {
-    id: 2,
-    name: "Jardin",
-    slug: "jardin",
-    description: "Équipements pour vos extérieurs",
-    articleCount: 0,
-    icon: Leaf,
-    href: "/articles/?categorie=Jardin",
-    iconClassName: "text-emerald-600",
-    iconBackground: "bg-emerald-50",
-  },
-  {
-    id: 3,
-    name: "Mobilier",
-    slug: "mobilier",
-    description: "Mobilier intérieur et extérieur",
-    articleCount: 0,
-    icon: Sofa,
-    href: "/articles/?categorie=Mobilier",
-    iconClassName: "text-orange-600",
-    iconBackground: "bg-orange-50",
-  },
-  {
-    id: 4,
-    name: "Peinture",
-    slug: "peinture",
-    description: "Peintures, rouleaux et pinceaux",
-    articleCount: 0,
-    icon: PaintRoller,
-    href: "/articles/?categorie=Peinture",
-    iconClassName: "text-rose-600",
-    iconBackground: "bg-rose-50",
-  },
-  {
-    id: 5,
-    name: "Électricité",
-    slug: "electricite",
-    description: "Matériel et accessoires électriques",
-    articleCount: 0,
-    icon: Zap,
-    href: "/articles/?categorie=Électricité",
-    iconClassName: "text-yellow-600",
-    iconBackground: "bg-yellow-50",
-  },
-  {
-    id: 6,
-    name: "Plomberie",
-    slug: "plomberie",
-    description: "Équipements et raccords",
-    articleCount: 0,
-    icon: Droplets,
-    href: "/articles/?categorie=Plomberie",
-    iconClassName: "text-cyan-600",
-    iconBackground: "bg-cyan-50",
-  },
-];
-
 function getCategoryVisual(
   name: string,
 ) {
@@ -233,85 +164,6 @@ function getCategoryVisual(
       "bg-blue-50",
   };
 }
-
-const fallbackProducts: Product[] = [
-  {
-    id: 1,
-    slug: "marteau-professionnel-500g",
-    designation: "Marteau professionnel 500 g",
-    price: 1200,
-    old_price: 1500,
-    category: "Outillage",
-    image:
-      "https://images.unsplash.com/photo-1607870411590-d5e9e06da09a?auto=format&fit=crop&w=900&q=85",
-    rating: 4.8,
-    reviews: 124,
-    stock_quantity: 20,
-  },
-  {
-    id: 2,
-    slug: "chaise-de-jardin-confort",
-    designation: "Chaise de jardin confort",
-    price: 4500,
-    old_price: 5200,
-    category: "Jardin",
-    image:
-      "https://images.pexels.com/photos/17976470/pexels-photo-17976470/free-photo-of-wooden-chair-in-the-garden.jpeg?auto=compress&cs=tinysrgb&w=900",
-    rating: 4.6,
-    reviews: 89,
-    stock_quantity: 15,
-  },
-  {
-    id: 3,
-    slug: "parasol-deporte-3x3m",
-    designation: "Parasol déporté 3 × 3 m",
-    price: 18500,
-    category: "Jardin",
-    image:
-      "https://images.pexels.com/photos/13872652/pexels-photo-13872652.jpeg?auto=compress&cs=tinysrgb&w=900",
-    rating: 4.9,
-    reviews: 56,
-    stock_quantity: 8,
-  },
-  {
-    id: 4,
-    slug: "perceuse-electrique-750w",
-    designation: "Perceuse électrique 750 W",
-    price: 12900,
-    old_price: 14900,
-    category: "Électroportatif",
-    image:
-      "https://images.unsplash.com/photo-1593307315564-c96172dc89dc?auto=format&fit=crop&w=900&q=85",
-    rating: 4.7,
-    reviews: 203,
-    stock_quantity: 12,
-  },
-  {
-    id: 5,
-    slug: "kit-de-peinture-professionnel",
-    designation: "Kit de peinture professionnel",
-    price: 6800,
-    category: "Peinture",
-    image:
-      "https://images.pexels.com/photos/5799083/pexels-photo-5799083.jpeg?auto=compress&cs=tinysrgb&w=900",
-    rating: 4.5,
-    reviews: 71,
-    stock_quantity: 18,
-  },
-  {
-    id: 6,
-    slug: "coffret-outils-108-pieces",
-    designation: "Coffret d’outils 108 pièces",
-    price: 15900,
-    old_price: 17900,
-    category: "Outillage",
-    image:
-      "https://images.unsplash.com/photo-1696685747241-5f243fb9e76f?auto=format&fit=crop&w=900&q=85",
-    rating: 4.9,
-    reviews: 164,
-    stock_quantity: 9,
-  },
-];
 
 const advantages: Advantage[] = [
   {
@@ -1146,16 +998,27 @@ export default function Home() {
   const [
     categories,
     setCategories,
-  ] = useState<Category[]>(
-    fallbackCategories,
-  );
+  ] = useState<Category[]>([]);
 
   const [
     latestProducts,
     setLatestProducts,
-  ] = useState<Product[]>(
-    fallbackProducts,
-  );
+  ] = useState<Product[]>([]);
+
+  const [
+    categoriesLoading,
+    setCategoriesLoading,
+  ] = useState(true);
+
+  const [
+    productsLoading,
+    setProductsLoading,
+  ] = useState(true);
+
+  const [
+    catalogError,
+    setCatalogError,
+  ] = useState("");
 
   const [
     currentHeroImage,
@@ -1176,6 +1039,8 @@ export default function Home() {
     let active = true;
 
     async function loadCategories() {
+      setCategoriesLoading(true);
+
       try {
         const response =
           await catalogApi.categories();
@@ -1228,12 +1093,19 @@ export default function Home() {
           );
 
         setCategories(normalized);
-      } catch {
-        /*
-         * Les catégories de secours
-         * restent visibles si l’API
-         * est indisponible.
-         */
+      } catch (requestError) {
+        if (active) {
+          setCategories([]);
+          setCatalogError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Impossible de charger les catégories depuis la base de données.",
+          );
+        }
+      } finally {
+        if (active) {
+          setCategoriesLoading(false);
+        }
       }
     }
 
@@ -1248,6 +1120,8 @@ export default function Home() {
     let active = true;
 
     async function loadLatestProducts() {
+      setProductsLoading(true);
+
       try {
         const response =
           await catalogApi.latestArticles(8);
@@ -1256,8 +1130,7 @@ export default function Home() {
           !active ||
           !Array.isArray(
             response.articles,
-          ) ||
-          response.articles.length === 0
+          )
         ) {
           return;
         }
@@ -1317,11 +1190,19 @@ export default function Home() {
         setLatestProducts(
           normalized,
         );
-      } catch {
-        /*
-         * Les produits de secours restent affichés
-         * si l’API est indisponible.
-         */
+      } catch (requestError) {
+        if (active) {
+          setLatestProducts([]);
+          setCatalogError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Impossible de charger les articles depuis la base de données.",
+          );
+        }
+      } finally {
+        if (active) {
+          setProductsLoading(false);
+        }
       }
     }
 
@@ -1873,6 +1754,14 @@ export default function Home() {
         </section>
       </SectionWrapper>
 
+      {catalogError && (
+        <div className="mx-auto max-w-7xl px-4 pt-6 sm:px-6 lg:px-8">
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            {catalogError}
+          </div>
+        </div>
+      )}
+
       {/* CATÉGORIES */}
       <SectionWrapper delay={0.08}>
         <section className="overflow-hidden border-y border-zinc-200 bg-zinc-50 py-16 lg:py-24">
@@ -1895,9 +1784,29 @@ export default function Home() {
             </div>
 
             <div className="mt-8 lg:mt-12">
-              <CategoryCarousel
-                categories={categories}
-              />
+              {categoriesLoading ? (
+                <div className="flex min-h-[300px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
+                  <div className="text-center">
+                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-zinc-200 border-t-orange-500" />
+                    <p className="mt-4 text-sm font-bold text-zinc-500">
+                      Chargement des catégories...
+                    </p>
+                  </div>
+                </div>
+              ) : categories.length > 0 ? (
+                <CategoryCarousel
+                  categories={categories}
+                />
+              ) : (
+                <div className="rounded-3xl border border-dashed border-zinc-300 bg-white p-10 text-center">
+                  <p className="font-black text-zinc-800">
+                    Aucune catégorie disponible.
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Ajoutez des catégories depuis l’administration.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-10 flex justify-center">
@@ -1927,11 +1836,31 @@ export default function Home() {
             />
 
             <div className="mt-10">
-              <ProductCarousel
-                products={
-                  latestProducts
-                }
-              />
+              {productsLoading ? (
+                <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-zinc-200 bg-zinc-50">
+                  <div className="text-center">
+                    <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-zinc-200 border-t-orange-500" />
+                    <p className="mt-4 text-sm font-bold text-zinc-500">
+                      Chargement des derniers articles...
+                    </p>
+                  </div>
+                </div>
+              ) : latestProducts.length > 0 ? (
+                <ProductCarousel
+                  products={
+                    latestProducts
+                  }
+                />
+              ) : (
+                <div className="rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 p-10 text-center">
+                  <p className="font-black text-zinc-800">
+                    Aucun article disponible.
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    Les articles ajoutés depuis l’administration apparaîtront ici automatiquement.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </section>

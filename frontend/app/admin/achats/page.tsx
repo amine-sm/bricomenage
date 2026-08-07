@@ -21,8 +21,6 @@ import {
   X,
 } from "lucide-react";
 
-import AdminShell from "@/components/AdminShell";
-
 import {
   adminHeaders,
   apiFetch,
@@ -480,7 +478,7 @@ export default function StockPage() {
   }
 
   return (
-    <AdminShell>
+    <>
       <div className="space-y-7">
         <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
@@ -764,7 +762,7 @@ export default function StockPage() {
             )}
         </section>
       </div>
-    </AdminShell>
+    </>
   );
 }
 

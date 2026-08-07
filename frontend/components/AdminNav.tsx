@@ -31,6 +31,16 @@ const links = [
     icon: Package,
   },
   {
+    label: "Promotions",
+    href: "/admin/promotions",
+    icon: Tags,
+  },
+  {
+    label: "Packs",
+    href: "/admin/packs",
+    icon: Boxes,
+  },
+  {
     label: "Catégories",
     href: "/admin/categories",
     icon: FolderTree,
@@ -50,16 +60,7 @@ const links = [
     href: "/admin/commandes",
     icon: ShoppingCart,
   },
-  {
-    label: "Promotions",
-    href: "/admin/promotions",
-    icon: Tags,
-  },
-  {
-    label: "Packs",
-    href: "/admin/packs",
-    icon: Boxes,
-  },
+
 ];
 
 export default function AdminNav() {
@@ -79,6 +80,7 @@ export default function AdminNav() {
     
     
         href="/admin/dashboard"
+        prefetch
         className="flex items-center gap-3"
       >
         <span className="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-lg">
@@ -120,6 +122,7 @@ export default function AdminNav() {
               <Link
                 key={href}
                 href={href}
+                prefetch
                 className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition ${
                   active
                     ? "bg-orange-500 text-white"

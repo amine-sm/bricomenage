@@ -30,8 +30,6 @@ import {
   useState,
 } from "react";
 
-import AdminShell from "@/components/AdminShell";
-
 import {
   adminHeaders,
   apiFetch,
@@ -517,7 +515,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <AdminShell>
+    <>
       <div className="space-y-7">
         <section className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
@@ -611,7 +609,7 @@ export default function DashboardPage() {
             </section>
 
             <section className="rounded-[26px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <span className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-orange-500">
                     <CalendarDays className="h-4 w-4" />
@@ -623,8 +621,8 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="w-full xl:w-auto">
+                  <div className="flex flex-wrap gap-3">
                     {[
                       {
                         value: "day",
@@ -642,30 +640,38 @@ export default function DashboardPage() {
                         value: "custom",
                         label: "Intervalle",
                       },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() =>
-                          setPeriod(
-                            option.value as DashboardFilter,
-                          )
-                        }
-                        className={`min-h-11 rounded-xl px-4 text-xs font-black transition ${
-                          period === option.value
-                            ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
-                            : "border border-zinc-200 bg-zinc-50 text-zinc-600 hover:border-orange-300 hover:text-orange-600"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                    ].map((option) => {
+                      const active =
+                        period === option.value;
+
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() =>
+                            setPeriod(
+                              option.value as DashboardFilter,
+                            )
+                          }
+                          className={`inline-flex min-h-12 min-w-[118px] flex-1 items-center justify-center rounded-2xl px-5 text-sm font-black transition duration-200 sm:flex-none ${
+                            active
+                              ? "border border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                              : "border border-zinc-200 bg-white text-zinc-600 shadow-sm hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {period === "custom" && (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <label className="grid gap-1.5 text-xs font-bold text-zinc-500">
-                        Date de début
+                    <div className="mt-4 grid gap-3 rounded-2xl border border-orange-100 bg-orange-50/50 p-4 sm:grid-cols-2">
+                      <label className="grid gap-2 text-xs font-black text-zinc-600">
+                        <span className="uppercase tracking-[0.08em] text-zinc-500">
+                          Date de début
+                        </span>
+
                         <input
                           type="date"
                           value={startDate}
@@ -675,12 +681,15 @@ export default function DashboardPage() {
                             )
                           }
                           max={endDate || undefined}
-                          className="min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
+                          className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 shadow-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                         />
                       </label>
 
-                      <label className="grid gap-1.5 text-xs font-bold text-zinc-500">
-                        Date de fin
+                      <label className="grid gap-2 text-xs font-black text-zinc-600">
+                        <span className="uppercase tracking-[0.08em] text-zinc-500">
+                          Date de fin
+                        </span>
+
                         <input
                           type="date"
                           value={endDate}
@@ -690,7 +699,7 @@ export default function DashboardPage() {
                             )
                           }
                           min={startDate || undefined}
-                          className="min-h-11 rounded-xl border border-zinc-200 bg-white px-3 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
+                          className="min-h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 shadow-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100"
                         />
                       </label>
                     </div>
@@ -985,7 +994,7 @@ export default function DashboardPage() {
           </>
         )}
       </div>
-    </AdminShell>
+    </>
   );
 }
 
@@ -1033,13 +1042,22 @@ function SalesChart({
     "revenue" | "orders"
   >("revenue");
 
-  const [hoveredIndex, setHoveredIndex] =
-    useState<number | null>(null);
+  const [
+    hoveredIndex,
+    setHoveredIndex,
+  ] = useState<number | null>(
+    null,
+  );
 
-  const values = data.map((point) =>
-    metric === "revenue"
-      ? Number(point.revenue || 0)
-      : Number(point.orders || 0),
+  const values = data.map(
+    (point) =>
+      metric === "revenue"
+        ? Number(
+            point.revenue || 0,
+          )
+        : Number(
+            point.orders || 0,
+          ),
   );
 
   const total = values.reduce(
@@ -1047,17 +1065,27 @@ function SalesChart({
     0,
   );
 
-  const maxValue = Math.max(
-    1,
+  const hasValues = values.some(
+    (value) => value > 0,
+  );
+
+  const maxRaw = Math.max(
+    0,
     ...values,
   );
 
-  const chartWidth = 980;
-  const chartHeight = 390;
-  const paddingLeft = 72;
-  const paddingRight = 28;
-  const paddingTop = 38;
-  const paddingBottom = 62;
+  const maxValue =
+    maxRaw <= 0
+      ? 1
+      : maxRaw;
+
+  const chartWidth = 1100;
+  const chartHeight = 410;
+
+  const paddingLeft = 78;
+  const paddingRight = 34;
+  const paddingTop = 48;
+  const paddingBottom = 72;
 
   const innerWidth =
     chartWidth -
@@ -1101,11 +1129,15 @@ function SalesChart({
   function createSmoothPath(
     chartPoints: typeof points,
   ) {
-    if (chartPoints.length === 0) {
+    if (
+      chartPoints.length === 0
+    ) {
       return "";
     }
 
-    if (chartPoints.length === 1) {
+    if (
+      chartPoints.length === 1
+    ) {
       return `M ${chartPoints[0].x} ${chartPoints[0].y}`;
     }
 
@@ -1114,7 +1146,8 @@ function SalesChart({
 
     for (
       let index = 0;
-      index < chartPoints.length - 1;
+      index <
+      chartPoints.length - 1;
       index += 1
     ) {
       const current =
@@ -1125,7 +1158,7 @@ function SalesChart({
 
       const control =
         (next.x - current.x) *
-        0.38;
+        0.34;
 
       path +=
         ` C ${current.x + control} ${current.y}` +
@@ -1139,412 +1172,638 @@ function SalesChart({
   const linePath =
     createSmoothPath(points);
 
-  const gridLines = Array.from(
-    { length: 5 },
-    (_, index) => {
-      const ratio = index / 4;
-
-      return {
-        y:
+  const areaPath =
+    points.length > 0 &&
+    linePath
+      ? `${linePath} L ${
+          points[
+            points.length - 1
+          ].x
+        } ${
           paddingTop +
-          ratio * innerHeight,
-        value:
-          Math.round(
-            maxValue *
-              (1 - ratio),
-          ),
-      };
-    },
-  );
+          innerHeight
+        } L ${points[0].x} ${
+          paddingTop +
+          innerHeight
+        } Z`
+      : "";
+
+  const gridLines =
+    Array.from(
+      { length: 5 },
+      (_, index) => {
+        const ratio =
+          index / 4;
+
+        return {
+          y:
+            paddingTop +
+            ratio *
+              innerHeight,
+          value:
+            Math.round(
+              maxValue *
+                (1 - ratio),
+            ),
+        };
+      },
+    );
+
+  /*
+   * Évite de serrer 28/30/31
+   * libellés sur un seul mois.
+   */
+  const labelStep =
+    data.length > 24
+      ? 4
+      : data.length > 16
+        ? 3
+        : data.length > 10
+          ? 2
+          : 1;
 
   const summaryCards = [
     {
       label: "Commandes",
       value: formatPrice(
-        Number(stats.orders || 0),
+        Number(
+          stats.orders || 0,
+        ),
       ),
       helper: `${formatPrice(
-        Number(stats.pendingOrders || 0),
+        Number(
+          stats.pendingOrders ||
+            0,
+        ),
       )} en cours`,
-      badge: `+${formatPrice(
-        Number(stats.orders || 0),
-      )}`,
+      icon: ShoppingCart,
     },
     {
       label: "En cours",
       value: formatPrice(
-        Number(stats.pendingOrders || 0),
+        Number(
+          stats.pendingOrders ||
+            0,
+        ),
       ),
-      helper: "À traiter ou à livrer",
-      badge: `${formatPrice(
-        Number(stats.pendingOrders || 0),
-      )}`,
+      helper:
+        "À traiter ou à livrer",
+      icon: Clock3,
     },
     {
-      label: "Chiffre d’affaires",
+      label:
+        "Chiffre d’affaires",
       value: `${formatPrice(
-        Number(stats.revenue || 0),
+        Number(
+          stats.revenue || 0,
+        ),
       )} DA`,
-      helper: "Hors commandes annulées",
-      badge: "+15.0%",
+      helper:
+        "Hors commandes annulées",
+      icon: CircleDollarSign,
     },
     {
       label: "Livrées",
       value: formatPrice(
-        Number(stats.deliveredOrders || 0),
+        Number(
+          stats.deliveredOrders ||
+            0,
+        ),
       ),
       helper: `${Math.round(
-        Number(stats.orders || 0) > 0
+        Number(
+          stats.orders || 0,
+        ) > 0
           ? (Number(
-              stats.deliveredOrders || 0,
+              stats.deliveredOrders ||
+                0,
             ) /
-              Number(stats.orders || 1)) *
+              Number(
+                stats.orders || 1,
+              )) *
               100
           : 0,
       )}% du total`,
-      badge: `+${formatPrice(
-        Number(stats.deliveredOrders || 0),
-      )}`,
+      icon: PackagePlus,
     },
   ];
 
   return (
-    <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm">
-      <div className="grid divide-y divide-zinc-200 border-b border-zinc-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 xl:grid-cols-4">
+    <section className="overflow-hidden rounded-[30px] border border-zinc-200 bg-white shadow-sm">
+      <div className="grid border-b border-zinc-200 sm:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map(
-          (card) => (
+          ({
+            label,
+            value,
+            helper,
+            icon: Icon,
+          }) => (
             <div
-              key={card.label}
-              className="relative min-h-[132px] p-5"
+              key={label}
+              className="group relative min-h-[142px] overflow-hidden border-b border-zinc-100 p-5 transition hover:bg-orange-50/30 sm:border-r xl:border-b-0"
             >
-              <div className="flex items-start justify-between gap-3">
-                <span className="text-sm font-bold text-zinc-500">
-                  {card.label}
-                </span>
+              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-orange-100/50 blur-2xl opacity-0 transition duration-300 group-hover:opacity-100" />
 
-                <span className="inline-flex rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1 text-[11px] font-black text-orange-600">
-                  {card.badge}
+              <div className="relative flex items-start justify-between gap-4">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-[0.1em] text-zinc-400">
+                    {label}
+                  </span>
+
+                  <strong className="mt-3 block text-2xl font-black tracking-tight text-zinc-950">
+                    {value}
+                  </strong>
+
+                  <span className="mt-2 block text-xs font-semibold text-zinc-400">
+                    {helper}
+                  </span>
+                </div>
+
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 ring-1 ring-orange-100 transition group-hover:scale-105 group-hover:bg-orange-500 group-hover:text-white">
+                  <Icon className="h-5 w-5" />
                 </span>
               </div>
-
-              <strong className="mt-4 block text-2xl font-black tracking-tight text-zinc-950">
-                {card.value}
-              </strong>
-
-              <span className="mt-2 block text-xs text-zinc-400">
-                {card.helper}
-              </span>
             </div>
           ),
         )}
       </div>
 
-      <div className="flex flex-col justify-between gap-4 border-b border-zinc-100 px-5 py-5 sm:flex-row sm:items-center sm:px-6">
+      <div className="flex flex-col gap-5 border-b border-zinc-100 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <span className="text-xs font-black uppercase tracking-[0.14em] text-orange-500">
-            {periodLabel}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-orange-600 ring-1 ring-orange-100">
+              <TrendingUp className="h-3.5 w-3.5" />
+              {periodLabel}
+            </span>
 
-          <h2 className="mt-2 text-xl font-black text-zinc-950">
+            <span className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1.5 text-[11px] font-black text-zinc-500">
+              {data.length} point
+              {data.length > 1
+                ? "s"
+                : ""}
+            </span>
+          </div>
+
+          <h2 className="mt-3 text-xl font-black text-zinc-950 sm:text-2xl">
             Évolution commerciale
           </h2>
 
-          <p className="mt-1 text-sm text-zinc-500">
-            Analysez les variations de vos ventes sur la période sélectionnée.
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-zinc-500">
+            Visualisez clairement vos ventes et le volume de commandes sur la période sélectionnée.
           </p>
         </div>
 
-        <div className="inline-flex self-start rounded-xl border border-zinc-200 bg-zinc-50 p-1 sm:self-auto">
+        <div className="grid w-full grid-cols-2 gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 sm:w-auto sm:min-w-[310px]">
           <button
             type="button"
             onClick={() =>
-              setMetric("revenue")
+              setMetric(
+                "revenue",
+              )
             }
-            className={`rounded-lg px-4 py-2 text-xs font-black transition ${
-              metric === "revenue"
-                ? "bg-orange-500 text-white shadow-sm"
-                : "text-zinc-500 hover:text-zinc-900"
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black transition ${
+              metric ===
+              "revenue"
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                : "text-zinc-500 hover:bg-white hover:text-zinc-900"
             }`}
           >
+            <CircleDollarSign className="h-4 w-4" />
             Chiffre d’affaires
           </button>
 
           <button
             type="button"
             onClick={() =>
-              setMetric("orders")
+              setMetric(
+                "orders",
+              )
             }
-            className={`rounded-lg px-4 py-2 text-xs font-black transition ${
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black transition ${
               metric === "orders"
-                ? "bg-orange-500 text-white shadow-sm"
-                : "text-zinc-500 hover:text-zinc-900"
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                : "text-zinc-500 hover:bg-white hover:text-zinc-900"
             }`}
           >
+            <ShoppingCart className="h-4 w-4" />
             Commandes
           </button>
         </div>
       </div>
 
       <div className="p-4 sm:p-6">
-        <div className="overflow-hidden rounded-[22px] border border-zinc-200 bg-white p-3 sm:p-5">
-          <svg
-            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-            className="h-[320px] w-full sm:h-[390px]"
-            role="img"
-            aria-label="Courbe orange des performances"
-            onMouseLeave={() =>
-              setHoveredIndex(null)
-            }
-          >
-            <defs>
-              <pattern
-                id="orangeDotGrid"
-                width="20"
-                height="20"
-                patternUnits="userSpaceOnUse"
+        <div className="relative overflow-hidden rounded-[26px] border border-zinc-200 bg-gradient-to-b from-orange-50/40 via-white to-white shadow-inner">
+          <div className="flex flex-col gap-3 border-b border-zinc-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div>
+              <span className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                Valeur affichée
+              </span>
+
+              <strong className="mt-1 block text-xl font-black text-zinc-950">
+                {metric ===
+                "revenue"
+                  ? `${formatPrice(
+                      total,
+                    )} DA`
+                  : `${formatPrice(
+                      total,
+                    )} commande${
+                      total > 1
+                        ? "s"
+                        : ""
+                    }`}
+              </strong>
+            </div>
+
+            <span className="inline-flex items-center gap-2 self-start rounded-full bg-white px-3 py-2 text-[11px] font-bold text-zinc-500 shadow-sm ring-1 ring-zinc-200 sm:self-auto">
+              <Sparkles className="h-3.5 w-3.5 text-orange-500" />
+              Survolez un point pour voir le détail
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <div className="min-w-[760px] px-2 py-2 sm:min-w-0 sm:px-3">
+              <svg
+                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                className="h-[330px] w-full sm:h-[410px]"
+                role="img"
+                aria-label="Évolution des performances commerciales"
+                onMouseLeave={() =>
+                  setHoveredIndex(
+                    null,
+                  )
+                }
               >
-                <circle
-                  cx="1.5"
-                  cy="1.5"
-                  r="1.1"
-                  fill="#fed7aa"
-                  opacity="0.75"
-                />
-              </pattern>
-
-              <filter
-                id="orangeGlow"
-                x="-20%"
-                y="-30%"
-                width="140%"
-                height="160%"
-              >
-                <feDropShadow
-                  dx="0"
-                  dy="4"
-                  stdDeviation="5"
-                  floodColor="#f97316"
-                  floodOpacity="0.18"
-                />
-              </filter>
-            </defs>
-
-            <rect
-              x={paddingLeft}
-              y={paddingTop}
-              width={innerWidth}
-              height={innerHeight}
-              fill="url(#orangeDotGrid)"
-            />
-
-            {gridLines.map(
-              (line, index) => (
-                <g
-                  key={`${line.y}-${index}`}
-                >
-                  <text
-                    x={
-                      paddingLeft -
-                      14
-                    }
-                    y={line.y + 4}
-                    textAnchor="end"
-                    fontSize="11"
-                    fontWeight="600"
-                    fill="#71717a"
+                <defs>
+                  <linearGradient
+                    id="orangeArea"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
                   >
-                    {metric ===
-                    "revenue"
-                      ? formatPrice(
-                          line.value,
-                        )
-                      : line.value}
-                  </text>
-                </g>
-              ),
-            )}
-
-            {linePath && (
-              <path
-                d={linePath}
-                fill="none"
-                stroke="#f97316"
-                strokeWidth="4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                filter="url(#orangeGlow)"
-              />
-            )}
-
-            {points.map(
-              (point, index) => {
-                const isHovered =
-                  hoveredIndex ===
-                  index;
-
-                return (
-                  <g
-                    key={`${point.label}-${index}`}
-                    onMouseEnter={() =>
-                      setHoveredIndex(
-                        index,
-                      )
-                    }
-                    className="cursor-pointer"
-                  >
-                    <rect
-                      x={
-                        point.x -
-                        innerWidth /
-                          Math.max(
-                            data.length,
-                            1,
-                          ) /
-                          2
-                      }
-                      y={paddingTop}
-                      width={
-                        innerWidth /
-                        Math.max(
-                          data.length,
-                          1,
-                        )
-                      }
-                      height={
-                        innerHeight +
-                        44
-                      }
-                      fill="transparent"
+                    <stop
+                      offset="0%"
+                      stopColor="#f97316"
+                      stopOpacity="0.22"
                     />
 
-                    {isHovered && (
-                      <line
-                        x1={point.x}
-                        y1={paddingTop}
-                        x2={point.x}
-                        y2={
-                          paddingTop +
-                          innerHeight
-                        }
-                        stroke="#fdba74"
-                        strokeWidth="2"
-                        strokeDasharray="4 5"
-                      />
-                    )}
+                    <stop
+                      offset="75%"
+                      stopColor="#f97316"
+                      stopOpacity="0.04"
+                    />
 
-                    <circle
-                      cx={point.x}
-                      cy={point.y}
-                      r={
-                        isHovered
-                          ? 7
-                          : 4.5
+                    <stop
+                      offset="100%"
+                      stopColor="#f97316"
+                      stopOpacity="0"
+                    />
+                  </linearGradient>
+
+                  <filter
+                    id="orangeGlow"
+                    x="-20%"
+                    y="-30%"
+                    width="140%"
+                    height="160%"
+                  >
+                    <feDropShadow
+                      dx="0"
+                      dy="4"
+                      stdDeviation="5"
+                      floodColor="#f97316"
+                      floodOpacity="0.16"
+                    />
+                  </filter>
+                </defs>
+
+                {gridLines.map(
+                  (
+                    line,
+                    index,
+                  ) => (
+                    <g
+                      key={`${line.y}-${index}`}
+                    >
+                      <line
+                        x1={
+                          paddingLeft
+                        }
+                        y1={line.y}
+                        x2={
+                          paddingLeft +
+                          innerWidth
+                        }
+                        y2={line.y}
+                        stroke="#e4e4e7"
+                        strokeWidth="1"
+                        strokeDasharray="5 7"
+                      />
+
+                      <text
+                        x={
+                          paddingLeft -
+                          14
+                        }
+                        y={
+                          line.y + 4
+                        }
+                        textAnchor="end"
+                        fontSize="11"
+                        fontWeight="700"
+                        fill="#71717a"
+                      >
+                        {metric ===
+                        "revenue"
+                          ? formatPrice(
+                              line.value,
+                            )
+                          : line.value}
+                      </text>
+                    </g>
+                  ),
+                )}
+
+                {areaPath &&
+                  hasValues && (
+                    <path
+                      d={areaPath}
+                      fill="url(#orangeArea)"
+                    />
+                  )}
+
+                {linePath && (
+                  <path
+                    d={linePath}
+                    fill="none"
+                    stroke="#f97316"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    filter="url(#orangeGlow)"
+                  />
+                )}
+
+                {points.map(
+                  (
+                    point,
+                    index,
+                  ) => {
+                    const isHovered =
+                      hoveredIndex ===
+                      index;
+
+                    const showLabel =
+                      index %
+                        labelStep ===
+                        0 ||
+                      index ===
+                        points.length -
+                          1;
+
+                    return (
+                      <g
+                        key={`${point.label}-${index}`}
+                        onMouseEnter={() =>
+                          setHoveredIndex(
+                            index,
+                          )
+                        }
+                        className="cursor-pointer"
+                      >
+                        <rect
+                          x={
+                            point.x -
+                            innerWidth /
+                              Math.max(
+                                data.length,
+                                1,
+                              ) /
+                              2
+                          }
+                          y={
+                            paddingTop
+                          }
+                          width={
+                            innerWidth /
+                            Math.max(
+                              data.length,
+                              1,
+                            )
+                          }
+                          height={
+                            innerHeight +
+                            54
+                          }
+                          fill="transparent"
+                        />
+
+                        {isHovered && (
+                          <line
+                            x1={
+                              point.x
+                            }
+                            y1={
+                              paddingTop
+                            }
+                            x2={
+                              point.x
+                            }
+                            y2={
+                              paddingTop +
+                              innerHeight
+                            }
+                            stroke="#fdba74"
+                            strokeWidth="2"
+                            strokeDasharray="4 5"
+                          />
+                        )}
+
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r={
+                            isHovered
+                              ? 7
+                              : 4.5
+                          }
+                          fill="#ffffff"
+                          stroke="#f97316"
+                          strokeWidth={
+                            isHovered
+                              ? 4
+                              : 3
+                          }
+                        />
+
+                        {showLabel && (
+                          <text
+                            x={
+                              point.x
+                            }
+                            y={
+                              chartHeight -
+                              20
+                            }
+                            textAnchor="middle"
+                            fontSize="11"
+                            fontWeight="700"
+                            fill="#71717a"
+                          >
+                            {
+                              point.label
+                            }
+                          </text>
+                        )}
+
+                        {isHovered && (
+                          <g>
+                            <rect
+                              x={Math.min(
+                                chartWidth -
+                                  170,
+                                Math.max(
+                                  6,
+                                  point.x -
+                                    78,
+                                ),
+                              )}
+                              y={Math.max(
+                                8,
+                                point.y -
+                                  70,
+                              )}
+                              width="156"
+                              height="48"
+                              rx="14"
+                              fill="#18181b"
+                            />
+
+                            <text
+                              x={Math.min(
+                                chartWidth -
+                                  92,
+                                Math.max(
+                                  84,
+                                  point.x,
+                                ),
+                              )}
+                              y={Math.max(
+                                28,
+                                point.y -
+                                  50,
+                              )}
+                              textAnchor="middle"
+                              fontSize="10"
+                              fontWeight="700"
+                              fill="#a1a1aa"
+                            >
+                              {
+                                point.label
+                              }
+                            </text>
+
+                            <text
+                              x={Math.min(
+                                chartWidth -
+                                  92,
+                                Math.max(
+                                  84,
+                                  point.x,
+                                ),
+                              )}
+                              y={Math.max(
+                                43,
+                                point.y -
+                                  35,
+                              )}
+                              textAnchor="middle"
+                              fontSize="12"
+                              fontWeight="900"
+                              fill="#ffffff"
+                            >
+                              {metric ===
+                              "revenue"
+                                ? `${formatPrice(
+                                    point.value,
+                                  )} DA`
+                                : `${point.value} commande${
+                                    point.value >
+                                    1
+                                      ? "s"
+                                      : ""
+                                  }`}
+                            </text>
+                          </g>
+                        )}
+                      </g>
+                    );
+                  },
+                )}
+
+                {!hasValues && (
+                  <g>
+                    <rect
+                      x={
+                        chartWidth /
+                          2 -
+                        135
                       }
+                      y={
+                        chartHeight /
+                          2 -
+                        38
+                      }
+                      width="270"
+                      height="76"
+                      rx="20"
                       fill="#ffffff"
-                      stroke="#f97316"
-                      strokeWidth={
-                        isHovered
-                          ? 4
-                          : 3
-                      }
+                      stroke="#fed7aa"
                     />
 
                     <text
-                      x={point.x}
+                      x={
+                        chartWidth /
+                        2
+                      }
                       y={
-                        chartHeight -
+                        chartHeight /
+                          2 -
+                        6
+                      }
+                      textAnchor="middle"
+                      fontSize="14"
+                      fontWeight="900"
+                      fill="#18181b"
+                    >
+                      Aucune vente sur cette période
+                    </text>
+
+                    <text
+                      x={
+                        chartWidth /
+                        2
+                      }
+                      y={
+                        chartHeight /
+                          2 +
                         18
                       }
                       textAnchor="middle"
-                      fontSize="12"
+                      fontSize="11"
                       fontWeight="600"
                       fill="#71717a"
                     >
-                      {point.label}
+                      Les données apparaîtront automatiquement.
                     </text>
-
-                    {isHovered && (
-                      <g>
-                        <rect
-                          x={Math.min(
-                            chartWidth -
-                              148,
-                            Math.max(
-                              4,
-                              point.x -
-                                66,
-                            ),
-                          )}
-                          y={Math.max(
-                            5,
-                            point.y -
-                              56,
-                          )}
-                          width="132"
-                          height="36"
-                          rx="10"
-                          fill="#18181b"
-                        />
-
-                        <text
-                          x={Math.min(
-                            chartWidth -
-                              82,
-                            Math.max(
-                              70,
-                              point.x,
-                            ),
-                          )}
-                          y={Math.max(
-                            28,
-                            point.y -
-                              33,
-                          )}
-                          textAnchor="middle"
-                          fontSize="11"
-                          fontWeight="800"
-                          fill="#ffffff"
-                        >
-                          {metric ===
-                          "revenue"
-                            ? `${formatPrice(
-                                point.value,
-                              )} DA`
-                            : `${point.value} commande${
-                                point.value >
-                                1
-                                  ? "s"
-                                  : ""
-                              }`}
-                        </text>
-                      </g>
-                    )}
                   </g>
-                );
-              },
-            )}
-          </svg>
-        </div>
-
-        <div className="mt-4 flex flex-col justify-between gap-2 text-xs sm:flex-row sm:items-center">
-          <span className="font-bold text-zinc-500">
-            {metric === "revenue"
-              ? `Total affiché : ${formatPrice(
-                  total,
-                )} DA`
-              : `Total affiché : ${formatPrice(
-                  total,
-                )} commande${
-                  total > 1 ? "s" : ""
-                }`}
-          </span>
-
-          <span className="text-zinc-400">
-            Survolez la courbe pour consulter les valeurs.
-          </span>
+                )}
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
-

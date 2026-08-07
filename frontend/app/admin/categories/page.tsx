@@ -31,8 +31,6 @@ import {
   X,
 } from "lucide-react";
 
-import AdminShell from "@/components/AdminShell";
-
 import {
   adminHeaders,
   apiFetch,
@@ -139,6 +137,13 @@ export default function CategoriesPage() {
     deletingId,
     setDeletingId,
   ] = useState<number | null>(
+    null,
+  );
+
+  const [
+    categoryToDelete,
+    setCategoryToDelete,
+  ] = useState<Category | null>(
     null,
   );
 
@@ -622,17 +627,13 @@ export default function CategoriesPage() {
     }
   }
 
-  async function remove(
-    category: Category,
-  ) {
-    const confirmed =
-      window.confirm(
-        `Supprimer la catégorie « ${category.name} » ?`,
-      );
-
-    if (!confirmed) {
+  async function confirmRemove() {
+    if (!categoryToDelete) {
       return;
     }
+
+    const category =
+      categoryToDelete;
 
     setDeletingId(
       category.id,
@@ -652,7 +653,11 @@ export default function CategoriesPage() {
       );
 
       setSuccess(
-        "Catégorie supprimée avec succès.",
+        `La catégorie « ${category.name} » a été supprimée avec succès.`,
+      );
+
+      setCategoryToDelete(
+        null,
       );
 
       await load();
@@ -675,7 +680,7 @@ export default function CategoriesPage() {
   }
 
   return (
-    <AdminShell>
+    <>
       <div className="space-y-7">
         <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
@@ -1030,7 +1035,7 @@ export default function CategoriesPage() {
                               )
                             }
                             onDelete={() =>
-                              remove(
+                              setCategoryToDelete(
                                 category,
                               )
                             }
@@ -1064,7 +1069,7 @@ export default function CategoriesPage() {
                           )
                         }
                         onDelete={() =>
-                          remove(
+                          setCategoryToDelete(
                             category,
                           )
                         }
@@ -1152,7 +1157,164 @@ export default function CategoriesPage() {
           }}
         />
       )}
-    </AdminShell>
+
+      {categoryToDelete && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Fermer la confirmation de suppression"
+            onClick={() => {
+              if (
+                deletingId === null
+              ) {
+                setCategoryToDelete(
+                  null,
+                );
+              }
+            }}
+            className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md"
+          />
+
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+            <div className="relative overflow-hidden bg-gradient-to-br from-red-600 via-red-600 to-rose-700 px-6 py-6 text-white sm:px-7">
+              <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
+              <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-black/10" />
+
+              <div className="relative flex items-start gap-4">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-inset ring-white/20 backdrop-blur">
+                  <Trash2 className="h-7 w-7" />
+                </span>
+
+                <div className="min-w-0">
+                  <span className="text-[11px] font-black uppercase tracking-[0.16em] text-red-100">
+                    Confirmation
+                  </span>
+
+                  <h2 className="mt-1 text-xl font-black sm:text-2xl">
+                    Supprimer cette catégorie ?
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-red-100">
+                    Cette action est définitive et ne pourra pas être annulée.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-7">
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="flex items-center gap-4">
+                  <CategoryImage
+                    category={
+                      categoryToDelete
+                    }
+                    className="h-14 w-14"
+                  />
+
+                  <div className="min-w-0">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                      Catégorie concernée
+                    </span>
+
+                    <strong className="mt-1 block truncate text-base font-black text-zinc-950">
+                      {
+                        categoryToDelete.name
+                      }
+                    </strong>
+
+                    <span className="mt-1 block truncate text-xs font-semibold text-zinc-500">
+                      /{
+                        categoryToDelete.slug
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {Number(
+                categoryToDelete.article_count ||
+                  0,
+              ) > 0 ? (
+                <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+
+                  <div>
+                    <strong className="font-black">
+                      Attention
+                    </strong>
+
+                    <p className="mt-1 leading-6">
+                      Cette catégorie contient{" "}
+                      <strong>
+                        {
+                          categoryToDelete.article_count
+                        }{" "}
+                        article
+                        {Number(
+                          categoryToDelete.article_count,
+                        ) > 1
+                          ? "s"
+                          : ""}
+                      </strong>
+                      . Le serveur peut refuser sa suppression tant qu’elle est utilisée.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+
+                  <p className="leading-6">
+                    Vérifiez bien la catégorie avant de confirmer la suppression.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 border-t border-zinc-100 bg-zinc-50 p-4 sm:p-5">
+              <button
+                type="button"
+                disabled={
+                  deletingId !== null
+                }
+                onClick={() =>
+                  setCategoryToDelete(
+                    null,
+                  )
+                }
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-5 text-sm font-black text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  deletingId !== null
+                }
+                onClick={
+                  confirmRemove
+                }
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 text-sm font-black text-white shadow-lg shadow-red-600/20 transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingId !==
+                null ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Suppression...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

@@ -591,7 +591,7 @@ export default function Header() {
                 <strong className="block text-lg font-black leading-none tracking-tight text-zinc-950 sm:text-xl">
                   Brico
                   <span className="text-orange-500">
-                    Ménage
+                    Menage
                   </span>
                 </strong>
 

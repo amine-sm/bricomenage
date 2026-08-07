@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const articleService = require("./articleService");
 
 function numberValue(value, fallback = 0) {
   const parsed = Number(value);
@@ -91,21 +92,19 @@ async function listPacks({
         p.created_at,
         p.updated_at,
         COUNT(DISTINCT pi.article_id) AS article_count,
-        COALESCE(
-          MIN(
-            FLOOR(
-              a.stock_quantity /
-              NULLIF(pi.quantity, 0)
-            )
-          ),
-          0
-        ) AS calculated_stock
+        CASE
+          WHEN COUNT(pi.article_id) = 0 THEN 0
+          WHEN SUM(CASE WHEN a.id IS NULL OR a.is_active = 0 THEN 1 ELSE 0 END) > 0 THEN 0
+          ELSE COALESCE(
+            MIN(FLOOR(a.stock_quantity / NULLIF(pi.quantity, 0))),
+            0
+          )
+        END AS calculated_stock
       FROM packs p
       LEFT JOIN pack_items pi
         ON pi.pack_id = p.id
       LEFT JOIN articles a
         ON a.id = pi.article_id
-        AND a.is_active = 1
       WHERE ${where.join(" AND ")}
       GROUP BY
         p.id,
@@ -233,21 +232,19 @@ async function findPackBySlug(slug) {
         p.created_at,
         p.updated_at,
         COUNT(DISTINCT pi.article_id) AS article_count,
-        COALESCE(
-          MIN(
-            FLOOR(
-              a.stock_quantity /
-              NULLIF(pi.quantity, 0)
-            )
-          ),
-          0
-        ) AS calculated_stock
+        CASE
+          WHEN COUNT(pi.article_id) = 0 THEN 0
+          WHEN SUM(CASE WHEN a.id IS NULL OR a.is_active = 0 THEN 1 ELSE 0 END) > 0 THEN 0
+          ELSE COALESCE(
+            MIN(FLOOR(a.stock_quantity / NULLIF(pi.quantity, 0))),
+            0
+          )
+        END AS calculated_stock
       FROM packs p
       LEFT JOIN pack_items pi
         ON pi.pack_id = p.id
       LEFT JOIN articles a
         ON a.id = pi.article_id
-        AND a.is_active = 1
       WHERE p.slug = ?
         AND p.is_active = 1
       GROUP BY p.id
@@ -331,99 +328,13 @@ async function listPromotions({
   limit = 100,
   offset = 0,
 } = {}) {
-  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
-  const safeOffset = Math.max(Number(offset) || 0, 0);
-  const values = [];
-  const searchWhere = [];
-
-  if (search) {
-    searchWhere.push(
-      "(a.designation LIKE ? OR a.description LIKE ? OR p.name LIKE ?)",
-    );
-    const term = `%${search}%`;
-    values.push(term, term, term);
-  }
-
-  const [rows] = await pool.query(
-    `
-      SELECT
-        a.id,
-        a.slug,
-        a.designation,
-        a.reference,
-        a.brand,
-        a.description,
-        a.category_id,
-        a.supplier_id,
-        c.name AS category,
-        s.name AS supplier,
-        a.image,
-        a.images,
-        a.stock_quantity,
-        a.rating,
-        a.reviews,
-        a.price AS base_price,
-        p.id AS promotion_id,
-        p.name AS promotion_name,
-        p.description AS promotion_description,
-        p.discount_type,
-        p.discount_value,
-        p.starts_at,
-        p.ends_at,
-
-        ROUND(
-          CASE
-            WHEN p.discount_type = 'PERCENT'
-              THEN GREATEST(
-                0,
-                a.price -
-                (a.price * p.discount_value / 100)
-              )
-            ELSE GREATEST(
-              0,
-              a.price - p.discount_value
-            )
-          END,
-          2
-        ) AS price,
-
-        a.price AS old_price
-
-      FROM promotion_articles pa
-      INNER JOIN promotions p
-        ON p.id = pa.promotion_id
-      INNER JOIN articles a
-        ON a.id = pa.article_id
-      INNER JOIN categories c
-        ON c.id = a.category_id
-      LEFT JOIN suppliers s
-        ON s.id = a.supplier_id
-
-      WHERE p.is_active = 1
-        AND a.is_active = 1
-        AND (
-          p.starts_at IS NULL
-          OR p.starts_at <= NOW()
-        )
-        AND (
-          p.ends_at IS NULL
-          OR p.ends_at >= NOW()
-        )
-        ${searchWhere.length ? `AND ${searchWhere.join(" AND ")}` : ""}
-
-      ORDER BY
-        p.created_at DESC,
-        a.created_at DESC
-
-      LIMIT ? OFFSET ?
-    `,
-    [...values, safeLimit, safeOffset],
-  );
-
-  return {
-    articles: rows.map(normalizeArticle),
-    total: rows.length,
-  };
+  return articleService.listArticles({
+    search,
+    category: "",
+    promotion: true,
+    limit,
+    offset,
+  });
 }
 
 module.exports = {

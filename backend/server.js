@@ -2,6 +2,7 @@ require("dotenv").config();
 
 const app = require("./app");
 const pool = require("./config/db");
+const ensureSchema = require("./scripts/ensureSchema");
 
 const PORT = Number(
   process.env.PORT || 5000,
@@ -16,6 +17,8 @@ async function startServer() {
     }
 
     await pool.query("SELECT 1");
+
+    await ensureSchema();
 
     app.listen(PORT, () => {
       console.log(

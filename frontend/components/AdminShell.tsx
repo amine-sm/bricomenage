@@ -1,32 +1,114 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
-import { apiFetch, adminHeaders } from "@/lib/api";
+import {
+  type ReactNode,
+  useEffect,
+  useState,
+} from "react";
+
+import {
+  LoaderCircle,
+} from "lucide-react";
+
+import {
+  useRouter,
+} from "next/navigation";
+
 import AdminNav from "@/components/AdminNav";
 
-export default function AdminShell({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
+import {
+  adminHeaders,
+  apiFetch,
+} from "@/lib/api";
+
+let sessionValidated = false;
+
+export default function AdminShell({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const router =
+    useRouter();
+
+  const [
+    ready,
+    setReady,
+  ] = useState(
+    sessionValidated,
+  );
 
   useEffect(() => {
-    const token = localStorage.getItem("admin_token");
-    if (!token) {
-      router.replace("/admin/connexion");
+    if (sessionValidated) {
+      setReady(true);
       return;
     }
-    apiFetch("/auth/me", { headers: adminHeaders() })
-      .then(() => setReady(true))
+
+    const token =
+      window.localStorage.getItem(
+        "admin_token",
+      );
+
+    if (!token) {
+      router.replace(
+        "/admin/connexion",
+      );
+      return;
+    }
+
+    let mounted = true;
+
+    apiFetch("/auth/me", {
+      headers:
+        adminHeaders(),
+    })
+      .then(() => {
+        sessionValidated = true;
+
+        if (mounted) {
+          setReady(true);
+        }
+      })
       .catch(() => {
-        localStorage.removeItem("admin_token");
-        router.replace("/admin/connexion");
+        sessionValidated = false;
+
+        window.localStorage.removeItem(
+          "admin_token",
+        );
+        window.localStorage.removeItem(
+          "admin_user",
+        );
+
+        router.replace(
+          "/admin/connexion",
+        );
       });
+
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
   if (!ready) {
-    return <div className="flex min-h-screen items-center justify-center bg-zinc-100"><LoaderCircle className="h-9 w-9 animate-spin text-orange-500" /></div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-100">
+        <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
+          <LoaderCircle className="h-5 w-5 animate-spin text-orange-500" />
+          <span className="text-sm font-black text-zinc-600">
+            Ouverture de l’administration...
+          </span>
+        </div>
+      </div>
+    );
   }
 
-  return <div className="min-h-screen bg-zinc-100 lg:flex"><AdminNav/><main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main></div>;
+  return (
+    <div className="min-h-screen bg-zinc-100 lg:flex">
+      <AdminNav />
+
+      <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
+        {children}
+      </main>
+    </div>
+  );
 }

@@ -32,8 +32,6 @@ import {
   X,
 } from "lucide-react";
 
-import AdminShell from "@/components/AdminShell";
-
 import {
   adminHeaders,
   apiFetch,
@@ -128,6 +126,13 @@ export default function SuppliersPage() {
     deletingId,
     setDeletingId,
   ] = useState<number | null>(
+    null,
+  );
+
+  const [
+    supplierToDelete,
+    setSupplierToDelete,
+  ] = useState<Supplier | null>(
     null,
   );
 
@@ -609,17 +614,13 @@ export default function SuppliersPage() {
     }
   }
 
-  async function remove(
-    supplier: Supplier,
-  ) {
-    const confirmed =
-      window.confirm(
-        `Supprimer le fournisseur « ${supplier.name} » ?`,
-      );
-
-    if (!confirmed) {
+  async function confirmRemove() {
+    if (!supplierToDelete) {
       return;
     }
+
+    const supplier =
+      supplierToDelete;
 
     setDeletingId(
       supplier.id,
@@ -639,7 +640,11 @@ export default function SuppliersPage() {
       );
 
       setSuccess(
-        "Fournisseur supprimé avec succès.",
+        `Le fournisseur « ${supplier.name} » a été supprimé avec succès.`,
+      );
+
+      setSupplierToDelete(
+        null,
       );
 
       await load();
@@ -663,7 +668,7 @@ export default function SuppliersPage() {
   }
 
   return (
-    <AdminShell>
+    <>
       <div className="space-y-7">
         <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
@@ -1012,7 +1017,7 @@ export default function SuppliersPage() {
                         )
                       }
                       onDelete={() =>
-                        remove(
+                        setSupplierToDelete(
                           supplier,
                         )
                       }
@@ -1081,7 +1086,7 @@ export default function SuppliersPage() {
                               )
                             }
                             onDelete={() =>
-                              remove(
+                              setSupplierToDelete(
                                 supplier,
                               )
                             }
@@ -1160,7 +1165,166 @@ export default function SuppliersPage() {
           }}
         />
       )}
-    </AdminShell>
+
+      {supplierToDelete && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Fermer la confirmation de suppression"
+            onClick={() => {
+              if (
+                deletingId === null
+              ) {
+                setSupplierToDelete(
+                  null,
+                );
+              }
+            }}
+            className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md"
+          />
+
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.35)]">
+            <div className="relative overflow-hidden bg-gradient-to-br from-red-600 via-red-600 to-rose-700 px-6 py-6 text-white sm:px-7">
+              <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10" />
+              <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-black/10" />
+
+              <div className="relative flex items-start gap-4">
+                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-inset ring-white/20 backdrop-blur">
+                  <Trash2 className="h-7 w-7" />
+                </span>
+
+                <div className="min-w-0">
+                  <span className="text-[11px] font-black uppercase tracking-[0.16em] text-red-100">
+                    Confirmation
+                  </span>
+
+                  <h2 className="mt-1 text-xl font-black sm:text-2xl">
+                    Supprimer ce fournisseur ?
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-red-100">
+                    Cette action peut être définitive selon son utilisation dans les articles.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 sm:p-7">
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                <div className="flex items-center gap-4">
+                  <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 ring-1 ring-orange-100">
+                    <Building2 className="h-7 w-7" />
+                  </span>
+
+                  <div className="min-w-0">
+                    <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-zinc-400">
+                      Fournisseur concerné
+                    </span>
+
+                    <strong className="mt-1 block truncate text-base font-black text-zinc-950">
+                      {
+                        supplierToDelete.name
+                      }
+                    </strong>
+
+                    <span className="mt-1 block truncate text-xs font-semibold text-zinc-500">
+                      {
+                        supplierToDelete.contact_name ||
+                        supplierToDelete.wilaya ||
+                        `ID #${supplierToDelete.id}`
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-zinc-100 bg-white p-3.5 shadow-sm">
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                    Téléphone
+                  </span>
+
+                  <strong className="mt-1 block truncate text-sm text-zinc-700">
+                    {
+                      supplierToDelete.phone ||
+                      "Non renseigné"
+                    }
+                  </strong>
+                </div>
+
+                <div className="rounded-2xl border border-zinc-100 bg-white p-3.5 shadow-sm">
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                    Wilaya
+                  </span>
+
+                  <strong className="mt-1 block truncate text-sm text-zinc-700">
+                    {
+                      supplierToDelete.wilaya ||
+                      "Non renseignée"
+                    }
+                  </strong>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+
+                <div>
+                  <strong className="font-black">
+                    Attention
+                  </strong>
+
+                  <p className="mt-1 leading-6">
+                    Si ce fournisseur est déjà relié à des articles, le serveur peut le désactiver au lieu de le supprimer définitivement afin de conserver l’historique.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 border-t border-zinc-100 bg-zinc-50 p-4 sm:p-5">
+              <button
+                type="button"
+                disabled={
+                  deletingId !== null
+                }
+                onClick={() =>
+                  setSupplierToDelete(
+                    null,
+                  )
+                }
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-5 text-sm font-black text-zinc-700 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  deletingId !== null
+                }
+                onClick={
+                  confirmRemove
+                }
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 text-sm font-black text-white shadow-lg shadow-red-600/20 transition hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingId !==
+                null ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Suppression...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

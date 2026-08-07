@@ -31,8 +31,6 @@ import {
   X,
 } from "lucide-react";
 
-import AdminShell from "@/components/AdminShell";
-
 import {
   adminHeaders,
   apiFetch,
@@ -45,7 +43,6 @@ type Article = {
   reference?: string;
   price: number;
   old_price?: number;
-  purchase_price?: number;
   stock_quantity: number;
   min_stock?: number;
   category_id: number;
@@ -212,6 +209,13 @@ export default function ArticlesPage() {
     deletingId,
     setDeletingId,
   ] = useState<number | null>(
+    null,
+  );
+
+  const [
+    articleToDelete,
+    setArticleToDelete,
+  ] = useState<Article | null>(
     null,
   );
 
@@ -911,22 +915,14 @@ export default function ArticlesPage() {
     }
   }
 
-  async function remove(
-    article: Article,
-  ) {
-    const confirmed =
-      window.confirm(
-        `Supprimer l’article « ${article.designation} » ?`,
-      );
-
-    if (!confirmed) {
+  async function confirmRemove() {
+    if (!articleToDelete) {
       return;
     }
 
-    setDeletingId(
-      article.id,
-    );
+    const article = articleToDelete;
 
+    setDeletingId(article.id);
     setError("");
     setSuccess("");
 
@@ -941,8 +937,10 @@ export default function ArticlesPage() {
       );
 
       setSuccess(
-        "Article supprimé avec succès.",
+        `L’article « ${article.designation} » a été supprimé avec succès.`,
       );
+
+      setArticleToDelete(null);
 
       await load();
     } catch (requestError) {
@@ -966,7 +964,7 @@ export default function ArticlesPage() {
   }
 
   return (
-    <AdminShell>
+    <>
       <div className="space-y-7">
         <section className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-gradient-to-br from-white via-white to-orange-50/60 p-6 shadow-sm sm:p-7 flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
           <div>
@@ -1403,7 +1401,7 @@ export default function ArticlesPage() {
                               )
                             }
                             onDelete={() =>
-                              remove(
+                              setArticleToDelete(
                                 article,
                               )
                             }
@@ -1439,7 +1437,7 @@ export default function ArticlesPage() {
                           )
                         }
                         onDelete={() =>
-                          remove(
+                          setArticleToDelete(
                             article,
                           )
                         }
@@ -1539,7 +1537,100 @@ export default function ArticlesPage() {
           }}
         />
       )}
-    </AdminShell>
+
+      {articleToDelete && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Fermer la confirmation de suppression"
+            onClick={() => {
+              if (deletingId === null) {
+                setArticleToDelete(null);
+              }
+            }}
+            className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"
+          />
+
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.30)]">
+            <div className="p-6 sm:p-7">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600 ring-1 ring-red-100">
+                  <Trash2 className="h-6 w-6" />
+                </div>
+
+                <div className="min-w-0">
+                  <h2 className="text-xl font-black text-zinc-950">
+                    Supprimer cet article ?
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Cette action supprimera définitivement l’article suivant.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-red-100 bg-red-50/70 p-4">
+                <span className="block text-xs font-bold uppercase tracking-wider text-red-400">
+                  Article concerné
+                </span>
+
+                <strong className="mt-1 block break-words text-sm font-black text-zinc-900">
+                  {articleToDelete.designation}
+                </strong>
+
+                {(articleToDelete.reference ||
+                  articleToDelete.slug) && (
+                  <span className="mt-1 block text-xs text-zinc-500">
+                    {articleToDelete.reference ||
+                      articleToDelete.slug}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+
+                <p className="leading-6">
+                  Cette action est irréversible. Vérifiez bien l’article avant de continuer.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 border-t border-zinc-100 bg-zinc-50 p-4 sm:p-5">
+              <button
+                type="button"
+                disabled={deletingId !== null}
+                onClick={() =>
+                  setArticleToDelete(null)
+                }
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-5 text-sm font-black text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                disabled={deletingId !== null}
+                onClick={confirmRemove}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 text-sm font-black text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingId !== null ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Suppression...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -2355,28 +2446,6 @@ function ArticleModal({
               min="0"
               step="0.01"
               required
-            />
-
-            <Field
-              name="old_price"
-              label="Ancien prix"
-              value={
-                editing?.old_price
-              }
-              type="number"
-              min="0"
-              step="0.01"
-            />
-
-            <Field
-              name="purchase_price"
-              label="Prix d’achat"
-              value={
-                editing?.purchase_price
-              }
-              type="number"
-              min="0"
-              step="0.01"
             />
 
             <Field

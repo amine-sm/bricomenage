@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "db:init": "node scripts/initDatabase.js",
-    "db:seed": "node scripts/seedAdmin.js"
+    "db:seed": "node scripts/seedAdmin.js",
+    "db:seed:data": "node scripts/seedDatabase.js",
+    "db:create-admin": "node scripts/createAdmin.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
