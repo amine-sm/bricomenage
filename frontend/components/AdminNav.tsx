@@ -3,6 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
+import {
   usePathname,
   useRouter,
 } from "next/navigation";
@@ -18,6 +23,16 @@ import {
   Tags,
   Truck,
 } from "lucide-react";
+
+import {
+  adminHeaders,
+  apiFetch,
+} from "@/lib/api";
+
+type NavOrder = {
+  id: number;
+  status: string;
+};
 
 const links = [
   {
@@ -66,6 +81,68 @@ const links = [
 export default function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
+
+  const [newOrdersCount, setNewOrdersCount] =
+    useState(0);
+
+  const refreshOrdersCount =
+    useCallback(async () => {
+      try {
+        const response =
+          await apiFetch<{
+            orders: NavOrder[];
+          }>("/admin/orders", {
+            headers:
+              adminHeaders(),
+          });
+
+        setNewOrdersCount(
+          (response.orders || []).filter(
+            (order) =>
+              String(order.status) ===
+              "NOUVELLE",
+          ).length,
+        );
+      } catch {
+        // Le compteur ne doit jamais bloquer la navigation admin.
+      }
+    }, []);
+
+  useEffect(() => {
+    void refreshOrdersCount();
+
+    function handleNewOrder() {
+      setNewOrdersCount(
+        (current) => current + 1,
+      );
+    }
+
+    function handleRefresh() {
+      void refreshOrdersCount();
+    }
+
+    window.addEventListener(
+      "bricomenage:new-order",
+      handleNewOrder,
+    );
+
+    window.addEventListener(
+      "bricomenage:orders-count-refresh",
+      handleRefresh,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "bricomenage:new-order",
+        handleNewOrder,
+      );
+
+      window.removeEventListener(
+        "bricomenage:orders-count-refresh",
+        handleRefresh,
+      );
+    };
+  }, [refreshOrdersCount]);
 
   function logout() {
     localStorage.removeItem("admin_token");
@@ -131,7 +208,18 @@ export default function AdminNav() {
               >
                 <Icon className="h-5 w-5 shrink-0" />
 
-                <span>{label}</span>
+                <span className="min-w-0 flex-1">
+                  {label}
+                </span>
+
+                {label === "Commandes" &&
+                  newOrdersCount > 0 && (
+                    <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black leading-5 text-white shadow-lg shadow-red-950/30 ring-2 ring-zinc-950">
+                      {newOrdersCount > 99
+                        ? "99+"
+                        : newOrdersCount}
+                    </span>
+                  )}
               </Link>
             );
           }

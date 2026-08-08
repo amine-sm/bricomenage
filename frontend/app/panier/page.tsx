@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  ImageIcon,
   Minus,
   PackageOpen,
   Plus,
@@ -28,10 +29,148 @@ import {
   saveCart,
 } from "@/lib/cart";
 
+import {
+  API_URL,
+} from "@/lib/api";
+
+import {
+  catalogApi,
+} from "@/lib/catalog";
+
 function formatPrice(value: number) {
   return new Intl.NumberFormat(
     "fr-DZ",
   ).format(value);
+}
+
+function productImageUrl(
+  value?: string | null,
+) {
+  if (!value) {
+    return "";
+  }
+
+  if (
+    value.startsWith(
+      "http://",
+    ) ||
+    value.startsWith(
+      "https://",
+    ) ||
+    value.startsWith(
+      "data:",
+    )
+  ) {
+    return value;
+  }
+
+  const apiOrigin =
+    API_URL.replace(
+      /\/api\/?$/,
+      "",
+    );
+
+  const normalized =
+    value.startsWith("/")
+      ? value
+      : `/${value.replace(
+          /^\/+/,
+          "",
+        )}`;
+
+  if (
+    normalized.startsWith(
+      "/uploads/",
+    )
+  ) {
+    return `${apiOrigin}${normalized}`;
+  }
+
+  return normalized;
+}
+
+function PackPhotoLayout({
+  images,
+  fallback,
+  title,
+}: {
+  images: string[];
+  fallback?: string;
+  title: string;
+}) {
+  const normalized =
+    Array.from(
+      new Set(
+        images
+          .map(
+            productImageUrl,
+          )
+          .filter(Boolean),
+      ),
+    ).slice(0, 4);
+
+  if (
+    normalized.length === 0 &&
+    fallback
+  ) {
+    normalized.push(
+      productImageUrl(
+        fallback,
+      ),
+    );
+  }
+
+  if (
+    normalized.length === 0
+  ) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <PackageOpen className="h-10 w-10 text-zinc-300" />
+      </div>
+    );
+  }
+
+  if (
+    normalized.length === 1
+  ) {
+    return (
+      <img
+        src={normalized[0]}
+        alt={title}
+        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+      />
+    );
+  }
+
+  return (
+    <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-0.5 bg-white">
+      {normalized.map(
+        (image, index) => (
+          <div
+            key={`${image}-${index}`}
+            className={`overflow-hidden bg-zinc-100 ${
+              normalized.length ===
+                2
+                ? "row-span-2"
+                : normalized.length ===
+                      3 &&
+                    index === 0
+                  ? "row-span-2"
+                  : ""
+            }`}
+          >
+            <img
+              src={image}
+              alt={`${title} - produit ${
+                index + 1
+              }`}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        ),
+      )}
+    </div>
+  );
 }
 
 export default function Cart() {
@@ -42,13 +181,129 @@ export default function Cart() {
     useState(false);
 
   useEffect(() => {
-    try {
-      setItems(getCart());
-    } catch {
-      setItems([]);
-    } finally {
-      setLoaded(true);
+    let active = true;
+
+    async function loadCart() {
+      try {
+        const saved =
+          getCart();
+
+        if (active) {
+          setItems(saved);
+        }
+
+        /*
+         * Les anciens paniers peuvent
+         * ne pas encore contenir la
+         * composition du pack.
+         *
+         * On la récupère automatiquement
+         * depuis l'API.
+         */
+        const enriched =
+          await Promise.all(
+            saved.map(
+              async (item) => {
+                if (
+                  item.item_type !==
+                    "PACK" ||
+                  !item.slug ||
+                  (
+                    item.pack_components ||
+                    []
+                  ).length > 0
+                ) {
+                  return item;
+                }
+
+                try {
+                  const response =
+                    await catalogApi.packBySlug(
+                      item.slug,
+                    );
+
+                  const pack =
+                    response.pack as {
+                      image?: string | null;
+                      articles?: Array<{
+                        id: number;
+                        slug?: string;
+                        designation: string;
+                        image?: string | null;
+                        quantity?: number;
+                      }>;
+                    };
+
+                  return {
+                    ...item,
+                    image:
+                      pack.image ||
+                      item.image,
+
+                    pack_components:
+                      (
+                        pack.articles ||
+                        []
+                      ).map(
+                        (
+                          article,
+                        ) => ({
+                          article_id:
+                            Number(
+                              article.id,
+                            ),
+                          slug:
+                            article.slug,
+                          designation:
+                            article.designation,
+                          image:
+                            article.image ||
+                            undefined,
+                          quantity_per_pack:
+                            Number(
+                              article.quantity ||
+                                1,
+                            ),
+                        }),
+                      ),
+                  };
+                } catch {
+                  return item;
+                }
+              },
+            ),
+          );
+
+        if (active) {
+          setItems(enriched);
+
+          if (
+            JSON.stringify(
+              enriched,
+            ) !==
+            JSON.stringify(
+              saved,
+            )
+          ) {
+            saveCart(enriched);
+          }
+        }
+      } catch {
+        if (active) {
+          setItems([]);
+        }
+      } finally {
+        if (active) {
+          setLoaded(true);
+        }
+      }
     }
+
+    void loadCart();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   function persistCart(
@@ -75,15 +330,28 @@ export default function Cart() {
       ),
     );
 
-    const nextItems = items.map(
-      (item) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: safeQuantity,
-            }
-          : item,
-    );
+    const target =
+      items.find(
+        (item) =>
+          item.id === id,
+      );
+
+    const nextItems =
+      items.map(
+        (item) =>
+          item.id === id &&
+          (
+            !target ||
+            item.item_type ===
+              target.item_type
+          )
+            ? {
+                ...item,
+                quantity:
+                  safeQuantity,
+              }
+            : item,
+      );
 
     persistCart(nextItems);
   }
@@ -106,10 +374,19 @@ export default function Cart() {
     );
   }
 
-  function removeItem(id: number) {
-    const nextItems = items.filter(
-      (item) => item.id !== id,
-    );
+  function removeItem(
+    target: CartItem,
+  ) {
+    const nextItems =
+      items.filter(
+        (item) =>
+          !(
+            item.id ===
+              target.id &&
+            item.item_type ===
+              target.item_type
+          ),
+      );
 
     persistCart(nextItems);
   }
@@ -262,7 +539,7 @@ export default function Cart() {
                       )
                     }
                     onRemove={() =>
-                      removeItem(item.id)
+                      removeItem(item)
                     }
                   />
                 ))}
@@ -406,6 +683,29 @@ function CartProduct({
     Number(item.price) *
     Number(item.quantity);
 
+  const detailHref =
+    item.item_type === "PACK"
+      ? `/pack/?slug=${encodeURIComponent(
+          item.slug || "",
+        )}`
+      : item.slug
+        ? `/article/?slug=${encodeURIComponent(
+            item.slug,
+          )}`
+        : `/produit/?id=${item.id}`;
+
+  const componentImages =
+    (
+      item.pack_components ||
+      []
+    )
+      .map(
+        (component) =>
+          component.image ||
+          "",
+      )
+      .filter(Boolean);
+
   return (
     <article className="group relative overflow-hidden rounded-[26px] border border-zinc-200 bg-white p-4 shadow-sm transition-all duration-300 hover:border-orange-200 hover:shadow-xl hover:shadow-orange-500/5 sm:p-5">
       <div className="absolute bottom-0 left-0 h-1 w-0 bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-500 group-hover:w-full" />
@@ -413,16 +713,30 @@ function CartProduct({
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
         {/* Visuel */}
         <Link
-          href={`/produit/?id=${item.id}`}
-          className="flex h-24 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-50 to-zinc-100 sm:h-28 sm:w-28"
+          href={detailHref}
+          className="flex h-28 w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-zinc-100 sm:h-32 sm:w-32"
         >
-          {"image" in item &&
-          typeof item.image ===
-            "string" &&
-          item.image ? (
+          {item.item_type ===
+          "PACK" ? (
+            <PackPhotoLayout
+              images={
+                componentImages
+              }
+              fallback={
+                item.image
+              }
+              title={
+                item.designation
+              }
+            />
+          ) : item.image ? (
             <img
-              src={item.image}
-              alt={item.designation}
+              src={productImageUrl(
+                item.image,
+              )}
+              alt={
+                item.designation
+              }
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
@@ -441,7 +755,7 @@ function CartProduct({
           )}
 
           <Link
-            href={`/produit/?id=${item.id}`}
+            href={detailHref}
             className="block"
           >
             <h3 className="line-clamp-2 text-lg font-black leading-6 text-zinc-950 transition-colors group-hover:text-orange-600">
@@ -456,6 +770,83 @@ function CartProduct({
               / unité
             </span>
           </p>
+          {item.item_type ===
+            "PACK" &&
+            (
+              item.pack_components ||
+              []
+            ).length > 0 && (
+              <div className="mt-4 rounded-2xl border border-orange-100 bg-orange-50/60 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-black uppercase tracking-[0.13em] text-orange-600">
+                    Produits inclus
+                  </span>
+
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-zinc-600 ring-1 ring-orange-100">
+                    {
+                      item
+                        .pack_components
+                        ?.length
+                    }{" "}
+                    produit
+                    {(item
+                      .pack_components
+                      ?.length ||
+                      0) > 1
+                      ? "s"
+                      : ""}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {item.pack_components?.map(
+                    (
+                      component,
+                    ) => (
+                      <div
+                        key={
+                          component.article_id
+                        }
+                        className="flex min-w-0 items-center gap-2 rounded-xl border border-orange-100 bg-white p-2"
+                      >
+                        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+                          {component.image ? (
+                            <img
+                              src={productImageUrl(
+                                component.image,
+                              )}
+                              alt={
+                                component.designation
+                              }
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <ImageIcon className="h-4 w-4 text-zinc-300" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <strong className="block truncate text-[11px] font-black text-zinc-900">
+                            {
+                              component.designation
+                            }
+                          </strong>
+
+                          <span className="mt-0.5 block text-[10px] font-bold text-orange-600">
+                            {
+                              component.quantity_per_pack
+                            }{" "}
+                            × par pack
+                          </span>
+                        </div>
+                      </div>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
 
           <button
             type="button"

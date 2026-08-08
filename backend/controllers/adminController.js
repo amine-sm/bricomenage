@@ -309,7 +309,11 @@ async function dashboard(
       "SELECT COUNT(*) AS total FROM categories",
     ),
     pool.query(
-      "SELECT COUNT(*) AS total FROM orders",
+      `
+        SELECT COUNT(*) AS total
+        FROM orders
+        WHERE status <> 'ANNULEE'
+      `,
     ),
     pool.query(
       `
@@ -1526,6 +1530,9 @@ async function getOrder(
   req,
   res,
 ) {
+  const orderId =
+    Number(req.params.id);
+
   const [orders] =
     await pool.query(
       `
@@ -1534,7 +1541,7 @@ async function getOrder(
         WHERE id = ?
         LIMIT 1
       `,
-      [req.params.id],
+      [orderId],
     );
 
   if (!orders[0]) {
@@ -1576,8 +1583,126 @@ async function getOrder(
 
         ORDER BY oi.id ASC
       `,
-      [req.params.id],
+      [orderId],
     );
+
+  /*
+   * Charger les produits inclus dans chaque pack.
+   *
+   * 1. On utilise d'abord le snapshot order_pack_components :
+   *    c'est la composition exacte au moment de la commande.
+   * 2. Pour une ancienne commande sans snapshot, on retombe sur
+   *    la composition actuelle de pack_items.
+   */
+  for (const item of items) {
+    item.pack_components = [];
+
+    if (
+      String(item.item_type) !==
+      "PACK"
+    ) {
+      continue;
+    }
+
+    const [snapshot] =
+      await pool.query(
+        `
+          SELECT
+            opc.article_id,
+            COALESCE(
+              opc.component_designation,
+              a.designation
+            ) AS designation,
+            COALESCE(
+              opc.component_image,
+              a.image
+            ) AS image,
+            opc.quantity_per_pack,
+            opc.total_quantity
+          FROM order_pack_components opc
+          LEFT JOIN articles a
+            ON a.id = opc.article_id
+          WHERE opc.order_item_id = ?
+          ORDER BY opc.id ASC
+        `,
+        [item.id],
+      );
+
+    if (snapshot.length > 0) {
+      item.pack_components =
+        snapshot.map(
+          (part) => ({
+            article_id:
+              part.article_id,
+            designation:
+              part.designation ||
+              "Article du pack",
+            image:
+              part.image || null,
+            quantity_per_pack:
+              Number(
+                part.quantity_per_pack ||
+                  1,
+              ),
+            total_quantity:
+              Number(
+                part.total_quantity ||
+                  0,
+              ),
+          }),
+        );
+
+      continue;
+    }
+
+    /*
+     * Compatibilité avec les commandes créées avant
+     * l'ajout du snapshot.
+     */
+    if (item.pack_id) {
+      const [legacyParts] =
+        await pool.query(
+          `
+            SELECT
+              a.id AS article_id,
+              a.designation,
+              a.image,
+              pi.quantity AS quantity_per_pack
+            FROM pack_items pi
+            INNER JOIN articles a
+              ON a.id = pi.article_id
+            WHERE pi.pack_id = ?
+            ORDER BY a.designation ASC
+          `,
+          [item.pack_id],
+        );
+
+      item.pack_components =
+        legacyParts.map(
+          (part) => ({
+            article_id:
+              part.article_id,
+            designation:
+              part.designation,
+            image:
+              part.image || null,
+            quantity_per_pack:
+              Number(
+                part.quantity_per_pack ||
+                  1,
+              ),
+            total_quantity:
+              Number(
+                part.quantity_per_pack ||
+                  1,
+              ) *
+              Number(
+                item.quantity || 1,
+              ),
+          }),
+        );
+    }
+  }
 
   const [history] =
     await pool.query(
@@ -1589,7 +1714,7 @@ async function getOrder(
           created_at ASC,
           id ASC
       `,
-      [req.params.id],
+      [orderId],
     );
 
   return res.json({
@@ -1642,26 +1767,68 @@ async function updateOrderStatus(
     }
 
     const [items] = await connection.query(
-      `SELECT article_id,pack_id,item_type,quantity FROM order_items WHERE order_id=? FOR UPDATE`,
+      `SELECT id,article_id,pack_id,item_type,quantity FROM order_items WHERE order_id=? FOR UPDATE`,
       [req.params.id],
     );
 
     const stockNeeds = new Map();
     const addNeed = (articleId, qty) => {
-      stockNeeds.set(Number(articleId), (stockNeeds.get(Number(articleId)) || 0) + Number(qty));
+      const id = Number(articleId);
+      const quantity = Number(qty);
+
+      if (!id || !quantity) {
+        return;
+      }
+
+      stockNeeds.set(
+        id,
+        (stockNeeds.get(id) || 0) + quantity,
+      );
     };
 
     for (const item of items) {
       if (item.item_type === "PACK") {
-        const [parts] = await connection.query(
-          `SELECT article_id,quantity FROM pack_items WHERE pack_id=?`,
-          [item.pack_id],
+        /*
+         * Priorité au snapshot enregistré lors de la commande.
+         * C'est la composition exacte réellement déduite du stock.
+         */
+        const [snapshotParts] = await connection.query(
+          `SELECT article_id,total_quantity
+           FROM order_pack_components
+           WHERE order_item_id=?`,
+          [item.id],
         );
-        for (const part of parts) {
-          addNeed(part.article_id, Number(part.quantity) * Number(item.quantity));
+
+        if (snapshotParts.length > 0) {
+          for (const part of snapshotParts) {
+            addNeed(
+              part.article_id,
+              part.total_quantity,
+            );
+          }
+        } else {
+          /*
+           * Compatibilité avec les anciennes commandes créées
+           * avant l'ajout du snapshot.
+           */
+          const [parts] = await connection.query(
+            `SELECT article_id,quantity FROM pack_items WHERE pack_id=?`,
+            [item.pack_id],
+          );
+
+          for (const part of parts) {
+            addNeed(
+              part.article_id,
+              Number(part.quantity) *
+                Number(item.quantity),
+            );
+          }
         }
       } else if (item.article_id) {
-        addNeed(item.article_id, item.quantity);
+        addNeed(
+          item.article_id,
+          item.quantity,
+        );
       }
     }
 
@@ -1714,6 +1881,20 @@ async function updateOrderStatus(
     );
 
     await connection.commit();
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to("admins").emit(
+        "order:status-updated",
+        {
+          id: Number(req.params.id),
+          status,
+          updated_at:
+            new Date().toISOString(),
+        },
+      );
+    }
 
     return res.json({
       success: true,

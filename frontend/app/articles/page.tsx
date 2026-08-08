@@ -128,22 +128,96 @@ function PackCard({
   const [added, setAdded] =
     useState(false);
 
-  function addPack() {
-    if (!pack.inStock) return;
+  async function addPack() {
+    if (!pack.inStock) {
+      return;
+    }
 
-    addToCart({
-      id: pack.id,
-      item_type: "PACK",
-      slug: pack.slug,
-      designation: pack.name,
-      price: Number(pack.price),
-      image:
-        cardImages[0] ||
-        undefined,
-      quantity: 1,
-    });
+    try {
+      /*
+       * On charge la composition
+       * exacte du pack avant de le
+       * mettre dans le panier.
+       */
+      const response =
+        await catalogApi.packBySlug(
+          pack.slug,
+        );
+
+      const detail =
+        response.pack as CatalogPack & {
+          articles?: Array<{
+            id: number;
+            slug?: string;
+            designation: string;
+            image?: string | null;
+            quantity?: number;
+          }>;
+        };
+
+      addToCart({
+        id: pack.id,
+        item_type: "PACK",
+        slug: pack.slug,
+        designation: pack.name,
+        price:
+          Number(pack.price),
+
+        image:
+          detail.image ||
+          cardImages[0] ||
+          undefined,
+
+        pack_components:
+          (
+            detail.articles ||
+            []
+          ).map(
+            (article) => ({
+              article_id:
+                Number(
+                  article.id,
+                ),
+              slug:
+                article.slug,
+              designation:
+                article.designation,
+              image:
+                article.image ||
+                undefined,
+              quantity_per_pack:
+                Number(
+                  article.quantity ||
+                    1,
+                ),
+            }),
+          ),
+
+        quantity: 1,
+      });
+    } catch {
+      /*
+       * Si le détail n'est pas
+       * disponible, le pack reste
+       * commandable. Le panier
+       * tentera de l'enrichir.
+       */
+      addToCart({
+        id: pack.id,
+        item_type: "PACK",
+        slug: pack.slug,
+        designation: pack.name,
+        price:
+          Number(pack.price),
+        image:
+          cardImages[0] ||
+          undefined,
+        quantity: 1,
+      });
+    }
 
     setAdded(true);
+
     window.setTimeout(
       () => setAdded(false),
       1600,

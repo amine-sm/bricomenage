@@ -41,7 +41,61 @@ async function ensureColumn(
   return true;
 }
 
+async function ensurePackSnapshotTable() {
+  await pool.query(
+    `
+      CREATE TABLE IF NOT EXISTS order_pack_components (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        order_item_id BIGINT UNSIGNED NOT NULL,
+        article_id BIGINT UNSIGNED NULL,
+        component_designation VARCHAR(220) NULL,
+        component_image VARCHAR(500) NULL,
+        quantity_per_pack INT NOT NULL DEFAULT 1,
+        total_quantity INT NOT NULL DEFAULT 1,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_opc_order_item (order_item_id),
+        INDEX idx_opc_article (article_id),
+        CONSTRAINT fk_opc_order_item
+          FOREIGN KEY (order_item_id)
+          REFERENCES order_items(id)
+          ON DELETE CASCADE,
+        CONSTRAINT fk_opc_article
+          FOREIGN KEY (article_id)
+          REFERENCES articles(id)
+          ON DELETE SET NULL
+      ) ENGINE=InnoDB
+    `,
+  );
+}
+
 async function ensureSchema() {
+  /*
+   * Les colonnes suivantes figent le nom et l'image des produits
+   * contenus dans un pack au moment de la commande.
+   * Les anciennes bases sont migrées automatiquement.
+   */
+  await ensurePackSnapshotTable();
+
+  await ensureColumn(
+    "order_pack_components",
+    "component_designation",
+    `
+      ALTER TABLE order_pack_components
+      ADD COLUMN component_designation VARCHAR(220) NULL
+      AFTER article_id
+    `,
+  );
+
+  await ensureColumn(
+    "order_pack_components",
+    "component_image",
+    `
+      ALTER TABLE order_pack_components
+      ADD COLUMN component_image VARCHAR(500) NULL
+      AFTER component_designation
+    `,
+  );
+
   await ensureColumn(
     "order_items",
     "pack_id",
@@ -64,6 +118,8 @@ async function ensureSchema() {
       AFTER pack_id
     `,
   );
+
+  await ensurePackSnapshotTable();
 
   const stockDeductedAdded =
     await ensureColumn(

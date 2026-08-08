@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Clock3,
   Eye,
+  History,
   ImageIcon,
   LoaderCircle,
   MapPin,
@@ -32,6 +33,7 @@ import {
 } from "lucide-react";
 
 import {
+  API_URL,
   adminHeaders,
   apiFetch,
 } from "@/lib/api";
@@ -62,6 +64,14 @@ type Order = {
   updated_at?: string;
 };
 
+type PackComponent = {
+  article_id?: number | null;
+  designation: string;
+  image?: string | null;
+  quantity_per_pack: number;
+  total_quantity: number;
+};
+
 type OrderItem = {
   id: number;
   article_id?: number | null;
@@ -72,6 +82,7 @@ type OrderItem = {
   quantity: number;
   unit_price: number;
   line_total: number;
+  pack_components?: PackComponent[];
 };
 
 type OrderHistory = {
@@ -194,6 +205,127 @@ function formatDate(
   ).format(date);
 }
 
+
+function localDayKey(
+  value: string,
+) {
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return "invalid";
+  }
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() + 1,
+    ).padStart(2, "0");
+
+  const day =
+    String(
+      date.getDate(),
+    ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function formatDayHeader(
+  value: string,
+) {
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value;
+  }
+
+  const today =
+    new Date();
+
+  const yesterday =
+    new Date();
+
+  yesterday.setDate(
+    today.getDate() - 1,
+  );
+
+  const key =
+    localDayKey(value);
+
+  const todayKey =
+    localDayKey(
+      today.toISOString(),
+    );
+
+  const yesterdayKey =
+    localDayKey(
+      yesterday.toISOString(),
+    );
+
+  const formatted =
+    new Intl.DateTimeFormat(
+      "fr-DZ",
+      {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      },
+    ).format(date);
+
+  if (key === todayKey) {
+    return `Aujourd’hui · ${formatted}`;
+  }
+
+  if (
+    key === yesterdayKey
+  ) {
+    return `Hier · ${formatted}`;
+  }
+
+  return formatted;
+}
+
+function formatOrderDay(
+  value: string,
+) {
+  if (!value) {
+    return "-";
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime(),
+    )
+  ) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "fr-DZ",
+    {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    },
+  ).format(date);
+}
+
 function normalizeStatus(
   value: string,
 ): OrderStatus {
@@ -215,15 +347,39 @@ function productImageUrl(
   if (
     value.startsWith("http://") ||
     value.startsWith("https://") ||
-    value.startsWith("/")
+    value.startsWith("data:")
   ) {
     return value;
   }
 
-  return `/${value.replace(
-    /^\/+/, 
-    "",
-  )}`;
+  const apiOrigin =
+    API_URL.replace(
+      /\/api\/?$/,
+      "",
+    );
+
+  const normalized =
+    value.startsWith("/")
+      ? value
+      : `/${value.replace(
+          /^\/+/, 
+          "",
+        )}`;
+
+  /*
+   * Les images uploadées sont servies par Express :
+   * http://localhost:5000/uploads/...
+   * et non par Next.js :3000.
+   */
+  if (
+    normalized.startsWith(
+      "/uploads/",
+    )
+  ) {
+    return `${apiOrigin}${normalized}`;
+  }
+
+  return normalized;
 }
 
 export default function OrdersPage() {
@@ -300,6 +456,42 @@ export default function OrdersPage() {
     setPageSize,
   ] = useState(10);
 
+  const [
+    activeTab,
+    setActiveTab,
+  ] = useState<
+    "orders" | "history"
+  >("orders");
+
+  const [
+    historyQuery,
+    setHistoryQuery,
+  ] = useState("");
+
+  const [
+    historyStatus,
+    setHistoryStatus,
+  ] = useState<
+    "all" | OrderStatus
+  >("all");
+
+  const [
+    historyStartDate,
+    setHistoryStartDate,
+  ] = useState("");
+
+  const [
+    historyEndDate,
+    setHistoryEndDate,
+  ] = useState("");
+
+  const [
+    historySort,
+    setHistorySort,
+  ] = useState<
+    "newest" | "oldest"
+  >("newest");
+
   const load = useCallback(
     async () => {
       setLoading(true);
@@ -334,6 +526,98 @@ export default function OrdersPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    function handleNewOrder(
+      event: Event,
+    ) {
+      const customEvent =
+        event as CustomEvent<Order>;
+
+      const newOrder =
+        customEvent.detail;
+
+      if (!newOrder?.id) {
+        return;
+      }
+
+      setItems((current) => {
+        if (
+          current.some(
+            (item) =>
+              item.id === newOrder.id,
+          )
+        ) {
+          return current;
+        }
+
+        return [
+          newOrder,
+          ...current,
+        ];
+      });
+
+      setCurrentPage(1);
+      setSuccess(
+        `Nouvelle commande ${newOrder.tracking_number} reçue en temps réel.`,
+      );
+    }
+
+    function handleStatusUpdate(
+      event: Event,
+    ) {
+      const customEvent =
+        event as CustomEvent<{
+          id: number;
+          status: OrderStatus;
+          updated_at?: string;
+        }>;
+
+      const update =
+        customEvent.detail;
+
+      if (!update?.id) {
+        return;
+      }
+
+      setItems((current) =>
+        current.map((item) =>
+          item.id === update.id
+            ? {
+                ...item,
+                status:
+                  update.status,
+                updated_at:
+                  update.updated_at ||
+                  item.updated_at,
+              }
+            : item,
+        ),
+      );
+    }
+
+    window.addEventListener(
+      "bricomenage:new-order",
+      handleNewOrder,
+    );
+
+    window.addEventListener(
+      "bricomenage:order-status",
+      handleStatusUpdate,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "bricomenage:new-order",
+        handleNewOrder,
+      );
+
+      window.removeEventListener(
+        "bricomenage:order-status",
+        handleStatusUpdate,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -536,6 +820,134 @@ export default function OrdersPage() {
       pageSize,
     ]);
 
+  const historyItems =
+    useMemo(() => {
+      const normalizedQuery =
+        historyQuery
+          .trim()
+          .toLowerCase();
+
+      const startTimestamp =
+        historyStartDate
+          ? new Date(
+              `${historyStartDate}T00:00:00`,
+            ).getTime()
+          : null;
+
+      const endTimestamp =
+        historyEndDate
+          ? new Date(
+              `${historyEndDate}T23:59:59.999`,
+            ).getTime()
+          : null;
+
+      const filtered =
+        items.filter(
+          (order) => {
+            const createdAt =
+              new Date(
+                order.created_at,
+              ).getTime();
+
+            const matchesQuery =
+              !normalizedQuery ||
+              [
+                order.tracking_number,
+                order.customer_name,
+                order.phone,
+                order.wilaya,
+                order.commune,
+              ]
+                .filter(Boolean)
+                .some((value) =>
+                  String(value)
+                    .toLowerCase()
+                    .includes(
+                      normalizedQuery,
+                    ),
+                );
+
+            const matchesStatus =
+              historyStatus ===
+                "all" ||
+              order.status ===
+                historyStatus;
+
+            const matchesStart =
+              startTimestamp ===
+                null ||
+              createdAt >=
+                startTimestamp;
+
+            const matchesEnd =
+              endTimestamp === null ||
+              createdAt <=
+                endTimestamp;
+
+            return (
+              matchesQuery &&
+              matchesStatus &&
+              matchesStart &&
+              matchesEnd
+            );
+          },
+        );
+
+      return [...filtered].sort(
+        (a, b) => {
+          const first =
+            new Date(
+              a.created_at,
+            ).getTime();
+
+          const second =
+            new Date(
+              b.created_at,
+            ).getTime();
+
+          return historySort ===
+            "oldest"
+            ? first - second
+            : second - first;
+        },
+      );
+    }, [
+      items,
+      historyQuery,
+      historyStatus,
+      historyStartDate,
+      historyEndDate,
+      historySort,
+    ]);
+
+  const historyRevenue =
+    useMemo(
+      () =>
+        historyItems
+          .filter(
+            (order) =>
+              order.status !==
+              "ANNULEE",
+          )
+          .reduce(
+            (sum, order) =>
+              sum +
+              Number(
+                order.total || 0,
+              ),
+            0,
+          ),
+      [historyItems],
+    );
+
+  function resetHistoryFilters() {
+    setHistoryQuery("");
+    setHistoryStatus("all");
+    setHistoryStartDate("");
+    setHistoryEndDate("");
+    setHistorySort("newest");
+  }
+
   const firstVisible =
     filteredItems.length === 0
       ? 0
@@ -629,6 +1041,12 @@ export default function OrdersPage() {
         `La commande ${order.tracking_number} est maintenant « ${STATUS_LABELS[status]} ».`,
       );
 
+      window.dispatchEvent(
+        new Event(
+          "bricomenage:orders-count-refresh",
+        ),
+      );
+
       if (
         detail?.order.id ===
         order.id
@@ -696,6 +1114,56 @@ export default function OrdersPage() {
           </div>
         </section>
 
+        <section className="rounded-[24px] border border-zinc-200 bg-white p-2 shadow-sm">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:w-fit">
+            <button
+              type="button"
+              onClick={() =>
+                setActiveTab(
+                  "orders",
+                )
+              }
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-sm font-black transition ${
+                activeTab ===
+                "orders"
+                  ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                  : "text-zinc-500 hover:bg-orange-50 hover:text-orange-600"
+              }`}
+            >
+              <ClipboardList className="h-4 w-4" />
+              Commandes
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setActiveTab(
+                  "history",
+                )
+              }
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-sm font-black transition ${
+                activeTab ===
+                "history"
+                  ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                  : "text-zinc-500 hover:bg-orange-50 hover:text-orange-600"
+              }`}
+            >
+              <History className="h-4 w-4" />
+              Historique
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  activeTab ===
+                  "history"
+                    ? "bg-white/20 text-white"
+                    : "bg-zinc-100 text-zinc-500"
+                }`}
+              >
+                {historyItems.length}
+              </span>
+            </button>
+          </div>
+        </section>
+
         {success && (
           <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
             <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
@@ -710,6 +1178,8 @@ export default function OrdersPage() {
           </div>
         )}
 
+        {activeTab === "orders" && (
+          <>
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             icon={ClipboardList}
@@ -1015,6 +1485,435 @@ export default function OrdersPage() {
               />
             )}
         </section>
+          </>
+        )}
+
+        {activeTab ===
+          "history" && (
+          <>
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <StatCard
+                icon={History}
+                label="Historique"
+                value={String(
+                  historyItems.length,
+                )}
+                description="Commandes correspondant aux filtres"
+                iconClassName="bg-orange-50 text-orange-600"
+              />
+
+              <StatCard
+                icon={PackageCheck}
+                label="Livrées"
+                value={String(
+                  historyItems.filter(
+                    (order) =>
+                      order.status ===
+                      "LIVREE",
+                  ).length,
+                )}
+                description="Commandes livrées dans la période"
+                iconClassName="bg-emerald-50 text-emerald-600"
+              />
+
+              <StatCard
+                icon={CircleDollarSign}
+                label="Chiffre d’affaires"
+                value={`${formatPrice(
+                  historyRevenue,
+                )} DA`}
+                description="Hors commandes annulées"
+                iconClassName="bg-blue-50 text-blue-600"
+              />
+            </section>
+
+            <section className="relative overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="pointer-events-none absolute -left-16 -top-20 h-44 w-44 rounded-full bg-orange-100/40 blur-3xl" />
+
+              <div className="relative">
+                <div className="flex flex-col gap-4 border-b border-zinc-100 pb-4 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <span className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.13em] text-orange-600">
+                      <History className="h-3.5 w-3.5" />
+                      Historique complet
+                    </span>
+
+                    <h2 className="mt-3 text-xl font-black text-zinc-950">
+                      Toutes les commandes
+                    </h2>
+
+                    <p className="mt-1 text-sm text-zinc-500">
+                      Retrouvez toutes les commandes et filtrez-les par période, statut ou client.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={
+                      resetHistoryFilters
+                    }
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 text-xs font-black text-zinc-600 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
+                  >
+                    <X className="h-4 w-4" />
+                    Réinitialiser
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(320px,1.7fr)_190px_180px_180px_190px] xl:items-end">
+                  <label className="grid min-w-0 gap-2">
+                    <span className="px-1 text-[10px] font-black uppercase tracking-[0.11em] text-zinc-400">
+                      Recherche
+                    </span>
+
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+
+                      <input
+                        value={
+                          historyQuery
+                        }
+                        onChange={(event) =>
+                          setHistoryQuery(
+                            event.target
+                              .value,
+                          )
+                        }
+                        placeholder="Commande, client, téléphone..."
+                        className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-4 text-sm outline-none transition focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
+                      />
+                    </div>
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="px-1 text-[10px] font-black uppercase tracking-[0.11em] text-zinc-400">
+                      Statut
+                    </span>
+
+                    <select
+                      value={
+                        historyStatus
+                      }
+                      onChange={(event) =>
+                        setHistoryStatus(
+                          event.target
+                            .value as
+                            | "all"
+                            | OrderStatus,
+                        )
+                      }
+                      className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                    >
+                      <option value="all">
+                        Tous les statuts
+                      </option>
+
+                      {STATUSES.map(
+                        (status) => (
+                          <option
+                            key={status}
+                            value={status}
+                          >
+                            {
+                              STATUS_LABELS[
+                                status
+                              ]
+                            }
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="px-1 text-[10px] font-black uppercase tracking-[0.11em] text-zinc-400">
+                      Date de début
+                    </span>
+
+                    <input
+                      type="date"
+                      value={
+                        historyStartDate
+                      }
+                      onChange={(event) =>
+                        setHistoryStartDate(
+                          event.target
+                            .value,
+                        )
+                      }
+                      max={
+                        historyEndDate ||
+                        undefined
+                      }
+                      className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="px-1 text-[10px] font-black uppercase tracking-[0.11em] text-zinc-400">
+                      Date de fin
+                    </span>
+
+                    <input
+                      type="date"
+                      value={
+                        historyEndDate
+                      }
+                      onChange={(event) =>
+                        setHistoryEndDate(
+                          event.target
+                            .value,
+                        )
+                      }
+                      min={
+                        historyStartDate ||
+                        undefined
+                      }
+                      className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                    />
+                  </label>
+
+                  <label className="grid gap-2">
+                    <span className="px-1 text-[10px] font-black uppercase tracking-[0.11em] text-zinc-400">
+                      Trier par
+                    </span>
+
+                    <select
+                      value={
+                        historySort
+                      }
+                      onChange={(event) =>
+                        setHistorySort(
+                          event.target
+                            .value as
+                            | "newest"
+                            | "oldest",
+                        )
+                      }
+                      className="h-12 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-sm font-bold text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                    >
+                      <option value="newest">
+                        Plus récentes
+                      </option>
+
+                      <option value="oldest">
+                        Plus anciennes
+                      </option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="mt-5 flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-zinc-500">
+                    <SlidersHorizontal className="h-4 w-4 text-orange-500" />
+                    {
+                      historyItems.length
+                    }{" "}
+                    commande
+                    {historyItems.length >
+                    1
+                      ? "s"
+                      : ""}
+                  </span>
+
+                  {(historyStartDate ||
+                    historyEndDate) && (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-black text-orange-600">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {historyStartDate ||
+                        "Début"}{" "}
+                      →{" "}
+                      {historyEndDate ||
+                        "Aujourd’hui"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm">
+              {loading ? (
+                <div className="flex min-h-[420px] flex-col items-center justify-center gap-4">
+                  <LoaderCircle className="h-10 w-10 animate-spin text-orange-500" />
+
+                  <p className="font-semibold text-zinc-500">
+                    Chargement de l’historique...
+                  </p>
+                </div>
+              ) : historyItems.length ===
+                0 ? (
+                <div className="flex min-h-[420px] flex-col items-center justify-center px-6 text-center">
+                  <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 text-orange-500">
+                    <History className="h-10 w-10" />
+                  </span>
+
+                  <h2 className="mt-5 text-xl font-black text-zinc-950">
+                    Aucun historique trouvé
+                  </h2>
+
+                  <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
+                    Modifiez les dates ou les filtres pour retrouver vos commandes.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1120px] text-left text-sm">
+                    <thead className="border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-orange-50/40">
+                      <tr className="text-xs font-black uppercase tracking-[0.08em] text-zinc-500">
+                        <th className="px-5 py-4">
+                          Date
+                        </th>
+
+                        <th className="px-5 py-4">
+                          Commande
+                        </th>
+
+                        <th className="px-5 py-4">
+                          Client
+                        </th>
+
+                        <th className="px-5 py-4">
+                          Destination
+                        </th>
+
+                        <th className="px-5 py-4">
+                          Statut
+                        </th>
+
+                        <th className="px-5 py-4">
+                          Total
+                        </th>
+
+                        <th className="px-5 py-4 text-right">
+                          Détail
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {historyItems.map(
+                        (order) => {
+                          const status =
+                            normalizeStatus(
+                              order.status,
+                            );
+
+                          return (
+                            <tr
+                              key={
+                                order.id
+                              }
+                              className="border-b border-zinc-100 transition last:border-b-0 hover:bg-orange-50/25"
+                            >
+                              <td className="px-5 py-4">
+                                <span className="flex min-w-[170px] items-center gap-2 text-sm font-semibold text-zinc-500">
+                                  <CalendarDays className="h-4 w-4 text-orange-500" />
+                                  {formatDate(
+                                    order.created_at,
+                                  )}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <code className="rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-black text-zinc-700">
+                                  {
+                                    order.tracking_number
+                                  }
+                                </code>
+
+                                <span className="mt-2 block text-xs text-zinc-400">
+                                  Commande #
+                                  {order.id}
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <strong className="block min-w-[170px] font-black text-zinc-950">
+                                  {
+                                    order.customer_name
+                                  }
+                                </strong>
+
+                                <span className="mt-1 block text-xs text-zinc-400">
+                                  {
+                                    order.phone
+                                  }
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <span className="inline-flex min-w-[170px] items-center gap-2 font-semibold text-zinc-700">
+                                  <MapPin className="h-4 w-4 text-orange-500" />
+                                  {
+                                    order.commune
+                                  }
+                                  ,{" "}
+                                  {
+                                    order.wilaya
+                                  }
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ring-1 ring-inset ${STATUS_CLASSES[status]}`}
+                                >
+                                  <span
+                                    className={`h-2 w-2 rounded-full ${STATUS_DOTS[status]}`}
+                                  />
+
+                                  {
+                                    STATUS_LABELS[
+                                      status
+                                    ]
+                                  }
+                                </span>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <strong
+                                  className={`whitespace-nowrap text-base font-black ${
+                                    status ===
+                                    "ANNULEE"
+                                      ? "text-zinc-400 line-through"
+                                      : "text-zinc-950"
+                                  }`}
+                                >
+                                  {formatPrice(
+                                    order.total,
+                                  )}{" "}
+                                  <span className="text-sm text-orange-500">
+                                    DA
+                                  </span>
+                                </strong>
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <div className="flex justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openDetail(
+                                        order.id,
+                                      )
+                                    }
+                                    title="Voir le détail"
+                                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition hover:scale-105 hover:bg-orange-500 hover:text-white active:scale-95"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        },
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </div>
 
       {detailLoading && (
@@ -1168,7 +2067,7 @@ function OrderTableRow({
       <td className="px-5 py-4 text-sm text-zinc-500">
         <span className="flex min-w-[170px] items-center gap-2">
           <CalendarDays className="h-4 w-4 text-zinc-400" />
-          {formatDate(
+          {formatOrderDay(
             order.created_at,
           )}
         </span>
@@ -1234,6 +2133,96 @@ function OrderTableRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+function OrderPackPhotoLayout({
+  components,
+  fallback,
+  title,
+}: {
+  components:
+    PackComponent[];
+  fallback?: string;
+  title: string;
+}) {
+  const images =
+    Array.from(
+      new Set(
+        components
+          .map(
+            (component) =>
+              productImageUrl(
+                component.image,
+              ),
+          )
+          .filter(Boolean),
+      ),
+    ).slice(0, 4);
+
+  if (
+    images.length === 0 &&
+    fallback
+  ) {
+    images.push(
+      productImageUrl(
+        fallback,
+      ),
+    );
+  }
+
+  if (
+    images.length === 0
+  ) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-300">
+        <ImageIcon className="h-7 w-7" />
+        <span className="text-[9px] font-bold uppercase">
+          Sans image
+        </span>
+      </div>
+    );
+  }
+
+  if (
+    images.length === 1
+  ) {
+    return (
+      <img
+        src={images[0]}
+        alt={title}
+        className="h-full w-full object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="grid h-full w-full grid-cols-2 grid-rows-2 gap-0.5 bg-white">
+      {images.map(
+        (image, index) => (
+          <div
+            key={`${image}-${index}`}
+            className={`overflow-hidden bg-zinc-100 ${
+              images.length === 2
+                ? "row-span-2"
+                : images.length ===
+                      3 &&
+                    index === 0
+                  ? "row-span-2"
+                  : ""
+            }`}
+          >
+            <img
+              src={image}
+              alt={`${title} ${
+                index + 1
+              }`}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        ),
+      )}
+    </div>
   );
 }
 
@@ -1428,7 +2417,7 @@ function OrderDetailModal({
             <section className="overflow-hidden rounded-2xl border border-zinc-200">
               <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-4 py-4">
                 <h3 className="font-black text-zinc-950">
-                  Articles commandés
+                  Produits commandés
                 </h3>
 
                 <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-zinc-500">
@@ -1436,7 +2425,7 @@ function OrderDetailModal({
                     detail.items
                       .length
                   }{" "}
-                  article
+                  produit
                   {detail.items
                     .length > 1
                     ? "s"
@@ -1455,71 +2444,203 @@ function OrderDetailModal({
                     return (
                       <article
                         key={item.id}
-                        className="group grid gap-4 rounded-2xl border border-zinc-200 bg-white p-3 transition hover:border-orange-200 hover:bg-orange-50/20 hover:shadow-md sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center"
+                        className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white transition hover:border-orange-200 hover:shadow-md"
                       >
-                        <div className="relative h-24 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 sm:h-[92px]">
-                          {image ? (
-                            <img
-                              src={image}
-                              alt={
+                        <div className="grid gap-4 p-3 sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center">
+                          <div className="relative h-24 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 sm:h-[92px]">
+                            {item.item_type ===
+                            "PACK" ? (
+                              <OrderPackPhotoLayout
+                                components={
+                                  item.pack_components ||
+                                  []
+                                }
+                                fallback={
+                                  image
+                                }
+                                title={
+                                  item.designation
+                                }
+                              />
+                            ) : image ? (
+                              <img
+                                src={image}
+                                alt={
+                                  item.designation
+                                }
+                                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-300">
+                                <ImageIcon className="h-7 w-7" />
+
+                                <span className="text-[10px] font-bold uppercase tracking-wider">
+                                  Sans image
+                                </span>
+                              </div>
+                            )}
+
+                            <span className="absolute left-2 top-2 rounded-lg bg-zinc-950/80 px-2 py-1 text-[9px] font-black text-white backdrop-blur">
+                              {item.item_type ===
+                              "PACK"
+                                ? "Pack"
+                                : "Article"}
+                            </span>
+                          </div>
+
+                          <div className="min-w-0">
+                            <h4 className="truncate text-sm font-black text-zinc-950 sm:text-base">
+                              {
                                 item.designation
                               }
-                              className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-300">
-                              <ImageIcon className="h-7 w-7" />
+                            </h4>
 
-                              <span className="text-[10px] font-bold uppercase tracking-wider">
-                                Sans image
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <span className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs font-bold text-zinc-600">
+                                {formatPrice(
+                                  item.unit_price,
+                                )}{" "}
+                                DA / unité
                               </span>
+
+                              <span className="rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs font-black text-orange-700">
+                                Quantité :{" "}
+                                {
+                                  item.quantity
+                                }
+                              </span>
+
+                              {item.item_type ===
+                                "PACK" && (
+                                <span className="rounded-lg bg-zinc-950 px-2.5 py-1.5 text-xs font-black text-white">
+                                  {
+                                    item.pack_components
+                                      ?.length ||
+                                    0
+                                  }{" "}
+                                  produit
+                                  {(item
+                                    .pack_components
+                                    ?.length ||
+                                    0) > 1
+                                    ? "s"
+                                    : ""}{" "}
+                                  inclus
+                                </span>
+                              )}
                             </div>
-                          )}
+                          </div>
 
-                          <span className="absolute left-2 top-2 rounded-lg bg-zinc-950/80 px-2 py-1 text-[9px] font-black text-white backdrop-blur">
-                            {item.item_type ===
-                            "PACK"
-                              ? "Pack"
-                              : "Article"}
-                          </span>
-                        </div>
+                          <div className="rounded-2xl bg-zinc-950 px-4 py-3 text-left text-white sm:min-w-[135px] sm:text-right">
+                            <span className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                              Total
+                            </span>
 
-                        <div className="min-w-0">
-                          <h4 className="truncate text-sm font-black text-zinc-950 sm:text-base">
-                            {
-                              item.designation
-                            }
-                          </h4>
-
-                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                            <span className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs font-bold text-zinc-600">
+                            <strong className="mt-1 block whitespace-nowrap text-lg font-black text-orange-400">
                               {formatPrice(
-                                item.unit_price,
+                                item.line_total,
                               )}{" "}
-                              DA / unité
-                            </span>
-
-                            <span className="rounded-lg bg-orange-50 px-2.5 py-1.5 text-xs font-black text-orange-700">
-                              Quantité :{" "}
-                              {
-                                item.quantity
-                              }
-                            </span>
+                              DA
+                            </strong>
                           </div>
                         </div>
 
-                        <div className="rounded-2xl bg-zinc-950 px-4 py-3 text-left text-white sm:min-w-[135px] sm:text-right">
-                          <span className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
-                            Total
-                          </span>
+                        {item.item_type ===
+                          "PACK" && (
+                          <div className="border-t border-orange-100 bg-orange-50/40 p-3 sm:p-4">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <div>
+                                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-500">
+                                  Contenu du pack
+                                </span>
 
-                          <strong className="mt-1 block whitespace-nowrap text-lg font-black text-orange-400">
-                            {formatPrice(
-                              item.line_total,
-                            )}{" "}
-                            DA
-                          </strong>
-                        </div>
+                                <p className="mt-1 text-xs text-zinc-500">
+                                  Produits réellement inclus dans cette commande.
+                                </p>
+                              </div>
+
+                              <span className="rounded-full border border-orange-200 bg-white px-3 py-1 text-[10px] font-black text-orange-600">
+                                Pack ×{" "}
+                                {
+                                  item.quantity
+                                }
+                              </span>
+                            </div>
+
+                            {item
+                              .pack_components &&
+                            item
+                              .pack_components
+                              .length > 0 ? (
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                {item.pack_components.map(
+                                  (
+                                    component,
+                                    componentIndex,
+                                  ) => {
+                                    const componentImage =
+                                      productImageUrl(
+                                        component.image,
+                                      );
+
+                                    return (
+                                      <div
+                                        key={`${item.id}-${component.article_id || componentIndex}`}
+                                        className="flex items-center gap-3 rounded-2xl border border-orange-100 bg-white p-2.5 shadow-sm"
+                                      >
+                                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50">
+                                          {componentImage ? (
+                                            <img
+                                              src={
+                                                componentImage
+                                              }
+                                              alt={
+                                                component.designation
+                                              }
+                                              className="h-full w-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="flex h-full w-full items-center justify-center text-zinc-300">
+                                              <ImageIcon className="h-5 w-5" />
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                          <strong className="block truncate text-xs font-black text-zinc-900">
+                                            {
+                                              component.designation
+                                            }
+                                          </strong>
+
+                                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                            <span className="rounded-md bg-zinc-100 px-2 py-1 text-[10px] font-bold text-zinc-600">
+                                              {
+                                                component.quantity_per_pack
+                                              }{" "}
+                                              / pack
+                                            </span>
+
+                                            <span className="rounded-md bg-orange-100 px-2 py-1 text-[10px] font-black text-orange-700">
+                                              Total :{" "}
+                                              {
+                                                component.total_quantity
+                                              }
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  },
+                                )}
+                              </div>
+                            ) : (
+                              <div className="rounded-xl border border-dashed border-orange-200 bg-white p-3 text-xs font-semibold text-zinc-500">
+                                Aucun détail de composition disponible pour cette ancienne commande.
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </article>
                     );
                   },

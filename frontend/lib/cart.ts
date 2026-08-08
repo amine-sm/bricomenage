@@ -2,6 +2,14 @@ export type CartItemType =
   | "ARTICLE"
   | "PACK";
 
+export type CartPackComponent = {
+  article_id: number;
+  slug?: string;
+  designation: string;
+  image?: string;
+  quantity_per_pack: number;
+};
+
 export type CartItem = {
   id: number;
   item_type: CartItemType;
@@ -10,6 +18,16 @@ export type CartItem = {
   price: number;
   quantity: number;
   image?: string;
+
+  /*
+   * Pour un PACK, on mémorise
+   * également ses produits afin
+   * de pouvoir les afficher dans
+   * le panier sans les confondre
+   * avec des articles séparés.
+   */
+  pack_components?:
+    CartPackComponent[];
 };
 
 const KEY =

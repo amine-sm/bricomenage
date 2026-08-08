@@ -293,17 +293,12 @@ async function getSalesChart(periodInfo) {
           FLOOR(HOUR(created_at) / 4) * 4 AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(
-              CASE
-                WHEN status <> 'ANNULEE'
-                THEN total
-                ELSE 0
-              END
-            ),
+            SUM(total),
             0
           ) AS revenue
         FROM orders
-        WHERE created_at >= ?
+        WHERE status <> 'ANNULEE'
+          AND created_at >= ?
           AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
         GROUP BY
           FLOOR(HOUR(created_at) / 4)
@@ -328,17 +323,12 @@ async function getSalesChart(periodInfo) {
           ) AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(
-              CASE
-                WHEN status <> 'ANNULEE'
-                THEN total
-                ELSE 0
-              END
-            ),
+            SUM(total),
             0
           ) AS revenue
         FROM orders
-        WHERE created_at >= ?
+        WHERE status <> 'ANNULEE'
+          AND created_at >= ?
           AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
         GROUP BY DATE(created_at)
         ORDER BY bucket_key ASC
@@ -360,17 +350,12 @@ async function getSalesChart(periodInfo) {
           ) AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(
-              CASE
-                WHEN status <> 'ANNULEE'
-                THEN total
-                ELSE 0
-              END
-            ),
+            SUM(total),
             0
           ) AS revenue
         FROM orders
-        WHERE created_at >= ?
+        WHERE status <> 'ANNULEE'
+          AND created_at >= ?
           AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
         GROUP BY
           DATE_FORMAT(
@@ -465,7 +450,8 @@ async function getDashboardStats(filters = {}) {
       `
         SELECT COUNT(*) AS total
         FROM orders
-        WHERE ${dateCondition}
+        WHERE status <> 'ANNULEE'
+          AND ${dateCondition}
       `,
       dateParams,
     ),
@@ -529,7 +515,8 @@ async function getDashboardStats(filters = {}) {
           status,
           created_at
         FROM orders
-        WHERE ${dateCondition}
+        WHERE status <> 'ANNULEE'
+          AND ${dateCondition}
         ORDER BY created_at DESC
         LIMIT 8
       `,

@@ -1,5 +1,6 @@
 const orderService = require("../services/orderService");
 const HttpError = require("../utils/httpError");
+const { sendNewOrderToAdmin } = require("../services/whatsappService");
 
 function required(value, label) {
   const text = String(value || "").trim();
@@ -27,6 +28,37 @@ async function createOrder(req, res) {
     note: String(req.body.note || "").trim(),
     items,
   });
+
+  const realtimeOrder =
+    await orderService.getOrderNotificationData(
+      result.id,
+    );
+
+  const io = req.app.get("io");
+
+  if (io && realtimeOrder) {
+    io.to("admins").emit(
+      "order:new",
+      realtimeOrder,
+    );
+  }
+
+  if (realtimeOrder) {
+    /*
+     * WhatsApp ne doit jamais bloquer ni annuler
+     * une commande déjà enregistrée.
+     */
+    Promise.resolve(
+      sendNewOrderToAdmin(
+        realtimeOrder,
+      ),
+    ).catch((error) => {
+      console.error(
+        "[WhatsApp] Notification commande non envoyée :",
+        error.message,
+      );
+    });
+  }
 
   return res.status(201).json({
     success: true,

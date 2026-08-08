@@ -53,8 +53,29 @@ async function createOrder(payload) {
         throw new HttpError(400, 'Quantité invalide.');
       }
 
-      const packId = Number(raw.packId || 0);
-      const articleId = Number(raw.articleId || 0);
+      const rawType = String(
+        raw.item_type ||
+          raw.type ||
+          "",
+      ).toUpperCase();
+
+      const packId = Number(
+        raw.packId ||
+          raw.pack_id ||
+          (rawType === "PACK"
+            ? raw.id
+            : 0) ||
+          0,
+      );
+
+      const articleId = Number(
+        raw.articleId ||
+          raw.article_id ||
+          (rawType === "ARTICLE"
+            ? raw.id
+            : 0) ||
+          0,
+      );
 
       if (packId) {
         const [[pack]] = await cn.query(
@@ -67,7 +88,13 @@ async function createOrder(payload) {
         }
 
         const [parts] = await cn.query(
-          `SELECT pi.article_id,pi.quantity,a.designation,a.stock_quantity,a.is_active
+          `SELECT
+             pi.article_id,
+             pi.quantity,
+             a.designation,
+             a.image,
+             a.stock_quantity,
+             a.is_active
            FROM pack_items pi
            INNER JOIN articles a ON a.id=pi.article_id
            WHERE pi.pack_id=?
@@ -176,19 +203,49 @@ async function createOrder(payload) {
           ],
         );
       } else {
-        await cn.query(
-          `INSERT INTO order_items(
-            order_id,article_id,pack_id,item_type,designation,unit_price,quantity,line_total
-          ) VALUES(?,NULL,?,'PACK',?,?,?,?)`,
-          [
-            or.insertId,
-            item.pack.id,
-            item.pack.name,
-            item.unitPrice,
-            item.quantity,
-            lineTotal,
-          ],
-        );
+        const [packOrderItemResult] =
+          await cn.query(
+            `INSERT INTO order_items(
+              order_id,article_id,pack_id,item_type,designation,unit_price,quantity,line_total
+            ) VALUES(?,NULL,?,'PACK',?,?,?,?)`,
+            [
+              or.insertId,
+              item.pack.id,
+              item.pack.name,
+              item.unitPrice,
+              item.quantity,
+              lineTotal,
+            ],
+          );
+
+        /*
+         * On fige la composition du pack au moment de la commande.
+         * Ainsi, une annulation future restaure exactement les bons
+         * articles, même si le pack est modifié plus tard.
+         */
+        if (item.parts.length > 0) {
+          await cn.query(
+            `INSERT INTO order_pack_components(
+              order_item_id,
+              article_id,
+              component_designation,
+              component_image,
+              quantity_per_pack,
+              total_quantity
+            ) VALUES ?`,
+            [
+              item.parts.map((part) => [
+                packOrderItemResult.insertId,
+                Number(part.article_id),
+                part.designation || null,
+                part.image || null,
+                Number(part.quantity),
+                Number(part.quantity) *
+                  Number(item.quantity),
+              ]),
+            ],
+          );
+        }
       }
     }
 
@@ -238,4 +295,52 @@ async function trackOrder({ trackingNumber, phone }) {
   return { order, items, history };
 }
 
-module.exports = { createOrder, trackOrder };
+async function getOrderNotificationData(id) {
+  const [[order]] = await pool.query(
+    `SELECT
+      id,
+      tracking_number,
+      customer_name,
+      phone,
+      wilaya,
+      commune,
+      address,
+      note,
+      subtotal,
+      delivery_fee,
+      total,
+      status,
+      created_at
+     FROM orders
+     WHERE id=?
+     LIMIT 1`,
+    [id],
+  );
+
+  if (!order) {
+    return null;
+  }
+
+  const [items] = await pool.query(
+    `SELECT
+      id,
+      article_id,
+      pack_id,
+      item_type,
+      designation,
+      unit_price,
+      quantity,
+      line_total
+     FROM order_items
+     WHERE order_id=?
+     ORDER BY id`,
+    [id],
+  );
+
+  return {
+    ...order,
+    items,
+  };
+}
+
+module.exports = { createOrder, trackOrder, getOrderNotificationData };

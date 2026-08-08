@@ -15,6 +15,7 @@ import {
 } from "next/navigation";
 
 import AdminNav from "@/components/AdminNav";
+import AdminRealtimeOrders from "@/components/AdminRealtimeOrders";
 
 import {
   adminHeaders,
@@ -109,6 +110,8 @@ export default function AdminShell({
       <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
         {children}
       </main>
+
+      <AdminRealtimeOrders />
     </div>
   );
 }

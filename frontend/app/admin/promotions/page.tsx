@@ -114,6 +114,22 @@ function toLocalInputValue(
     .slice(0, 16);
 }
 
+function systemDateTimeLocal() {
+  const now =
+    new Date();
+
+  const local =
+    new Date(
+      now.getTime() -
+        now.getTimezoneOffset() *
+          60_000,
+    );
+
+  return local
+    .toISOString()
+    .slice(0, 16);
+}
+
 function toApiDateTime(
   value: string,
 ) {
@@ -365,7 +381,18 @@ export default function PromotionsPage() {
   }
 
   function openCreateModal() {
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+
+      /*
+       * La date de début prend
+       * automatiquement la date et
+       * l'heure du système du PC.
+       */
+      starts_at:
+        systemDateTimeLocal(),
+    });
+
     setArticleQuery("");
     setError("");
     setModalOpen(true);

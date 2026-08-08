@@ -227,9 +227,38 @@ export default function PackPage() {
         pack.price,
       ),
       image:
-        selectedImage ||
         pack.image ||
+        selectedImage ||
+        pack.articles?.find(
+          (article) =>
+            Boolean(
+              article.image,
+            ),
+        )?.image ||
         undefined,
+
+      pack_components:
+        (pack.articles || []).map(
+          (article) => ({
+            article_id:
+              Number(
+                article.id,
+              ),
+            slug:
+              article.slug,
+            designation:
+              article.designation,
+            image:
+              article.image ||
+              undefined,
+            quantity_per_pack:
+              Number(
+                article.quantity ||
+                  1,
+              ),
+          }),
+        ),
+
       quantity: 1,
     });
 

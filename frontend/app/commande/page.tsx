@@ -158,13 +158,23 @@ export default function Checkout() {
               ).trim(),
 
             items: items.map(
-              (item) => ({
-                articleId:
-                  item.id,
-
-                quantity:
-                  item.quantity,
-              }),
+              (item) =>
+                item.item_type ===
+                "PACK"
+                  ? {
+                      packId:
+                        item.id,
+                      type: "pack",
+                      quantity:
+                        item.quantity,
+                    }
+                  : {
+                      articleId:
+                        item.id,
+                      type: "article",
+                      quantity:
+                        item.quantity,
+                    },
             ),
           }),
         });
