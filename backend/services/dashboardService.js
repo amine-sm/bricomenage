@@ -284,24 +284,55 @@ async function getSalesChart(periodInfo) {
   let rows;
   let buckets;
 
+  const costJoin = `
+    LEFT JOIN (
+      SELECT
+        order_id,
+        SUM(cost_total) AS order_cost
+      FROM order_items
+      GROUP BY order_id
+    ) costs
+      ON costs.order_id = o.id
+  `;
+
   if (periodInfo.type === "day") {
     buckets = createHourlyBuckets();
 
     [rows] = await pool.execute(
       `
         SELECT
-          FLOOR(HOUR(created_at) / 4) * 4 AS bucket_key,
+          FLOOR(HOUR(o.created_at) / 4) * 4 AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(total),
+            SUM(o.total),
             0
-          ) AS revenue
-        FROM orders
-        WHERE status <> 'ANNULEE'
-          AND created_at >= ?
-          AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+          ) AS revenue,
+          COALESCE(
+            SUM(
+              COALESCE(
+                costs.order_cost,
+                0
+              )
+            ),
+            0
+          ) AS purchase_cost,
+          COALESCE(
+            SUM(
+              o.total -
+              COALESCE(
+                costs.order_cost,
+                0
+              )
+            ),
+            0
+          ) AS profit
+        FROM orders o
+        ${costJoin}
+        WHERE o.status <> 'ANNULEE'
+          AND o.created_at >= ?
+          AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
         GROUP BY
-          FLOOR(HOUR(created_at) / 4)
+          FLOOR(HOUR(o.created_at) / 4)
         ORDER BY bucket_key ASC
       `,
       params,
@@ -318,19 +349,39 @@ async function getSalesChart(periodInfo) {
       `
         SELECT
           DATE_FORMAT(
-            created_at,
+            o.created_at,
             '%Y-%m-%d'
           ) AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(total),
+            SUM(o.total),
             0
-          ) AS revenue
-        FROM orders
-        WHERE status <> 'ANNULEE'
-          AND created_at >= ?
-          AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
-        GROUP BY DATE(created_at)
+          ) AS revenue,
+          COALESCE(
+            SUM(
+              COALESCE(
+                costs.order_cost,
+                0
+              )
+            ),
+            0
+          ) AS purchase_cost,
+          COALESCE(
+            SUM(
+              o.total -
+              COALESCE(
+                costs.order_cost,
+                0
+              )
+            ),
+            0
+          ) AS profit
+        FROM orders o
+        ${costJoin}
+        WHERE o.status <> 'ANNULEE'
+          AND o.created_at >= ?
+          AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+        GROUP BY DATE(o.created_at)
         ORDER BY bucket_key ASC
       `,
       params,
@@ -345,21 +396,41 @@ async function getSalesChart(periodInfo) {
       `
         SELECT
           DATE_FORMAT(
-            created_at,
+            o.created_at,
             '%Y-%m'
           ) AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(total),
+            SUM(o.total),
             0
-          ) AS revenue
-        FROM orders
-        WHERE status <> 'ANNULEE'
-          AND created_at >= ?
-          AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+          ) AS revenue,
+          COALESCE(
+            SUM(
+              COALESCE(
+                costs.order_cost,
+                0
+              )
+            ),
+            0
+          ) AS purchase_cost,
+          COALESCE(
+            SUM(
+              o.total -
+              COALESCE(
+                costs.order_cost,
+                0
+              )
+            ),
+            0
+          ) AS profit
+        FROM orders o
+        ${costJoin}
+        WHERE o.status <> 'ANNULEE'
+          AND o.created_at >= ?
+          AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
         GROUP BY
           DATE_FORMAT(
-            created_at,
+            o.created_at,
             '%Y-%m'
           )
         ORDER BY bucket_key ASC
@@ -371,7 +442,11 @@ async function getSalesChart(periodInfo) {
   const chartMap = new Map(
     buckets.map((bucket) => [
       String(bucket.key),
-      bucket,
+      {
+        ...bucket,
+        purchaseCost: 0,
+        profit: 0,
+      },
     ]),
   );
 
@@ -391,6 +466,18 @@ async function getSalesChart(periodInfo) {
     bucket.revenue = Number(
       row.revenue || 0,
     );
+
+    bucket.purchaseCost =
+      Number(
+        row.purchase_cost ||
+          0,
+      );
+
+    bucket.profit =
+      Number(
+        row.profit ||
+          0,
+      );
   });
 
   return Array.from(
@@ -398,6 +485,9 @@ async function getSalesChart(periodInfo) {
   ).map((bucket) => ({
     label: bucket.label,
     revenue: bucket.revenue,
+    purchaseCost:
+      bucket.purchaseCost,
+    profit: bucket.profit,
     orders: bucket.orders,
   }));
 }
@@ -426,6 +516,8 @@ async function getDashboardStats(filters = {}) {
     suppliers,
     orders,
     revenue,
+    purchaseCost,
+    profit,
     lowStock,
     pendingOrders,
     deliveredOrders,
@@ -465,6 +557,48 @@ async function getDashboardStats(filters = {}) {
         FROM orders
         WHERE status <> 'ANNULEE'
           AND ${dateCondition}
+      `,
+      dateParams,
+    ),
+
+    getSingleValue(
+      `
+        SELECT COALESCE(
+          SUM(oi.cost_total),
+          0
+        ) AS total
+        FROM order_items oi
+        INNER JOIN orders o
+          ON o.id = oi.order_id
+        WHERE o.status <> 'ANNULEE'
+          AND o.created_at >= ?
+          AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
+      `,
+      dateParams,
+    ),
+
+    getSingleValue(
+      `
+        SELECT COALESCE(
+          SUM(o.total),
+          0
+        ) -
+        COALESCE(
+          SUM(costs.order_cost),
+          0
+        ) AS total
+        FROM orders o
+        LEFT JOIN (
+          SELECT
+            order_id,
+            SUM(cost_total) AS order_cost
+          FROM order_items
+          GROUP BY order_id
+        ) costs
+          ON costs.order_id = o.id
+        WHERE o.status <> 'ANNULEE'
+          AND o.created_at >= ?
+          AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)
       `,
       dateParams,
     ),
@@ -537,6 +671,8 @@ async function getDashboardStats(filters = {}) {
       suppliers,
       orders,
       revenue,
+      purchaseCost,
+      profit,
       lowStock,
       pendingOrders,
       deliveredOrders,

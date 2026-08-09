@@ -70,6 +70,31 @@ async function ensurePackSnapshotTable() {
 
 async function ensureSchema() {
   /*
+   * Coût d'achat figé au moment de la vente.
+   * Cela évite de modifier l'historique des bénéfices
+   * si le prix d'achat d'un article change plus tard.
+   */
+  await ensureColumn(
+    "order_items",
+    "unit_cost",
+    `
+      ALTER TABLE order_items
+      ADD COLUMN unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0
+      AFTER unit_price
+    `,
+  );
+
+  await ensureColumn(
+    "order_items",
+    "cost_total",
+    `
+      ALTER TABLE order_items
+      ADD COLUMN cost_total DECIMAL(12,2) NOT NULL DEFAULT 0
+      AFTER line_total
+    `,
+  );
+
+  /*
    * Les colonnes suivantes figent le nom et l'image des produits
    * contenus dans un pack au moment de la commande.
    * Les anciennes bases sont migrées automatiquement.
@@ -93,6 +118,16 @@ async function ensureSchema() {
       ALTER TABLE order_pack_components
       ADD COLUMN component_image VARCHAR(500) NULL
       AFTER component_designation
+    `,
+  );
+
+  await ensureColumn(
+    "order_pack_components",
+    "component_unit_cost",
+    `
+      ALTER TABLE order_pack_components
+      ADD COLUMN component_unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0
+      AFTER component_image
     `,
   );
 
@@ -161,6 +196,77 @@ async function ensureSchema() {
          )
     `,
   );
+
+  /*
+   * Migration des anciennes commandes.
+   * Pour les ARTICLE, on utilise le prix d'achat actuel
+   * uniquement pour initialiser les anciennes lignes.
+   */
+  await pool.query(`
+    UPDATE order_items oi
+    INNER JOIN articles a
+      ON a.id = oi.article_id
+    SET
+      oi.unit_cost =
+        COALESCE(a.purchase_price, 0),
+      oi.cost_total =
+        COALESCE(a.purchase_price, 0) *
+        oi.quantity
+    WHERE
+      oi.item_type = 'ARTICLE'
+      AND (
+        oi.unit_cost = 0
+        OR oi.cost_total = 0
+      )
+  `);
+
+  /*
+   * Coût des composants des anciens packs.
+   */
+  await pool.query(`
+    UPDATE order_pack_components opc
+    LEFT JOIN articles a
+      ON a.id = opc.article_id
+    SET
+      opc.component_unit_cost =
+        COALESCE(a.purchase_price, 0)
+    WHERE opc.component_unit_cost = 0
+  `);
+
+  /*
+   * Reconstituer le coût total des anciennes lignes PACK.
+   */
+  await pool.query(`
+    UPDATE order_items oi
+    LEFT JOIN (
+      SELECT
+        order_item_id,
+        SUM(
+          component_unit_cost *
+          total_quantity
+        ) AS pack_cost
+      FROM order_pack_components
+      GROUP BY order_item_id
+    ) costs
+      ON costs.order_item_id = oi.id
+    SET
+      oi.cost_total =
+        COALESCE(costs.pack_cost, 0),
+      oi.unit_cost =
+        CASE
+          WHEN oi.quantity > 0
+          THEN
+            COALESCE(costs.pack_cost, 0) /
+            oi.quantity
+          ELSE 0
+        END
+    WHERE
+      oi.item_type = 'PACK'
+      AND (
+        oi.unit_cost = 0
+        OR oi.cost_total = 0
+      )
+  `);
 
   console.log(
     "[DB] Schéma commandes vérifié.",

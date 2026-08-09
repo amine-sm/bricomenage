@@ -183,8 +183,10 @@ CREATE TABLE order_items (
   item_type ENUM('ARTICLE','PACK') NOT NULL DEFAULT 'ARTICLE',
   designation VARCHAR(220) NOT NULL,
   unit_price DECIMAL(12,2) NOT NULL,
+  unit_cost DECIMAL(12,2) NOT NULL DEFAULT 0,
   quantity INT NOT NULL,
   line_total DECIMAL(12,2) NOT NULL,
+  cost_total DECIMAL(12,2) NOT NULL DEFAULT 0,
   CONSTRAINT fk_order_items_order
     FOREIGN KEY (order_id)
     REFERENCES orders(id)

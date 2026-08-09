@@ -20,7 +20,6 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Heart,
   LoaderCircle,
   Minus,
   PackageCheck,
@@ -29,7 +28,6 @@ import {
   ShieldCheck,
   ShoppingCart,
   Sparkles,
-  Star,
   Truck,
 } from "lucide-react";
 
@@ -366,10 +364,6 @@ function ArticleContent() {
     setAddedToCart,
   ] = useState(false);
 
-  const [
-    wishlisted,
-    setWishlisted,
-  ] = useState(false);
 
   const [
     refreshing,
@@ -880,27 +874,6 @@ function ArticleContent() {
                   </span>
                 )}
 
-                <motion.button
-                  type="button"
-                  whileTap={{
-                    scale: 0.85,
-                  }}
-                  onClick={() =>
-                    setWishlisted(
-                      (current) =>
-                        !current,
-                    )
-                  }
-                  className="absolute right-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white/90 shadow backdrop-blur"
-                >
-                  <Heart
-                    className={`h-5 w-5 ${
-                      wishlisted
-                        ? "fill-red-500 text-red-500"
-                        : "text-zinc-600"
-                    }`}
-                  />
-                </motion.button>
 
                 {images.length > 1 && (
                   <>
@@ -1091,24 +1064,6 @@ function ArticleContent() {
               </h1>
 
               <div className="mt-5 flex flex-wrap items-center gap-3">
-                <span className="flex items-center gap-2">
-                  <Star className="h-5 w-5 fill-orange-400 text-orange-400" />
-
-                  <strong>
-                    {Number(
-                      product.rating ||
-                        4.8,
-                    ).toFixed(1)}
-                  </strong>
-                </span>
-
-                <span className="text-zinc-400">
-                  (
-                  {product.reviews ||
-                    0}{" "}
-                  avis)
-                </span>
-
                 {product.reference && (
                   <>
                     <span className="h-1 w-1 rounded-full bg-zinc-300" />
@@ -1460,15 +1415,6 @@ function ArticleContent() {
                             }
                           </span>
 
-                          <span className="inline-flex items-center gap-1 text-xs font-black text-zinc-600">
-                            <Star className="h-3.5 w-3.5 fill-orange-400 text-orange-400" />
-                            {Number(
-                              item.rating ||
-                                0,
-                            ).toFixed(
-                              1,
-                            )}
-                          </span>
                         </div>
 
                         <h3 className="mt-3 min-h-[44px] text-sm font-black leading-5 text-zinc-950 transition group-hover:text-orange-600">

@@ -5,9 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   Check,
-  Heart,
   ShoppingCart,
-  Star,
 } from "lucide-react";
 import {
   useEffect,
@@ -50,8 +48,6 @@ export default function ProductCard({
   const [isAdded, setIsAdded] =
     useState(false);
 
-  const [isWishlisted, setIsWishlisted] =
-    useState(false);
 
   const resetTimer =
     useRef<ReturnType<typeof setTimeout> | null>(
@@ -69,10 +65,6 @@ export default function ProductCard({
         ? stockQuantity > 0
         : true;
 
-  const rating = Math.min(
-    5,
-    Math.max(0, Number(p.rating ?? 0)),
-  );
 
   const promotion =
     p.old_price && p.old_price > p.price
@@ -152,32 +144,6 @@ export default function ProductCard({
           )}
         </div>
 
-        <motion.button
-          type="button"
-          aria-label={
-            isWishlisted
-              ? "Retirer des favoris"
-              : "Ajouter aux favoris"
-          }
-          aria-pressed={isWishlisted}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            setIsWishlisted(
-              (current) => !current,
-            );
-          }}
-          whileTap={{ scale: 0.82 }}
-          className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/70 bg-white/90 text-zinc-600 shadow-md backdrop-blur transition-colors hover:text-red-500"
-        >
-          <Heart
-            className={`h-5 w-5 ${
-              isWishlisted
-                ? "fill-red-500 text-red-500"
-                : ""
-            }`}
-          />
-        </motion.button>
 
         <Link
           href={detailHref}
@@ -241,22 +207,11 @@ export default function ProductCard({
       </div>
 
       <div className="flex flex-1 flex-col p-5">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
           <span className="truncate text-[10px] font-black uppercase tracking-[0.18em] text-orange-500">
             {p.category}
           </span>
 
-          {p.rating !== undefined && (
-            <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-zinc-600">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-              {rating.toFixed(1)}
-              {p.reviews !== undefined && (
-                <span className="font-normal text-zinc-400">
-                  ({p.reviews})
-                </span>
-              )}
-            </span>
-          )}
         </div>
 
         <Link

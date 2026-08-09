@@ -93,6 +93,7 @@ async function createOrder(payload) {
              pi.quantity,
              a.designation,
              a.image,
+             a.purchase_price,
              a.stock_quantity,
              a.is_active
            FROM pack_items pi
@@ -148,7 +149,7 @@ async function createOrder(payload) {
       let article = lockedArticles.get(articleId);
       if (!article) {
         const [[row]] = await cn.query(
-          `SELECT id,designation,stock_quantity,is_active FROM articles WHERE id=? FOR UPDATE`,
+          `SELECT id,designation,purchase_price,stock_quantity,is_active FROM articles WHERE id=? FOR UPDATE`,
           [articleId],
         );
         article = row;
@@ -191,30 +192,84 @@ async function createOrder(payload) {
       if (item.type === 'ARTICLE') {
         await cn.query(
           `INSERT INTO order_items(
-            order_id,article_id,pack_id,item_type,designation,unit_price,quantity,line_total
-          ) VALUES(?,?,NULL,'ARTICLE',?,?,?,?)`,
+            order_id,
+            article_id,
+            pack_id,
+            item_type,
+            designation,
+            unit_price,
+            unit_cost,
+            quantity,
+            line_total,
+            cost_total
+          ) VALUES(?,?,NULL,'ARTICLE',?,?,?,?,?,?)`,
           [
             or.insertId,
             item.article.id,
             item.article.designation,
             item.unitPrice,
+            Number(
+              item.article.purchase_price ||
+                0,
+            ),
             item.quantity,
             lineTotal,
+            money(
+              Number(
+                item.article.purchase_price ||
+                  0,
+              ) *
+                Number(item.quantity),
+            ),
           ],
         );
       } else {
+        const packUnitCost =
+          money(
+            item.parts.reduce(
+              (sum, part) =>
+                sum +
+                Number(
+                  part.purchase_price ||
+                    0,
+                ) *
+                  Number(
+                    part.quantity ||
+                      0,
+                  ),
+              0,
+            ),
+          );
+
+        const packCostTotal =
+          money(
+            packUnitCost *
+              Number(item.quantity),
+          );
+
         const [packOrderItemResult] =
           await cn.query(
             `INSERT INTO order_items(
-              order_id,article_id,pack_id,item_type,designation,unit_price,quantity,line_total
-            ) VALUES(?,NULL,?,'PACK',?,?,?,?)`,
+              order_id,
+              article_id,
+              pack_id,
+              item_type,
+              designation,
+              unit_price,
+              unit_cost,
+              quantity,
+              line_total,
+              cost_total
+            ) VALUES(?,NULL,?,'PACK',?,?,?,?,?,?)`,
             [
               or.insertId,
               item.pack.id,
               item.pack.name,
               item.unitPrice,
+              packUnitCost,
               item.quantity,
               lineTotal,
+              packCostTotal,
             ],
           );
 
@@ -230,6 +285,7 @@ async function createOrder(payload) {
               article_id,
               component_designation,
               component_image,
+              component_unit_cost,
               quantity_per_pack,
               total_quantity
             ) VALUES ?`,
@@ -239,6 +295,10 @@ async function createOrder(payload) {
                 Number(part.article_id),
                 part.designation || null,
                 part.image || null,
+                Number(
+                  part.purchase_price ||
+                    0,
+                ),
                 Number(part.quantity),
                 Number(part.quantity) *
                   Number(item.quantity),

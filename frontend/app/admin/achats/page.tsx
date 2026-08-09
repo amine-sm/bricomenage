@@ -35,6 +35,7 @@ type Article = {
   min_stock: number;
   category_id: number;
   price: number;
+  purchase_price?: number | null;
   image?: string;
 };
 
@@ -404,6 +405,12 @@ export default function StockPage() {
         form.get("min_stock"),
       );
 
+      const purchasePrice = Number(
+        form.get(
+          "purchase_price",
+        ),
+      );
+
       await apiFetch(
         `/admin/articles/${article.id}`,
         {
@@ -425,6 +432,9 @@ export default function StockPage() {
             price:
               article.price,
 
+            purchase_price:
+              purchasePrice,
+
             stock_quantity:
               newStock,
 
@@ -444,13 +454,15 @@ export default function StockPage() {
                   newStock,
                 min_stock:
                   minStock,
+                purchase_price:
+                  purchasePrice,
               }
             : item,
         ),
       );
 
       setSuccess(
-        `Stock de « ${article.designation} » mis à jour.`,
+        `Stock et prix d’achat de « ${article.designation} » mis à jour.`,
       );
     } catch (requestError) {
       setError(
@@ -492,7 +504,7 @@ export default function StockPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 sm:text-base">
-              Mettez à jour les quantités reçues et définissez le seuil minimum de chaque article.
+              Mettez à jour les quantités reçues, le prix d’achat et le seuil minimum de chaque article.
             </p>
           </div>
 
@@ -680,7 +692,7 @@ export default function StockPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
+              <table className="w-full min-w-[1180px] text-left text-sm">
                 <thead className="border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-orange-50/50">
                   <tr className="text-xs font-black uppercase tracking-[0.08em] text-zinc-500">
                     <th className="px-5 py-4">
@@ -689,6 +701,10 @@ export default function StockPage() {
 
                     <th className="px-5 py-4">
                       Catégorie
+                    </th>
+
+                    <th className="px-5 py-4">
+                      Prix d’achat
                     </th>
 
                     <th className="px-5 py-4">
@@ -853,6 +869,28 @@ function StockTableRow({
       </td>
 
       <td className="px-5 py-4">
+        <div className="min-w-[120px]">
+          <strong className="block text-sm font-black text-zinc-950">
+            {new Intl.NumberFormat(
+              "fr-DZ",
+            ).format(
+              Number(
+                article.purchase_price ||
+                  0,
+              ),
+            )}{" "}
+            <span className="text-xs text-orange-500">
+              DA
+            </span>
+          </strong>
+
+          <span className="mt-1 block text-[10px] font-semibold text-zinc-400">
+            Coût unitaire
+          </span>
+        </div>
+      </td>
+
+      <td className="px-5 py-4">
         <span
           className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ring-1 ring-inset ${status.className}`}
         >
@@ -878,8 +916,28 @@ function StockTableRow({
               article,
             )
           }
-          className="grid min-w-[430px] grid-cols-[140px_140px_1fr] items-center gap-3"
+          className="grid min-w-[590px] grid-cols-[150px_140px_140px_1fr] items-center gap-3"
         >
+          <div className="relative">
+            <input
+              name="purchase_price"
+              type="number"
+              min="0"
+              step="0.01"
+              required
+              defaultValue={
+                article.purchase_price ??
+                0
+              }
+              placeholder="Prix d’achat"
+              className="h-11 w-full rounded-xl border border-zinc-200 px-3 pr-10 text-sm font-bold outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+            />
+
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-orange-500">
+              DA
+            </span>
+          </div>
+
           <input
             name="stock_quantity"
             type="number"

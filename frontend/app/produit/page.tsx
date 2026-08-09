@@ -16,14 +16,12 @@ import {
   BadgeCheck,
   Check,
   ChevronRight,
-  Heart,
   Minus,
   PackageCheck,
   Plus,
   RotateCcw,
   ShieldCheck,
   ShoppingCart,
-  Star,
   Truck,
 } from "lucide-react";
 
@@ -158,10 +156,6 @@ function ProductContent() {
     setAddedToCart,
   ] = useState(false);
 
-  const [
-    wishlisted,
-    setWishlisted,
-  ] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -401,25 +395,6 @@ function ProductContent() {
                   </span>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setWishlisted(
-                      (current) =>
-                        !current,
-                    )
-                  }
-                  aria-label="Ajouter aux favoris"
-                  className="absolute right-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white/90 text-zinc-600 shadow-sm backdrop-blur-md transition hover:scale-105 hover:text-red-500"
-                >
-                  <Heart
-                    className={`h-5 w-5 ${
-                      wishlisted
-                        ? "fill-red-500 text-red-500"
-                        : ""
-                    }`}
-                  />
-                </button>
 
                 <div className="flex aspect-square items-center justify-center p-8 sm:p-12">
                   <AnimatePresence mode="wait">
@@ -551,37 +526,6 @@ function ProductContent() {
                 </p>
               )}
 
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1">
-                  {Array.from({
-                    length: 5,
-                  }).map(
-                    (_, index) => (
-                      <Star
-                        key={index}
-                        className={`h-4 w-4 ${
-                          index <
-                          Math.round(
-                            product.rating ||
-                              5,
-                          )
-                            ? "fill-orange-400 text-orange-400"
-                            : "text-zinc-300"
-                        }`}
-                      />
-                    ),
-                  )}
-                </div>
-
-                <strong className="text-sm text-zinc-900">
-                  {product.rating ||
-                    4.8}
-                </strong>
-
-                <span className="text-sm text-zinc-400">
-                  ({product.reviews || 0} avis)
-                </span>
-              </div>
 
               <div className="mt-7 flex flex-wrap items-end gap-3 border-b border-zinc-200 pb-7">
                 <strong className="text-4xl font-black text-zinc-950 sm:text-5xl">

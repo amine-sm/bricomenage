@@ -40,6 +40,8 @@ type DashboardStats = {
   categories: number;
   orders: number;
   revenue: number;
+  purchaseCost: number;
+  profit: number;
   suppliers?: number;
   lowStock?: number;
   pendingOrders?: number;
@@ -58,6 +60,8 @@ type RecentOrder = {
 type SalesChartPoint = {
   label: string;
   revenue: number;
+  purchaseCost: number;
+  profit: number;
   orders: number;
 };
 
@@ -153,6 +157,8 @@ export default function DashboardPage() {
     categories: 0,
     orders: 0,
     revenue: 0,
+    purchaseCost: 0,
+    profit: 0,
     suppliers: 0,
     lowStock: 0,
     pendingOrders: 0,
@@ -469,6 +475,18 @@ export default function DashboardPage() {
       iconClassName:
         "bg-emerald-50 text-emerald-600",
     },
+    {
+      label: "Bénéfice brut",
+      value: `${formatPrice(
+        stats.profit,
+      )} DA`,
+      description:
+        "CA − coût d’achat",
+      icon: TrendingUp,
+      href: "/admin/commandes",
+      iconClassName:
+        "bg-amber-50 text-amber-600",
+    },
   ];
 
   const quickActions = [
@@ -567,7 +585,7 @@ export default function DashboardPage() {
           </section>
         ) : (
           <>
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               {cards.map(
                 ({
                   label,
@@ -1039,7 +1057,7 @@ function SalesChart({
   stats: DashboardStats;
 }) {
   const [metric, setMetric] = useState<
-    "revenue" | "orders"
+    "revenue" | "profit" | "orders"
   >("revenue");
 
   const [
@@ -1050,14 +1068,23 @@ function SalesChart({
   );
 
   const values = data.map(
-    (point) =>
-      metric === "revenue"
-        ? Number(
-            point.revenue || 0,
-          )
-        : Number(
-            point.orders || 0,
-          ),
+    (point) => {
+      if (metric !== "orders") {
+        return Number(
+          point.revenue || 0,
+        );
+      }
+
+      if (metric === "profit") {
+        return Number(
+          point.profit || 0,
+        );
+      }
+
+      return Number(
+        point.orders || 0,
+      );
+    },
   );
 
   const total = values.reduce(
@@ -1263,6 +1290,29 @@ function SalesChart({
       icon: CircleDollarSign,
     },
     {
+      label: "Coût d’achat",
+      value: `${formatPrice(
+        Number(
+          stats.purchaseCost ||
+            0,
+        ),
+      )} DA`,
+      helper:
+        "Coût des produits vendus",
+      icon: WalletCards,
+    },
+    {
+      label: "Bénéfice brut",
+      value: `${formatPrice(
+        Number(
+          stats.profit || 0,
+        ),
+      )} DA`,
+      helper:
+        "CA − coût d’achat",
+      icon: TrendingUp,
+    },
+    {
       label: "Livrées",
       value: formatPrice(
         Number(
@@ -1290,7 +1340,7 @@ function SalesChart({
 
   return (
     <section className="overflow-hidden rounded-[30px] border border-zinc-200 bg-white shadow-sm">
-      <div className="grid border-b border-zinc-200 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid border-b border-zinc-200 sm:grid-cols-2 xl:grid-cols-5">
         {summaryCards.map(
           ({
             label,
@@ -1353,7 +1403,7 @@ function SalesChart({
           </p>
         </div>
 
-        <div className="grid w-full grid-cols-2 gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 sm:w-auto sm:min-w-[310px]">
+        <div className="grid w-full grid-cols-3 gap-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 sm:w-auto sm:min-w-[470px]">
           <button
             type="button"
             onClick={() =>
@@ -1370,6 +1420,24 @@ function SalesChart({
           >
             <CircleDollarSign className="h-4 w-4" />
             Chiffre d’affaires
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setMetric(
+                "profit",
+              )
+            }
+            className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-black transition ${
+              metric ===
+              "profit"
+                ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                : "text-zinc-500 hover:bg-white hover:text-zinc-900"
+            }`}
+          >
+            <TrendingUp className="h-4 w-4" />
+            Bénéfice
           </button>
 
           <button
@@ -1401,17 +1469,17 @@ function SalesChart({
 
               <strong className="mt-1 block text-xl font-black text-zinc-950">
                 {metric ===
-                "revenue"
+                "orders"
                   ? `${formatPrice(
-                      total,
-                    )} DA`
-                  : `${formatPrice(
                       total,
                     )} commande${
                       total > 1
                         ? "s"
                         : ""
-                    }`}
+                    }`
+                  : `${formatPrice(
+                      total,
+                    )} DA`}
               </strong>
             </div>
 
@@ -1723,8 +1791,8 @@ function SalesChart({
                               fontWeight="900"
                               fill="#ffffff"
                             >
-                              {metric ===
-                              "revenue"
+                              {metric !==
+                              "orders"
                                 ? `${formatPrice(
                                     point.value,
                                   )} DA`

@@ -351,16 +351,58 @@ async function listCategories(
   req,
   res,
 ) {
+  /*
+   * Compter réellement les articles liés
+   * à chaque catégorie dans l'administration.
+   *
+   * On compte tous les articles de la catégorie,
+   * qu'ils soient actifs ou inactifs.
+   */
   const [rows] =
     await pool.query(`
-      SELECT *
-      FROM categories
-      ORDER BY name ASC
+      SELECT
+        c.id,
+        c.name,
+        c.slug,
+        c.description,
+        c.image,
+        c.is_active,
+        c.created_at,
+        c.updated_at,
+        COUNT(
+          DISTINCT a.id
+        ) AS article_count
+      FROM categories c
+      LEFT JOIN articles a
+        ON a.category_id = c.id
+      GROUP BY
+        c.id,
+        c.name,
+        c.slug,
+        c.description,
+        c.image,
+        c.is_active,
+        c.created_at,
+        c.updated_at
+      ORDER BY
+        c.name ASC
     `);
 
   return res.json({
     success: true,
-    categories: rows,
+
+    categories:
+      rows.map(
+        (category) => ({
+          ...category,
+
+          article_count:
+            Number(
+              category.article_count ||
+                0,
+            ),
+        }),
+      ),
   });
 }
 

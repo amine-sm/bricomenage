@@ -42,6 +42,7 @@ type Article = {
   slug: string;
   reference?: string;
   price: number;
+  purchase_price?: number | null;
   old_price?: number;
   stock_quantity: number;
   min_stock?: number;
@@ -2359,6 +2360,70 @@ function ArticleModal({
   onSubmit,
   onFilesChange,
 }: ArticleModalProps) {
+  /*
+   * Le slug est généré automatiquement
+   * depuis la désignation.
+   *
+   * Exemple :
+   * "Perceuse à percussion 750 W"
+   * -> "perceuse-a-percussion-750-w"
+   */
+  const [
+    designationValue,
+    setDesignationValue,
+  ] = useState(
+    editing?.designation ||
+      "",
+  );
+
+  const [
+    slugValue,
+    setSlugValue,
+  ] = useState(
+    editing?.slug ||
+      createSlug(
+        editing?.designation ||
+          "",
+      ),
+  );
+
+  useEffect(() => {
+    const designation =
+      editing?.designation ||
+      "";
+
+    setDesignationValue(
+      designation,
+    );
+
+    setSlugValue(
+      editing?.slug ||
+        createSlug(
+          designation,
+        ),
+    );
+  }, [
+    editing?.id,
+    editing?.designation,
+    editing?.slug,
+  ]);
+
+  function handleDesignationChange(
+    event:
+      ChangeEvent<HTMLInputElement>,
+  ) {
+    const value =
+      event.target.value;
+
+    setDesignationValue(
+      value,
+    );
+
+    setSlugValue(
+      createSlug(value),
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-[130] overflow-y-auto bg-zinc-950/65 p-3 backdrop-blur-md sm:p-5">
       <form
@@ -2405,17 +2470,26 @@ function ArticleModal({
               name="designation"
               label="Désignation"
               value={
-                editing?.designation
+                designationValue
               }
               placeholder="Ex. Perceuse 750 W"
               required
+              controlled
+              onChange={
+                handleDesignationChange
+              }
             />
 
             <Field
               name="slug"
               label="Slug"
-              value={editing?.slug}
-              placeholder="Généré automatiquement si vide"
+              value={
+                slugValue
+              }
+              placeholder="Généré automatiquement"
+              controlled
+              readOnly
+              helper="Généré automatiquement depuis la désignation"
             />
 
             <Field
@@ -2434,6 +2508,20 @@ function ArticleModal({
                 editing?.brand
               }
               placeholder="Ex. BricoPro"
+            />
+
+            <Field
+              name="purchase_price"
+              label="Prix d’achat"
+              value={
+                editing?.purchase_price ??
+                ""
+              }
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Ex. 8500"
+              required
             />
 
             <Field
@@ -2719,6 +2807,13 @@ interface FieldProps {
   placeholder?: string;
   min?: string;
   step?: string;
+  controlled?: boolean;
+  readOnly?: boolean;
+  helper?: string;
+  onChange?: (
+    event:
+      ChangeEvent<HTMLInputElement>,
+  ) => void;
 }
 
 function Field({
@@ -2730,6 +2825,10 @@ function Field({
   placeholder,
   min,
   step,
+  controlled = false,
+  readOnly = false,
+  helper,
+  onChange,
 }: FieldProps) {
   return (
     <label className="text-sm font-black text-zinc-700">
@@ -2739,16 +2838,40 @@ function Field({
         name={name}
         type={type}
         required={required}
-        defaultValue={
-          value ?? ""
+        {...(
+          controlled
+            ? {
+                value:
+                  value ?? "",
+              }
+            : {
+                defaultValue:
+                  value ?? "",
+              }
+        )}
+        onChange={
+          onChange
+        }
+        readOnly={
+          readOnly
         }
         placeholder={
           placeholder
         }
         min={min}
         step={step}
-        className="mt-2 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+        className={`mt-2 h-12 w-full rounded-xl border px-4 text-sm outline-none transition focus:ring-4 ${
+          readOnly
+            ? "cursor-default border-orange-100 bg-orange-50/60 font-bold text-orange-700 focus:border-orange-300 focus:ring-orange-500/10"
+            : "border-zinc-200 bg-white focus:border-orange-400 focus:ring-orange-500/10"
+        }`}
       />
+
+      {helper && (
+        <span className="mt-1.5 block text-[10px] font-semibold text-zinc-400">
+          {helper}
+        </span>
+      )}
     </label>
   );
 }
