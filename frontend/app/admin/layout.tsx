@@ -1,35 +1,16 @@
-"use client";
+import type { ReactNode } from "react";
+import { Suspense } from "react";
 
-import type {
-  ReactNode,
-} from "react";
-
-import {
-  usePathname,
-} from "next/navigation";
-
-import AdminShell from "@/components/AdminShell";
+import AdminLayoutClient from "@/components/AdminLayoutClient";
 
 export default function AdminLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  const pathname =
-    usePathname();
-
-  if (
-    pathname === "/admin/connexion" ||
-    pathname.startsWith(
-      "/admin/connexion/",
-    )
-  ) {
-    return children;
-  }
-
   return (
-    <AdminShell>
-      {children}
-    </AdminShell>
+    <Suspense fallback={null}>
+      <AdminLayoutClient>{children}</AdminLayoutClient>
+    </Suspense>
   );
 }
