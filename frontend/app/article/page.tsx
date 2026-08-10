@@ -1593,7 +1593,7 @@ function ArticleFallback() {
   );
 }
 
-export default function ArticlePage() {
+function ArticlePageContent() {
   return (
     <Suspense
       fallback={
@@ -1602,5 +1602,24 @@ export default function ArticlePage() {
     >
       <ArticleContent />
     </Suspense>
+  );
+}
+
+export default function ArticlePage() {
+  return (
+    <Suspense fallback={<PageSearchParamsLoading />}>
+      <ArticlePageContent />
+    </Suspense>
+  );
+}
+
+function PageSearchParamsLoading() {
+  return (
+    <main className="min-h-screen bg-[#fafafa]">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="h-8 w-48 animate-pulse rounded-xl bg-zinc-200" />
+        <div className="mt-6 h-64 animate-pulse rounded-[28px] bg-zinc-100" />
+      </div>
+    </main>
   );
 }

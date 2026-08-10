@@ -26,6 +26,9 @@ const packController =
 const dashboardController =
   require("../controllers/dashboardController");
 
+const zrController =
+  require("../controllers/zrController");
+
 const router =
   express.Router();
 
@@ -170,6 +173,41 @@ router.patch(
   "/orders/:id/status",
   asyncHandler(
     controller.updateOrderStatus,
+  ),
+);
+
+router.get(
+  "/zr/config",
+  asyncHandler(
+    zrController.adminConfig,
+  ),
+);
+
+router.post(
+  "/orders/:id/zr",
+  asyncHandler(
+    zrController.createForOrder,
+  ),
+);
+
+router.post(
+  "/orders/:id/zr/sync",
+  asyncHandler(
+    zrController.syncOrder,
+  ),
+);
+
+router.delete(
+  "/orders/:id/zr",
+  asyncHandler(
+    zrController.cancelOrder,
+  ),
+);
+
+router.get(
+  "/orders/:id/zr/label",
+  asyncHandler(
+    zrController.label,
   ),
 );
 

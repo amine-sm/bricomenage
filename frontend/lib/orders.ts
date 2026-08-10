@@ -20,6 +20,10 @@ export type CreateOrderPayload = {
   address?: string;
   note?: string;
   deliveryFee?: number;
+  zrCityId?: string;
+  zrDistrictId?: string;
+  zrDeliveryType?: "HOME" | "STOP_DESK";
+  zrDestinationHubId?: string;
   items: Array<{ articleId?: number; packId?: number; id?: number; type?: "article" | "pack"; quantity: number }>;
 };
 

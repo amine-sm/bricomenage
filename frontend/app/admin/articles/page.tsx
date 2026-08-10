@@ -274,6 +274,24 @@ export default function ArticlesPage() {
     setViewMode,
   ] = useState<ViewMode>("table");
 
+  // mobile-card-view-sync: sur mobile, les listes sont affichées en cartes.
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+
+    const syncViewMode = () => {
+      if (media.matches) {
+        setViewMode("cards");
+      }
+    };
+
+    syncViewMode();
+    media.addEventListener("change", syncViewMode);
+
+    return () => {
+      media.removeEventListener("change", syncViewMode);
+    };
+  }, []);
+
   const [
     selectedFiles,
     setSelectedFiles,
@@ -368,6 +386,13 @@ export default function ArticlesPage() {
   ]);
 
   useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+
+    if (media.matches) {
+      setViewMode("cards");
+      return;
+    }
+
     const savedView =
       window.localStorage.getItem(
         "admin-articles-view",
@@ -378,6 +403,8 @@ export default function ArticlesPage() {
       savedView === "table"
     ) {
       setViewMode(savedView);
+    } else {
+      setViewMode("table");
     }
   }, []);
 
@@ -1028,7 +1055,7 @@ export default function ArticlesPage() {
             </div>
           )}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:overflow-visible md:snap-none xl:grid-cols-5">
           <StatCard
             icon={Boxes}
             label="Articles"
@@ -1256,7 +1283,7 @@ export default function ArticlesPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex h-11 items-center rounded-2xl border border-zinc-200 bg-zinc-100 p-1">
+              <div className="hidden h-11 items-center rounded-2xl border border-zinc-200 bg-zinc-100 p-1 md:inline-flex">
                 <button
                   type="button"
                   onClick={() =>
@@ -1413,7 +1440,7 @@ export default function ArticlesPage() {
                   </table>
                 </div>
               ) : (
-                <div className="grid items-stretch gap-5 p-4 sm:p-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                <div className="flex snap-x snap-mandatory items-stretch gap-4 overflow-x-auto p-4 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:p-5 md:grid md:grid-cols-2 md:gap-5 md:overflow-visible md:snap-none lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   {paginatedItems.map(
                     (article) => (
                       <ArticleMobileCard
@@ -1652,7 +1679,7 @@ function StatCard({
   iconClassName,
 }: StatCardProps) {
   return (
-    <div className="group relative overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <div className="group relative overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl min-w-[82vw] max-w-[360px] snap-start md:min-w-0 md:max-w-none">
       <div className="flex items-start justify-between gap-4">
         <span
           className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconClassName}`}
@@ -1872,7 +1899,7 @@ function ArticleMobileCard({
       : 0;
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-[30px] border border-zinc-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1.5 hover:border-orange-200 hover:shadow-[0_24px_60px_rgba(24,24,27,0.12)]">
+    <article className="group relative flex h-full w-[84vw] min-w-[84vw] snap-center flex-col overflow-hidden rounded-[30px] border border-zinc-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1.5 hover:border-orange-200 hover:shadow-[0_24px_60px_rgba(24,24,27,0.12)] sm:w-[72vw] sm:min-w-[72vw] md:w-auto md:min-w-0 md:snap-none">
       {/* Grande image du produit */}
       <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-zinc-50 via-white to-orange-50/40">
         {article.image ? (

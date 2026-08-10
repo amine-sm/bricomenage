@@ -12,6 +12,7 @@ import {
   ShoppingCart,
 } from "lucide-react";
 import {
+  Suspense,
   useEffect,
   useMemo,
   useState,
@@ -43,7 +44,7 @@ function formatPrice(value: number) {
   ).format(Number(value || 0));
 }
 
-export default function PackPage() {
+function PackPageContent() {
   const searchParams =
     useSearchParams();
 
@@ -573,6 +574,25 @@ export default function PackPage() {
           </div>
         </section>
       </section>
+    </main>
+  );
+}
+
+export default function PackPage() {
+  return (
+    <Suspense fallback={<PageSearchParamsLoading />}>
+      <PackPageContent />
+    </Suspense>
+  );
+}
+
+function PageSearchParamsLoading() {
+  return (
+    <main className="min-h-screen bg-[#fafafa]">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="h-8 w-48 animate-pulse rounded-xl bg-zinc-200" />
+        <div className="mt-6 h-64 animate-pulse rounded-[28px] bg-zinc-100" />
+      </div>
     </main>
   );
 }

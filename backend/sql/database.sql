@@ -97,6 +97,7 @@ CREATE TABLE articles (
 
 CREATE TABLE promotions (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  slug VARCHAR(220) NOT NULL UNIQUE,
   name VARCHAR(180) NOT NULL,
   description TEXT NULL,
   discount_type ENUM('PERCENT','FIXED') NOT NULL DEFAULT 'PERCENT',
@@ -166,6 +167,18 @@ CREATE TABLE orders (
   delivery_fee DECIMAL(12,2) NOT NULL DEFAULT 0,
   total DECIMAL(12,2) NOT NULL DEFAULT 0,
   stock_deducted TINYINT(1) NOT NULL DEFAULT 1,
+  zr_city_id VARCHAR(80) NULL,
+  zr_district_id VARCHAR(80) NULL,
+  zr_delivery_type VARCHAR(20) NULL,
+  zr_destination_hub_id VARCHAR(80) NULL,
+  zr_source_hub_id VARCHAR(80) NULL,
+  zr_parcel_id VARCHAR(100) NULL,
+  zr_tracking_number VARCHAR(100) NULL,
+  zr_status VARCHAR(80) NULL,
+  zr_status_label VARCHAR(180) NULL,
+  zr_shipping_fee DECIMAL(12,2) NULL,
+  zr_last_payload LONGTEXT NULL,
+  zr_synced_at DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     ON UPDATE CURRENT_TIMESTAMP,

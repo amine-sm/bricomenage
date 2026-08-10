@@ -1,11 +1,12 @@
-import type { Metadata } from "next";
 
+import type { Metadata } from "next";
 import SiteChrome from "@/components/SiteChrome";
 
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "BricoMénage | Bricolage, maison et jardin",
+
   description:
     "Matériel de bricolage, mobilier, jardinage, peinture, plomberie et électricité.",
 
@@ -24,8 +25,11 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="bg-[#fafafa] font-sans antialiased">
-        <SiteChrome>{children}</SiteChrome>
+        <SiteChrome>
+          {children}
+        </SiteChrome>
       </body>
     </html>
   );
 }
+

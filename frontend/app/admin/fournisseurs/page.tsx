@@ -185,6 +185,24 @@ export default function SuppliersPage() {
     setViewMode,
   ] = useState<ViewMode>("table");
 
+  // mobile-card-view-sync: sur mobile, les listes sont affichées en cartes.
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+
+    const syncViewMode = () => {
+      if (media.matches) {
+        setViewMode("cards");
+      }
+    };
+
+    syncViewMode();
+    media.addEventListener("change", syncViewMode);
+
+    return () => {
+      media.removeEventListener("change", syncViewMode);
+    };
+  }, []);
+
   const load = useCallback(
     async () => {
       setLoading(true);
@@ -731,7 +749,7 @@ export default function SuppliersPage() {
             </div>
           )}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:overflow-visible md:snap-none xl:grid-cols-4">
           <StatCard
             icon={Building2}
             label="Fournisseurs"
@@ -904,7 +922,7 @@ export default function SuppliersPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex h-11 items-center rounded-2xl border border-zinc-200 bg-zinc-100 p-1">
+              <div className="hidden h-11 items-center rounded-2xl border border-zinc-200 bg-zinc-100 p-1 md:inline-flex">
                 <button
                   type="button"
                   onClick={() =>
@@ -994,7 +1012,7 @@ export default function SuppliersPage() {
           <>
             {viewMode ===
             "cards" ? (
-              <section className="grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+              <section className="flex snap-x snap-mandatory items-stretch gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:gap-5 md:overflow-visible md:snap-none lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                 {paginatedItems.map(
                   (supplier) => (
                     <SupplierCard
@@ -1345,7 +1363,7 @@ function StatCard({
   iconClassName,
 }: StatCardProps) {
   return (
-    <div className="group relative overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
+    <div className="group relative overflow-hidden rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl min-w-[82vw] max-w-[360px] snap-start md:min-w-0 md:max-w-none">
       <span
         className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconClassName}`}
       >
@@ -1420,7 +1438,7 @@ function SupplierCard({
     );
 
   return (
-    <article className="group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1.5 hover:border-orange-200 hover:shadow-[0_22px_55px_rgba(24,24,27,0.12)]">
+    <article className="group relative flex h-full w-[84vw] min-w-[84vw] snap-center flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1.5 hover:border-orange-200 hover:shadow-[0_22px_55px_rgba(24,24,27,0.12)] sm:w-[72vw] sm:min-w-[72vw] md:w-auto md:min-w-0 md:snap-none">
       <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-gradient-to-br from-orange-50 via-white to-zinc-100">
         <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-200/50 blur-3xl" />
         <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-zinc-200/60 blur-3xl" />

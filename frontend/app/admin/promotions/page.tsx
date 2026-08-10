@@ -208,6 +208,24 @@ export default function PromotionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
 
+  // mobile-card-view-sync: sur petit écran, toujours utiliser les cartes.
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+
+    const syncViewMode = () => {
+      if (media.matches) {
+        setViewMode("cards");
+      }
+    };
+
+    syncViewMode();
+    media.addEventListener("change", syncViewMode);
+
+    return () => {
+      media.removeEventListener("change", syncViewMode);
+    };
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -240,16 +258,22 @@ export default function PromotionsPage() {
   }, [load]);
 
   useEffect(() => {
-    /*
-     * Le tableau est toujours l'affichage initial.
-     * Une ancienne préférence "cards" ne doit pas remplacer ce choix.
-     */
-    setViewMode("table");
+    const media = window.matchMedia("(max-width: 767px)");
 
-    window.localStorage.setItem(
+    if (media.matches) {
+      setViewMode("cards");
+      return;
+    }
+
+    const savedView = window.localStorage.getItem(
       "admin-promotions-view",
-      "table",
     );
+
+    if (savedView === "cards" || savedView === "table") {
+      setViewMode(savedView);
+    } else {
+      setViewMode("table");
+    }
   }, []);
 
   useEffect(() => {
@@ -684,7 +708,7 @@ export default function PromotionsPage() {
           </div>
         )}
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:overflow-visible md:snap-none xl:grid-cols-4">
           <StatCard
             icon={Tags}
             label="Promotions"
@@ -755,7 +779,7 @@ export default function PromotionsPage() {
               <option value="inactive">Inactives</option>
             </select>
 
-            <div className="inline-flex h-12 items-center rounded-2xl border border-zinc-200 bg-zinc-100 p-1">
+            <div className="hidden h-12 items-center rounded-2xl border border-zinc-200 bg-zinc-100 p-1 md:inline-flex">
               <button
                 type="button"
                 onClick={() => changeViewMode("cards")}
@@ -803,14 +827,14 @@ export default function PromotionsPage() {
         ) : (
           <>
             {viewMode === "cards" ? (
-              <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:gap-5 md:overflow-visible md:snap-none xl:grid-cols-3">
                 {paginatedPromotions.map((promotion) => {
                   const active = isActivePromotion(promotion);
 
                   return (
                     <article
                       key={promotion.id}
-                      className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                      className="w-[84vw] min-w-[84vw] snap-center overflow-hidden rounded-[28px] border border-zinc-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl sm:w-[72vw] sm:min-w-[72vw] md:w-auto md:min-w-0 md:snap-none"
                     >
                       <div className="relative bg-gradient-to-br from-zinc-950 to-zinc-800 p-6 text-white">
                         <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-orange-500/20 blur-3xl" />
@@ -1559,7 +1583,7 @@ function StatCard({
   className: string;
 }) {
   return (
-    <div className="group rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+    <div className="group rounded-[24px] border border-zinc-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg min-w-[82vw] max-w-[360px] snap-start md:min-w-0 md:max-w-none">
       <span
         className={`flex h-12 w-12 items-center justify-center rounded-2xl ${className}`}
       >
@@ -1649,30 +1673,73 @@ function Pagination({
   totalPages: number;
   onChange: (page: number) => void;
 }) {
+  const pages = Array.from(
+    new Set(
+      [
+        1,
+        currentPage - 1,
+        currentPage,
+        currentPage + 1,
+        totalPages,
+      ].filter((page) => page >= 1 && page <= totalPages),
+    ),
+  ).sort((a, b) => a - b);
+
   return (
-    <div className="mt-5 flex items-center justify-center gap-2">
+    <nav
+      aria-label="Pagination"
+      className="mt-5 flex flex-wrap items-center justify-center gap-2"
+    >
       <button
         type="button"
         disabled={currentPage <= 1}
         onClick={() => onChange(currentPage - 1)}
-        className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white disabled:opacity-40"
+        className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label="Page précédente"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
 
-      <span className="rounded-xl bg-white px-4 py-2 text-sm font-black">
-        Page {currentPage} / {totalPages}
-      </span>
+      {pages.map((page, index) => {
+        const previous = pages[index - 1];
+        const showDots = previous && page - previous > 1;
+
+        return (
+          <div key={page} className="flex items-center gap-2">
+            {showDots && (
+              <span className="px-1 text-sm font-black text-zinc-300">…</span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => onChange(page)}
+              aria-current={page === currentPage ? "page" : undefined}
+              className={`h-10 min-w-10 rounded-xl px-3 text-sm font-black transition ${
+                page === currentPage
+                  ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                  : "border border-zinc-200 bg-white text-zinc-600 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
+              }`}
+            >
+              {page}
+            </button>
+          </div>
+        );
+      })}
 
       <button
         type="button"
         disabled={currentPage >= totalPages}
         onClick={() => onChange(currentPage + 1)}
-        className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white disabled:opacity-40"
+        className="flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-40"
+        aria-label="Page suivante"
       >
         <ChevronRight className="h-4 w-4" />
       </button>
-    </div>
+
+      <span className="ml-1 rounded-xl bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-500">
+        Page {currentPage} / {totalPages}
+      </span>
+    </nav>
   );
 }
 

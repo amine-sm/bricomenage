@@ -404,7 +404,7 @@ function ConfirmationLoading() {
   );
 }
 
-export default function ConfirmationPage() {
+function ConfirmationPageContent() {
   return (
     <Suspense
       fallback={
@@ -413,5 +413,24 @@ export default function ConfirmationPage() {
     >
       <ConfirmationContent />
     </Suspense>
+  );
+}
+
+export default function ConfirmationPage() {
+  return (
+    <Suspense fallback={<PageSearchParamsLoading />}>
+      <ConfirmationPageContent />
+    </Suspense>
+  );
+}
+
+function PageSearchParamsLoading() {
+  return (
+    <main className="min-h-screen bg-[#fafafa]">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="h-8 w-48 animate-pulse rounded-xl bg-zinc-200" />
+        <div className="mt-6 h-64 animate-pulse rounded-[28px] bg-zinc-100" />
+      </div>
+    </main>
   );
 }

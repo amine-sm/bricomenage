@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const slugify = require("slugify");
 
 async function columnExists(
   tableName,
@@ -41,6 +42,64 @@ async function ensureColumn(
   return true;
 }
 
+
+async function indexExists(tableName, indexName) {
+  const [rows] = await pool.query(
+    `
+      SELECT COUNT(*) AS total
+      FROM information_schema.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+        AND INDEX_NAME = ?
+    `,
+    [tableName, indexName],
+  );
+
+  return Number(rows[0]?.total || 0) > 0;
+}
+
+async function ensurePromotionSlugs() {
+  await ensureColumn(
+    "promotions",
+    "slug",
+    `
+      ALTER TABLE promotions
+      ADD COLUMN slug VARCHAR(220) NULL AFTER id
+    `,
+  );
+
+  const [rows] = await pool.query(
+    "SELECT id,name,slug FROM promotions ORDER BY id ASC",
+  );
+  const used = new Set();
+
+  for (const row of rows) {
+    const base = slugify(row.name || "promotion", { lower: true, strict: true }) || `promotion-${row.id}`;
+    let candidate = base;
+    let suffix = 2;
+    while (used.has(candidate)) candidate = `${base}-${suffix++}`;
+    used.add(candidate);
+
+    if (row.slug !== candidate) {
+      await pool.query(
+        "UPDATE promotions SET slug=? WHERE id=?",
+        [candidate, row.id],
+      );
+    }
+  }
+
+  await pool.query(
+    "ALTER TABLE promotions MODIFY COLUMN slug VARCHAR(220) NOT NULL",
+  );
+
+  if (!(await indexExists("promotions", "uq_promotions_slug"))) {
+    await pool.query(
+      "ALTER TABLE promotions ADD UNIQUE INDEX uq_promotions_slug (slug)",
+    );
+    console.log("[DB] Index ajouté : promotions.slug");
+  }
+}
+
 async function ensurePackSnapshotTable() {
   await pool.query(
     `
@@ -69,6 +128,8 @@ async function ensurePackSnapshotTable() {
 }
 
 async function ensureSchema() {
+  await ensurePromotionSlugs();
+
   /*
    * Coût d'achat figé au moment de la vente.
    * Cela évite de modifier l'historique des bénéfices
@@ -155,6 +216,30 @@ async function ensureSchema() {
   );
 
   await ensurePackSnapshotTable();
+
+  /* ZR Express : destination, prix et suivi logistique. */
+  const zrColumns = [
+    ["zr_city_id", "VARCHAR(80) NULL"],
+    ["zr_district_id", "VARCHAR(80) NULL"],
+    ["zr_delivery_type", "VARCHAR(20) NULL"],
+    ["zr_destination_hub_id", "VARCHAR(80) NULL"],
+    ["zr_source_hub_id", "VARCHAR(80) NULL"],
+    ["zr_parcel_id", "VARCHAR(100) NULL"],
+    ["zr_tracking_number", "VARCHAR(100) NULL"],
+    ["zr_status", "VARCHAR(80) NULL"],
+    ["zr_status_label", "VARCHAR(180) NULL"],
+    ["zr_shipping_fee", "DECIMAL(12,2) NULL"],
+    ["zr_last_payload", "LONGTEXT NULL"],
+    ["zr_synced_at", "DATETIME NULL"],
+  ];
+
+  for (const [column, definition] of zrColumns) {
+    await ensureColumn(
+      "orders",
+      column,
+      `ALTER TABLE orders ADD COLUMN ${column} ${definition}`,
+    );
+  }
 
   const stockDeductedAdded =
     await ensureColumn(

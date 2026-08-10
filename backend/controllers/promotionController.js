@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const slugify = require('slugify');
 const HttpError = require('../utils/httpError');
 
 const clean = (value) => String(value ?? '').trim();
@@ -52,6 +53,7 @@ function validate(body) {
 
   return {
     name,
+    slug: slugify(name, { lower: true, strict: true }),
     description: clean(body.description) || null,
     discountType,
     discountValue,
@@ -60,6 +62,26 @@ function validate(body) {
     isActive: activeValue(body.is_active, 1),
     articleIds,
   };
+}
+
+async function uniquePromotionSlug(connection, name, excludeId = null) {
+  const base = slugify(name, { lower: true, strict: true }) || 'promotion';
+  let candidate = base;
+  let suffix = 2;
+
+  while (true) {
+    const params = [candidate];
+    let sql = 'SELECT id FROM promotions WHERE slug=?';
+    if (excludeId) {
+      sql += ' AND id<>?';
+      params.push(excludeId);
+    }
+    sql += ' LIMIT 1';
+
+    const [rows] = await connection.query(sql, params);
+    if (!rows.length) return candidate;
+    candidate = `${base}-${suffix++}`;
+  }
 }
 
 function promotionalPrice(price, type, value) {
@@ -180,10 +202,11 @@ async function createPromotion(req, res) {
   try {
     await cn.beginTransaction();
     await verifyArticles(cn, data.articleIds);
+    data.slug = await uniquePromotionSlug(cn, data.name);
     const [result] = await cn.query(
-      `INSERT INTO promotions(name,description,discount_type,discount_value,starts_at,ends_at,is_active)
-       VALUES(?,?,?,?,?,?,?)`,
-      [data.name, data.description, data.discountType, data.discountValue, data.startsAt, data.endsAt, data.isActive],
+      `INSERT INTO promotions(slug,name,description,discount_type,discount_value,starts_at,ends_at,is_active)
+       VALUES(?,?,?,?,?,?,?,?)`,
+      [data.slug, data.name, data.description, data.discountType, data.discountValue, data.startsAt, data.endsAt, data.isActive],
     );
     const id = Number(result.insertId);
     await cn.query(
@@ -210,10 +233,11 @@ async function updatePromotion(req, res) {
     const [[existing]] = await cn.query('SELECT id FROM promotions WHERE id=? FOR UPDATE', [id]);
     if (!existing) throw new HttpError(404, 'Promotion introuvable.');
     await verifyArticles(cn, data.articleIds);
+    data.slug = await uniquePromotionSlug(cn, data.name, id);
 
     await cn.query(
-      `UPDATE promotions SET name=?,description=?,discount_type=?,discount_value=?,starts_at=?,ends_at=?,is_active=? WHERE id=?`,
-      [data.name, data.description, data.discountType, data.discountValue, data.startsAt, data.endsAt, data.isActive, id],
+      `UPDATE promotions SET slug=?,name=?,description=?,discount_type=?,discount_value=?,starts_at=?,ends_at=?,is_active=? WHERE id=?`,
+      [data.slug, data.name, data.description, data.discountType, data.discountValue, data.startsAt, data.endsAt, data.isActive, id],
     );
     await cn.query('DELETE FROM promotion_articles WHERE promotion_id=?', [id]);
     await cn.query(

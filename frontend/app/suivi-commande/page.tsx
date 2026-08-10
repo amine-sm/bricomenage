@@ -47,6 +47,12 @@ interface TrackingOrder {
   address?: string;
   total?: number;
   created_at?: string;
+  delivery_fee?: number;
+  zr_tracking_number?: string | null;
+  zr_status?: string | null;
+  zr_status_label?: string | null;
+  zr_synced_at?: string | null;
+  zr_delivery_type?: string | null;
 }
 
 interface TrackingHistory {
@@ -649,6 +655,60 @@ function TrackingContent() {
                     )}
                   </div>
 
+                  {data.order
+                    .zr_tracking_number && (
+                    <div className="mt-6 overflow-hidden rounded-2xl border border-orange-200 bg-orange-50/70">
+                      <div className="flex items-center gap-3 border-b border-orange-100 px-4 py-3">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-white">
+                          <Truck className="h-4 w-4" />
+                        </span>
+
+                        <div>
+                          <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-orange-600">
+                            ZR Express
+                          </span>
+
+                          <strong className="mt-0.5 block text-sm font-black text-zinc-950">
+                            Suivi transporteur
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 p-4">
+                        <OrderInfo
+                          label="Tracking ZR"
+                          value={
+                            data.order
+                              .zr_tracking_number
+                          }
+                          strong
+                        />
+
+                        <OrderInfo
+                          label="Statut ZR"
+                          value={
+                            data.order
+                              .zr_status_label ||
+                            data.order
+                              .zr_status ||
+                            "Enregistré chez ZR Express"
+                          }
+                        />
+
+                        {data.order
+                          .zr_synced_at && (
+                          <OrderInfo
+                            label="Dernière synchronisation"
+                            value={formatDate(
+                              data.order
+                                .zr_synced_at,
+                            )}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="mt-6 flex items-start gap-3 rounded-2xl bg-emerald-50 p-4">
                     <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
 
@@ -895,7 +955,7 @@ function TrackingLoading() {
   );
 }
 
-export default function TrackingPage() {
+function TrackingPageContent() {
   return (
     <Suspense
       fallback={
@@ -904,5 +964,24 @@ export default function TrackingPage() {
     >
       <TrackingContent />
     </Suspense>
+  );
+}
+
+export default function TrackingPage() {
+  return (
+    <Suspense fallback={<PageSearchParamsLoading />}>
+      <TrackingPageContent />
+    </Suspense>
+  );
+}
+
+function PageSearchParamsLoading() {
+  return (
+    <main className="min-h-screen bg-[#fafafa]">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="h-8 w-48 animate-pulse rounded-xl bg-zinc-200" />
+        <div className="mt-6 h-64 animate-pulse rounded-[28px] bg-zinc-100" />
+      </div>
+    </main>
   );
 }

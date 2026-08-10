@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  Suspense,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -458,7 +459,7 @@ function PackCard({
   );
 }
 
-export default function ArticlesPage() {
+function ArticlesPageContent() {
   const searchParams =
     useSearchParams();
 
@@ -1197,5 +1198,24 @@ function EmptyState({
         {label}
       </p>
     </div>
+  );
+}
+
+export default function ArticlesPage() {
+  return (
+    <Suspense fallback={<PageSearchParamsLoading />}>
+      <ArticlesPageContent />
+    </Suspense>
+  );
+}
+
+function PageSearchParamsLoading() {
+  return (
+    <main className="min-h-screen bg-[#fafafa]">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="h-8 w-48 animate-pulse rounded-xl bg-zinc-200" />
+        <div className="mt-6 h-64 animate-pulse rounded-[28px] bg-zinc-100" />
+      </div>
+    </main>
   );
 }

@@ -42,7 +42,7 @@ function validate(body) {
 
   return {
     name,
-    slug: clean(body.slug) || slugify(name, { lower: true, strict: true }),
+    slug: slugify(name, { lower: true, strict: true }),
     description: clean(body.description) || null,
     price,
     oldPrice: oldPriceRaw,
@@ -50,6 +50,27 @@ function validate(body) {
     isActive: activeValue(body.is_active, 1),
     items,
   };
+}
+
+
+async function uniquePackSlug(connection, name, excludeId = null) {
+  const base = slugify(name, { lower: true, strict: true }) || 'pack';
+  let candidate = base;
+  let suffix = 2;
+
+  while (true) {
+    const params = [candidate];
+    let sql = 'SELECT id FROM packs WHERE slug=?';
+    if (excludeId) {
+      sql += ' AND id<>?';
+      params.push(excludeId);
+    }
+    sql += ' LIMIT 1';
+
+    const [rows] = await connection.query(sql, params);
+    if (!rows.length) return candidate;
+    candidate = `${base}-${suffix++}`;
+  }
 }
 
 const CALCULATED_STOCK_SQL = `
@@ -183,6 +204,8 @@ async function save(req, res, isUpdate) {
         }
       }
 
+      data.slug = await uniquePackSlug(cn, data.name, id);
+
       await cn.query(
         `UPDATE packs SET slug=?,name=?,description=?,price=?,old_price=?,image=?,is_active=? WHERE id=?`,
         [data.slug, data.name, data.description, data.price, oldPrice, data.image, data.isActive, id],
@@ -192,6 +215,8 @@ async function save(req, res, isUpdate) {
         await cn.query('DELETE FROM pack_items WHERE pack_id=?', [id]);
       }
     } else {
+      data.slug = await uniquePackSlug(cn, data.name);
+
       const [result] = await cn.query(
         `INSERT INTO packs(slug,name,description,price,old_price,image,stock_quantity,is_active)
          VALUES(?,?,?,?,?,?,0,?)`,

@@ -1,6 +1,7 @@
 const orderService = require("../services/orderService");
 const HttpError = require("../utils/httpError");
 const { sendNewOrderToAdmin } = require("../services/whatsappService");
+const zrExpressService = require("../services/zrExpressService");
 
 function required(value, label) {
   const text = String(value || "").trim();
@@ -26,6 +27,10 @@ async function createOrder(req, res) {
     commune: required(req.body.commune, "La commune"),
     address: required(req.body.address, "L’adresse"),
     note: String(req.body.note || "").trim(),
+    zrCityId: String(req.body.zrCityId || "").trim(),
+    zrDistrictId: String(req.body.zrDistrictId || "").trim(),
+    zrDeliveryType: String(req.body.zrDeliveryType || "HOME").trim(),
+    zrDestinationHubId: String(req.body.zrDestinationHubId || "").trim(),
     items,
   });
 
@@ -60,11 +65,28 @@ async function createOrder(req, res) {
     });
   }
 
+  let zr = null;
+
+  if (
+    zrExpressService.configured() &&
+    String(process.env.ZR_EXPRESS_AUTO_CREATE || "false").toLowerCase() === "true"
+  ) {
+    try {
+      zr = await zrExpressService.createParcelForOrder(result.id);
+    } catch (error) {
+      console.error(
+        "[ZR Express] Création automatique non effectuée :",
+        error.message,
+      );
+    }
+  }
+
   return res.status(201).json({
     success: true,
     message: "Commande enregistrée.",
     trackingNumber: result.trackingNumber,
     order: result,
+    zr,
   });
 }
 

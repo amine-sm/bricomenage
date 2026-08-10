@@ -1,6 +1,7 @@
 const slugify = require("slugify");
 const pool = require("../config/db");
 const HttpError = require("../utils/httpError");
+const zrExpressService = require("../services/zrExpressService");
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -1795,7 +1796,7 @@ async function updateOrderStatus(
     await connection.beginTransaction();
 
     const [[order]] = await connection.query(
-      `SELECT id,status,stock_deducted FROM orders WHERE id=? FOR UPDATE`,
+      `SELECT id,status,stock_deducted,zr_tracking_number,zr_parcel_id FROM orders WHERE id=? FOR UPDATE`,
       [req.params.id],
     );
 
@@ -1924,6 +1925,28 @@ async function updateOrderStatus(
 
     await connection.commit();
 
+    let zrWarning = null;
+
+    if (
+      status === "ANNULEE" &&
+      zrExpressService.configured() &&
+      (order.zr_tracking_number || order.zr_parcel_id)
+    ) {
+      try {
+        await zrExpressService.cancelParcelForOrder(
+          Number(req.params.id),
+        );
+      } catch (error) {
+        zrWarning =
+          `Commande annulée localement, mais ZR Express n’a pas pu être annulé automatiquement : ${error.message}`;
+
+        console.error(
+          "[ZR Express] Annulation externe échouée :",
+          error.message,
+        );
+      }
+    }
+
     const io = req.app.get("io");
 
     if (io) {
@@ -1943,6 +1966,7 @@ async function updateOrderStatus(
       message: status === "ANNULEE"
         ? "Commande annulée et stock restauré."
         : "Statut de la commande modifié.",
+      zrWarning,
     });
   } catch (error) {
     await connection.rollback();

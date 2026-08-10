@@ -21,6 +21,10 @@ const orderRoutes = require(
   "./routes/orderRoutes",
 );
 
+const zrRoutes = require(
+  "./routes/zrRoutes",
+);
+
 const authRoutes = require(
   "./routes/authRoutes",
 );
@@ -216,6 +220,12 @@ app.use(
 app.use(
   "/api",
   orderRoutes,
+);
+
+/* ZR Express - destinations et tarifs publics */
+app.use(
+  "/api/zr",
+  zrRoutes,
 );
 
 /*

@@ -168,7 +168,7 @@ function getCategoryVisual(
 const advantages: Advantage[] = [
   {
     title: "Livraison express",
-    description: "Livraison rapide dans les 48 wilayas d’Algérie",
+    description: "Livraison rapide dans les 58 wilayas d’Algérie",
     icon: Truck,
     iconClassName: "text-orange-600",
     iconBackground: "bg-orange-50",
@@ -243,7 +243,7 @@ const stats = [
   {
     icon: Truck,
     label: "Wilayas",
-    value: "48",
+    value: "58",
   },
   {
     icon: Clock3,

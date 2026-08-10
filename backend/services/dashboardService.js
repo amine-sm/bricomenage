@@ -318,7 +318,7 @@ async function getSalesChart(periodInfo) {
           ) AS purchase_cost,
           COALESCE(
             SUM(
-              o.total -
+              o.subtotal -
               COALESCE(
                 costs.order_cost,
                 0
@@ -368,7 +368,7 @@ async function getSalesChart(periodInfo) {
           ) AS purchase_cost,
           COALESCE(
             SUM(
-              o.total -
+              o.subtotal -
               COALESCE(
                 costs.order_cost,
                 0
@@ -415,7 +415,7 @@ async function getSalesChart(periodInfo) {
           ) AS purchase_cost,
           COALESCE(
             SUM(
-              o.total -
+              o.subtotal -
               COALESCE(
                 costs.order_cost,
                 0
@@ -580,7 +580,7 @@ async function getDashboardStats(filters = {}) {
     getSingleValue(
       `
         SELECT COALESCE(
-          SUM(o.total),
+          SUM(o.subtotal),
           0
         ) -
         COALESCE(

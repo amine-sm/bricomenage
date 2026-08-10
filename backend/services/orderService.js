@@ -1,6 +1,7 @@
 const pool = require('../config/db');
 const HttpError = require('../utils/httpError');
 const { createTrackingNumber } = require('../utils/tracking');
+const zrExpressService = require('./zrExpressService');
 
 function money(value) {
   return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
@@ -121,7 +122,7 @@ async function createOrder(payload) {
 
       if (articleId) {
         const [[article]] = await cn.query(
-          `SELECT a.id,a.designation,a.price,a.stock_quantity,a.is_active,
+          `SELECT a.id,a.designation,a.price,a.purchase_price,a.stock_quantity,a.is_active,
                   ${promotionPriceSql('a')} AS effective_price
            FROM articles a
            WHERE a.id=?
@@ -167,12 +168,34 @@ async function createOrder(payload) {
       }
     }
 
+    let deliveryFee = 0;
+    let zrQuote = null;
+
+    if (zrExpressService.configured()) {
+      if (!payload.zrCityId || !payload.zrDistrictId) {
+        throw new HttpError(
+          400,
+          'Sélectionnez la wilaya et la commune depuis ZR Express.',
+        );
+      }
+
+      zrQuote = await zrExpressService.getDeliveryQuote({
+        cityId: payload.zrCityId,
+        districtId: payload.zrDistrictId,
+        deliveryType: payload.zrDeliveryType || 'HOME',
+      });
+
+      deliveryFee = money(zrQuote.fee);
+    }
+
+    const total = money(subtotal + deliveryFee);
     const trackingNumber = createTrackingNumber();
     const [or] = await cn.query(
       `INSERT INTO orders(
         tracking_number,customer_name,phone,wilaya,commune,address,note,status,
-        subtotal,delivery_fee,total,stock_deducted
-      ) VALUES(?,?,?,?,?,?,?,'NOUVELLE',?,0,?,1)`,
+        subtotal,delivery_fee,total,stock_deducted,
+        zr_city_id,zr_district_id,zr_delivery_type,zr_destination_hub_id,zr_shipping_fee
+      ) VALUES(?,?,?,?,?,?,?,'NOUVELLE',?,?,?,1,?,?,?,?,?)`,
       [
         trackingNumber,
         payload.customerName,
@@ -182,7 +205,13 @@ async function createOrder(payload) {
         payload.address,
         payload.note || null,
         subtotal,
-        subtotal,
+        deliveryFee,
+        total,
+        payload.zrCityId || null,
+        payload.zrDistrictId || null,
+        String(payload.zrDeliveryType || 'HOME').toUpperCase(),
+        payload.zrDestinationHubId || null,
+        zrQuote ? deliveryFee : null,
       ],
     );
 
@@ -328,7 +357,7 @@ async function createOrder(payload) {
     );
 
     await cn.commit();
-    return { id: or.insertId, trackingNumber, subtotal, total: subtotal };
+    return { id: or.insertId, trackingNumber, subtotal, deliveryFee, total };
   } catch (error) {
     await cn.rollback();
     throw error;
@@ -338,21 +367,59 @@ async function createOrder(payload) {
 }
 
 async function trackOrder({ trackingNumber, phone }) {
-  const [[order]] = await pool.query(
+  let [[order]] = await pool.query(
     `SELECT * FROM orders WHERE UPPER(tracking_number)=UPPER(?) AND phone=? LIMIT 1`,
     [trackingNumber, phone],
   );
-  if (!order) throw new HttpError(404, 'Aucune commande ne correspond à ces informations.');
+
+  if (!order) {
+    throw new HttpError(
+      404,
+      'Aucune commande ne correspond à ces informations.',
+    );
+  }
+
+  /*
+   * Si la commande possède déjà un tracking ZR Express,
+   * on synchronise son statut avant de répondre au client.
+   * Une panne ZR ne bloque jamais la consultation locale.
+   */
+  if (
+    order.zr_tracking_number &&
+    zrExpressService.configured()
+  ) {
+    try {
+      await zrExpressService.syncParcelForOrder(
+        order.id,
+      );
+
+      [[order]] = await pool.query(
+        `SELECT * FROM orders WHERE id=? LIMIT 1`,
+        [order.id],
+      );
+    } catch (error) {
+      console.warn(
+        '[ZR Express] Synchronisation suivi client impossible :',
+        error.message,
+      );
+    }
+  }
 
   const [history] = await pool.query(
     `SELECT id,status,label,description,created_at FROM order_history WHERE order_id=? ORDER BY created_at,id`,
     [order.id],
   );
+
   const [items] = await pool.query(
     `SELECT id,article_id,pack_id,item_type,designation,unit_price,quantity,line_total FROM order_items WHERE order_id=? ORDER BY id`,
     [order.id],
   );
-  return { order, items, history };
+
+  return {
+    order,
+    items,
+    history,
+  };
 }
 
 async function getOrderNotificationData(id) {

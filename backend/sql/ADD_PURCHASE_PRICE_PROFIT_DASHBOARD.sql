@@ -89,10 +89,10 @@ WHERE oi.item_type='PACK'
 
 -- Vérification globale, hors commandes annulées.
 SELECT
-  COALESCE(SUM(o.total),0) AS chiffre_affaires,
+  COALESCE(SUM(o.subtotal),0) AS chiffre_affaires_produits_hors_livraison,
   COALESCE(SUM(costs.order_cost),0) AS cout_achat,
-  COALESCE(SUM(o.total),0) -
-  COALESCE(SUM(costs.order_cost),0) AS benefice_brut
+  COALESCE(SUM(o.subtotal),0) -
+  COALESCE(SUM(costs.order_cost),0) AS benefice_brut_hors_livraison
 FROM orders o
 LEFT JOIN (
   SELECT order_id, SUM(cost_total) AS order_cost
