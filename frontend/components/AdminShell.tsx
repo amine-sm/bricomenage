@@ -29,8 +29,7 @@ export default function AdminShell({
 }: {
   children: ReactNode;
 }) {
-  const router =
-    useRouter();
+  const router = useRouter();
 
   const [
     ready,
@@ -76,6 +75,7 @@ export default function AdminShell({
         window.localStorage.removeItem(
           "admin_token",
         );
+
         window.localStorage.removeItem(
           "admin_user",
         );
@@ -95,6 +95,7 @@ export default function AdminShell({
       <div className="flex min-h-screen items-center justify-center bg-zinc-100">
         <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
           <LoaderCircle className="h-5 w-5 animate-spin text-orange-500" />
+
           <span className="text-sm font-black text-zinc-600">
             Ouverture de l’administration...
           </span>
@@ -104,13 +105,22 @@ export default function AdminShell({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 lg:flex">
+    <div className="min-h-screen bg-zinc-100">
+      {/* NAVBAR ADMIN */}
       <AdminNav />
 
-      <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-        {children}
-      </main>
+      {/* 
+        IMPORTANT :
+        Sur desktop la navbar fait w-72.
+        On réserve donc exactement 72 à gauche.
+      */}
+      <div className="min-w-0 lg:pl-72">
+        <main className="min-w-0 w-full p-4 sm:p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
 
+      {/* Notifications commandes */}
       <AdminRealtimeOrders />
     </div>
   );

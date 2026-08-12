@@ -1,0 +1,14 @@
+BRICOMENAGE - DEPLOIEMENT CPANEL
+
+1. Copier .env.local.example vers .env.local et renseigner NEXT_PUBLIC_API_URL.
+2. npm install
+3. npm run build
+4. Le dossier out/ est genere par Next.js.
+5. Uploader LE CONTENU de out/ dans public_html/ (pas le dossier out lui-meme).
+6. Le fichier public/.htaccess est copie dans out/.htaccess pendant le build.
+
+NAVIGATION ADMIN
+- Les liens utilisent next/link : navigation client sans rechargement complet.
+- prefetch={false} evite les prechargements inutiles sur hebergement statique.
+- trailingSlash=true reste active pour les dossiers index.html de cPanel.
+- La navbar reste fixe sur desktop et le contenu reserve sa largeur.

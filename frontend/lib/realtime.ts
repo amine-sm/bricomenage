@@ -33,11 +33,18 @@ export function getAdminSocket() {
       process.env.NEXT_PUBLIC_SOCKET_URL ||
         defaultSocketUrl(),
       {
+        path:
+          process.env.NEXT_PUBLIC_SOCKET_PATH ||
+          "/socket.io",
         autoConnect: false,
         transports: [
-          "websocket",
           "polling",
+          "websocket",
         ],
+        upgrade: true,
+        rememberUpgrade: false,
+        withCredentials: true,
+        timeout: 20_000,
         auth: {
           token,
         },
