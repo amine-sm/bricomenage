@@ -31,6 +31,7 @@ import {
 import ProductCard, {
   type Product,
 } from "@/components/ProductCard";
+import DynamicCatalogSeo from "@/components/DynamicCatalogSeo";
 import {
   addToCart,
 } from "@/lib/cart";
@@ -921,7 +922,9 @@ function ArticlesPageContent() {
       : filteredArticles.length;
 
   return (
-    <main className="min-h-screen bg-zinc-50">
+    <>
+      <DynamicCatalogSeo mode={mode} category={category} />
+      <main className="min-h-screen bg-zinc-50">
       <section className="border-b border-zinc-200 bg-white">
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <span className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-wider text-orange-600">
@@ -1211,6 +1214,7 @@ function ArticlesPageContent() {
         )}
       </section>
     </main>
+    </>
   );
 }
 

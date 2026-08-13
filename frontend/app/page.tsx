@@ -38,6 +38,7 @@ import {
 import ProductCard, {
   type Product,
 } from "@/components/ProductCard";
+import HomeSeoJsonLd from "@/components/HomeSeoJsonLd";
 
 import {
   catalogApi,
@@ -2524,7 +2525,9 @@ export default function Home() {
   }
 
   return (
-    <main className="overflow-hidden bg-white text-zinc-950">
+    <>
+      <HomeSeoJsonLd />
+      <main className="overflow-hidden bg-white text-zinc-950">
       {/* HERO CAROUSEL */}
       <section className="relative min-h-[650px] overflow-hidden border-b border-zinc-200 bg-zinc-950 lg:min-h-[700px]">
         <div className="absolute inset-0 bg-zinc-950">
@@ -3195,5 +3198,6 @@ export default function Home() {
         </section>
       </SectionWrapper>
     </main>
+    </>
   );
 }

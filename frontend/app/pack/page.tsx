@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 
+import DynamicPackSeo from "@/components/DynamicPackSeo";
 import { addToCart } from "@/lib/cart";
 import {
   catalogApi,
@@ -318,7 +319,9 @@ function PackPageContent() {
       : null;
 
   return (
-    <main className="min-h-screen bg-zinc-50">
+    <>
+      <DynamicPackSeo pack={pack} />
+      <main className="min-h-screen bg-zinc-50">
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Link
           href="/articles?pack=1"
@@ -575,6 +578,7 @@ function PackPageContent() {
         </section>
       </section>
     </main>
+    </>
   );
 }
 

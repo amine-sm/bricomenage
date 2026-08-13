@@ -48,6 +48,8 @@ import type {
   Product,
 } from "@/components/ProductCard";
 
+import DynamicProductSeo from "@/components/DynamicProductSeo";
+
 const ARTICLE_CACHE_PREFIX =
   "bricomenage-article-cache:";
 
@@ -799,7 +801,9 @@ function ArticleContent() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-50">
+    <>
+      <DynamicProductSeo product={product} />
+      <main className="min-h-screen bg-zinc-50">
       <section className="border-b border-zinc-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 py-4 text-sm sm:px-6 lg:px-8">
           <Link
@@ -1511,6 +1515,7 @@ function ArticleContent() {
         </div>
       </section>
     </main>
+    </>
   );
 }
 

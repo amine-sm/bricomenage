@@ -1,0 +1,93 @@
+BRICOMENAGE - SEO GOOGLE / NEXT.JS
+=================================
+
+Le frontend a été préparé pour Google sans changer le design.
+
+FICHIERS SEO AJOUTES / MODIFIES
+-------------------------------
+- app/layout.tsx
+  Metadata globale : titre, description, Open Graph, Twitter, robots GoogleBot.
+  JSON-LD Store/Organization + WebSite avec coordonnées BricoMénage.
+
+- app/robots.ts
+  Génère /robots.txt
+  Autorise le site public et bloque les zones admin/checkout inutiles à Google.
+
+- app/sitemap.ts
+  Génère /sitemap.xml
+  Inclut : accueil, catalogue, promotions, packs, catégories,
+  articles et packs récupérés depuis l'API au moment du build.
+
+- app/articles/layout.tsx
+  Metadata du catalogue.
+
+- app/article/layout.tsx
+  Metadata de base de la fiche article.
+
+- app/pack/layout.tsx
+  Metadata de base de la fiche pack.
+
+- components/DynamicProductSeo.tsx
+  Titre/description/canonical dynamiques + JSON-LD Product/Offer/Breadcrumb.
+  Permet à Google de comprendre le prix, DZD, stock, marque, référence,
+  note et nombre d'avis lorsque disponibles.
+
+- components/DynamicPackSeo.tsx
+  SEO + JSON-LD des packs.
+
+- components/DynamicCatalogSeo.tsx
+  SEO dynamique du catalogue, catégories, promotions et packs.
+
+- components/HomeSeoJsonLd.tsx
+  Données structurées des catégories et de la navigation.
+
+IMPORTANT AVANT LE BUILD
+------------------------
+Le fichier .env.local de production doit contenir :
+
+NEXT_PUBLIC_API_URL=https://bricomenage.com/api
+NEXT_PUBLIC_SOCKET_URL=https://bricomenage.com
+NEXT_PUBLIC_SOCKET_PATH=/api/socket.io
+
+L'API doit être accessible pendant npm run build pour que sitemap.xml
+puisse récupérer la liste actuelle des articles, catégories et packs.
+
+BUILD
+-----
+npm install
+npm run build
+
+Avec output: "export", le dossier final est :
+out/
+
+A METTRE SUR CPANEL
+-------------------
+Envoyer le contenu du dossier out/ vers le dossier public du site.
+
+VERIFICATIONS APRES MISE EN LIGNE
+---------------------------------
+Ouvrir :
+https://bricomenage.com/
+https://bricomenage.com/robots.txt
+https://bricomenage.com/sitemap.xml
+
+SEARCH CONSOLE
+--------------
+1. Valider la propriété bricomenage.com par DNS TXT.
+2. Search Console > Indexation > Sitemaps.
+3. Envoyer : sitemap.xml
+4. Inspection de l'URL : https://bricomenage.com/
+5. Cliquer sur Demander une indexation.
+6. Faire la même chose pour /articles/ et quelques fiches articles importantes.
+
+IMPORTANT
+---------
+Les liens supplémentaires affichés sous BricoMénage dans Google
+(sitelinks : Catalogue, Outillage, Jardin, etc.) sont choisis automatiquement
+par Google. Le site est maintenant mieux préparé pour qu'il comprenne
+la structure, les catégories et les produits, mais on ne peut pas forcer
+Google à afficher exactement tel ou tel sitelink.
+
+Comme le frontend est exporté en statique, refaire npm run build + déploiement
+après l'ajout de beaucoup de nouveaux produits permet de mettre à jour
+sitemap.xml avec la liste la plus récente.
