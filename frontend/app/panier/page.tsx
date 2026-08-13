@@ -445,7 +445,7 @@ export default function Cart() {
           >
             <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
 
-            Continuer mes achats
+            Continuer mes achats / متابعة التسوق
           </Link>
 
           <div className="mt-7 flex flex-col justify-between gap-6 md:flex-row md:items-end">
@@ -453,23 +453,23 @@ export default function Cart() {
               <span className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-orange-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-orange-600">
                 <ShoppingBag className="h-4 w-4" />
 
-                Votre sélection
+                Votre sélection / اختياراتك
               </span>
 
               <h1 className="mt-5 text-4xl font-black tracking-tight text-zinc-950 sm:text-5xl">
-                Votre panier
+                Votre panier / سلة التسوق
               </h1>
 
               <p className="mt-3 text-sm leading-7 text-zinc-500 sm:text-base">
                 Vérifiez vos articles avant
-                de finaliser votre commande.
+                de finaliser votre commande. / راجع منتجاتك قبل تأكيد طلبك.
               </p>
             </div>
 
             {items.length > 0 && (
               <div className="rounded-2xl border border-zinc-200 bg-white/80 px-5 py-4 shadow-sm backdrop-blur">
                 <span className="block text-xs font-bold uppercase tracking-wider text-zinc-400">
-                  Articles sélectionnés
+                  Articles sélectionnés / المنتجات المختارة
                 </span>
 
                 <strong className="mt-1 block text-2xl font-black text-zinc-950">
@@ -491,14 +491,14 @@ export default function Cart() {
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-black text-zinc-950">
-                    Articles du panier
+                    Articles du panier / منتجات السلة
                   </h2>
 
                   <p className="mt-1 text-sm text-zinc-500">
                     {items.length}{" "}
                     {items.length > 1
-                      ? "produits différents"
-                      : "produit"}
+                      ? "produits différents / منتجات مختلفة"
+                      : "produit / منتج"}
                   </p>
                 </div>
 
@@ -510,7 +510,7 @@ export default function Cart() {
                   <Trash2 className="h-4 w-4" />
 
                   <span className="hidden sm:inline">
-                    Vider le panier
+                    Vider le panier / إفراغ السلة
                   </span>
                 </button>
               </div>
@@ -548,19 +548,19 @@ export default function Cart() {
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <InfoCard
                   icon={Truck}
-                  title="Livraison nationale"
-                  description="Nous livrons vos commandes partout en Algérie."
+                  title="Livraison nationale / التوصيل إلى جميع الولايات"
+                  description="Nous livrons vos commandes partout en Algérie. / نوصل طلباتكم إلى جميع أنحاء الجزائر."
                 />
 
                 <InfoCard
                   icon={ShieldCheck}
-                  title="Paiement sécurisé"
-                  description="Réglez simplement votre commande à la livraison."
+                  title="Paiement sécurisé / دفع آمن"
+                  description="Réglez simplement votre commande à la livraison. / ادفع بكل بساطة عند استلام الطلب."
                 />
               </div>
             </div>
 
-            {/* Résumé */}
+            {/* Résumé / ملخص الطلب */}
             <aside className="lg:sticky lg:top-28">
               <div className="overflow-hidden rounded-[30px] border border-zinc-200 bg-white shadow-[0_20px_60px_rgba(24,24,27,0.08)]">
                 <div className="relative overflow-hidden bg-zinc-950 px-6 py-7 text-white">
@@ -572,12 +572,12 @@ export default function Cart() {
                     </span>
 
                     <h2 className="mt-5 text-2xl font-black">
-                      Résumé
+                      Résumé / ملخص الطلب
                     </h2>
 
                     <p className="mt-2 text-sm text-zinc-400">
                       Détails de votre
-                      commande
+                      commande / تفاصيل طلبك
                     </p>
                   </div>
                 </div>
@@ -585,7 +585,7 @@ export default function Cart() {
                 <div className="p-6">
                   <div className="space-y-4 border-b border-zinc-200 pb-6">
                     <SummaryRow
-                      label={`Sous-total (${totalQuantity} article${
+                      label={`Sous-total / المجموع الفرعي (${totalQuantity} article${
                         totalQuantity > 1
                           ? "s"
                           : ""
@@ -596,26 +596,26 @@ export default function Cart() {
                     />
 
                     <SummaryRow
-                      label="Livraison"
-                      value="À confirmer"
+                      label="Livraison / التوصيل"
+                      value="À confirmer / يحدد لاحقًا"
                       valueClassName="text-emerald-600"
                     />
 
                     <SummaryRow
-                      label="Paiement"
-                      value="À la livraison"
+                      label="Paiement / الدفع"
+                      value="À la livraison / عند الاستلام"
                     />
                   </div>
 
                   <div className="flex items-end justify-between gap-4 py-6">
                     <div>
                       <span className="block text-sm font-bold text-zinc-500">
-                        Total
+                        Total / الإجمالي
                       </span>
 
                       <span className="mt-1 block text-xs text-zinc-400">
                         Hors frais de
-                        livraison
+                        livraison / بدون رسوم التوصيل
                       </span>
                     </div>
 
@@ -631,7 +631,7 @@ export default function Cart() {
                     href="/commande"
                     className="group flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-6 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/35"
                   >
-                    Passer la commande
+                    Passer la commande / إتمام الطلب
 
                     <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
                   </Link>
@@ -640,16 +640,15 @@ export default function Cart() {
                     href="/articles"
                     className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-6 text-sm font-bold text-zinc-700 transition-colors hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
                   >
-                    Continuer mes achats
+                    Continuer mes achats / متابعة التسوق
                   </Link>
 
                   <div className="mt-6 flex items-start gap-3 rounded-2xl bg-emerald-50 p-4">
                     <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
 
                     <p className="text-xs leading-5 text-emerald-700">
-                      Votre panier est
-                      sauvegardé automatiquement
-                      sur cet appareil.
+                      Votre panier est sauvegardé automatiquement
+                      sur cet appareil. / يتم حفظ سلة التسوق تلقائيًا على هذا الجهاز.
                     </p>
                   </div>
                 </div>
@@ -747,10 +746,10 @@ function CartProduct({
         {/* Informations */}
         <div className="min-w-0 flex-1">
           {item.item_type && (
-            <span className="mb-2 inline-flex rounded-full bg-orange-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-orange-600">
+            <span className="mb-2 inline-flex rounded-full bg-orange-50 px-3 py-1 text-[10px] font-black uppercase tracking-wider leading-5 text-orange-600">
               {item.item_type === "PACK"
-                ? "Pack"
-                : "Article"}
+                ? "Pack / باقة"
+                : "Article / منتج"}
             </span>
           )}
 
@@ -767,7 +766,7 @@ function CartProduct({
             {formatPrice(item.price)} DA
             <span className="font-normal">
               {" "}
-              / unité
+              / unité / للوحدة
             </span>
           </p>
           {item.item_type ===
@@ -779,7 +778,7 @@ function CartProduct({
               <div className="mt-4 rounded-2xl border border-orange-100 bg-orange-50/60 p-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-[10px] font-black uppercase tracking-[0.13em] text-orange-600">
-                    Produits inclus
+                    Produits inclus / المنتجات المضمنة
                   </span>
 
                   <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-zinc-600 ring-1 ring-orange-100">
@@ -838,7 +837,7 @@ function CartProduct({
                             {
                               component.quantity_per_pack
                             }{" "}
-                            × par pack
+                            × par pack / لكل باقة
                           </span>
                         </div>
                       </div>
@@ -854,7 +853,7 @@ function CartProduct({
             className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-zinc-400 transition-colors hover:text-red-600 sm:hidden"
           >
             <Trash2 className="h-4 w-4" />
-            Supprimer
+            Supprimer / حذف
           </button>
         </div>
 
@@ -867,7 +866,7 @@ function CartProduct({
               disabled={
                 item.quantity <= 1
               }
-              aria-label="Diminuer la quantité"
+              aria-label="Diminuer la quantité / تقليل الكمية"
               className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-white hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-30"
             >
               <Minus className="h-4 w-4" />
@@ -884,14 +883,14 @@ function CartProduct({
                   ),
                 )
               }
-              aria-label={`Quantité de ${item.designation}`}
+              aria-label={`Quantité de ${item.designation} / كمية ${item.designation}`}
               className="h-9 w-12 bg-transparent text-center text-sm font-black text-zinc-950 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
 
             <button
               type="button"
               onClick={onIncrement}
-              aria-label="Augmenter la quantité"
+              aria-label="Augmenter la quantité / زيادة الكمية"
               className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-white hover:text-orange-600"
             >
               <Plus className="h-4 w-4" />
@@ -900,7 +899,7 @@ function CartProduct({
 
           <div className="min-w-[115px] text-right">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-              Total
+              Total / الإجمالي
             </span>
 
             <strong className="mt-1 block text-lg font-black text-zinc-950">
@@ -914,7 +913,7 @@ function CartProduct({
           <button
             type="button"
             onClick={onRemove}
-            aria-label={`Supprimer ${item.designation}`}
+            aria-label={`Supprimer / حذف ${item.designation}`}
             className="hidden h-10 w-10 items-center justify-center rounded-xl text-zinc-400 transition-all hover:bg-red-50 hover:text-red-600 sm:flex"
           >
             <Trash2 className="h-5 w-5" />
@@ -992,21 +991,21 @@ function EmptyCart() {
         </span>
 
         <h2 className="mt-7 text-3xl font-black tracking-tight text-zinc-950">
-          Votre panier est vide
+          Votre panier est vide / سلة التسوق فارغة
         </h2>
 
         <p className="mt-4 text-sm leading-7 text-zinc-500 sm:text-base">
           Vous n’avez encore ajouté aucun
           article. Découvrez notre catalogue
           et trouvez le matériel adapté à
-          vos projets.
+          vos projets. / لم تضف أي منتج إلى السلة بعد. تصفح الكتالوج واختر ما يناسب مشاريعك.
         </p>
 
         <Link
           href="/articles"
           className="group mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-7 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/35"
         >
-          Découvrir les articles
+          Découvrir les articles / اكتشف المنتجات
 
           <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
         </Link>

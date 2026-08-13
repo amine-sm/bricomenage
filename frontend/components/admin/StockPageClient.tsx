@@ -156,7 +156,7 @@ export default function StockPage() {
         const response =
           await apiFetch<{
             articles: Article[];
-          }>("/admin/articles", {
+          }>("/admin/stock", {
             headers:
               adminHeaders(),
           });
@@ -412,7 +412,7 @@ export default function StockPage() {
       );
 
       await apiFetch(
-        `/admin/articles/${article.id}`,
+        `/admin/stock/${article.id}`,
         {
           method: "PUT",
 

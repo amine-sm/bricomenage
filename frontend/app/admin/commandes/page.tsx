@@ -1,5 +1,12 @@
 "use client";
 
+/*
+ * VERSION FINALE COMMANDES
+ * - suppression avec modal design identique à Articles
+ * - pas de confirmation native du navigateur
+ * - bouton corbeille à côté de l'œil
+ */
+
 import {
   type ChangeEvent,
   useCallback,
@@ -19,6 +26,7 @@ import {
   Clock3,
   Eye,
   ExternalLink,
+  Trash2,
   History,
   ImageIcon,
   LoaderCircle,
@@ -430,6 +438,20 @@ export default function OrdersPage() {
   );
 
   const [
+    deletingId,
+    setDeletingId,
+  ] = useState<number | null>(
+    null,
+  );
+
+  const [
+    orderToDelete,
+    setOrderToDelete,
+  ] = useState<Order | null>(
+    null,
+  );
+
+  const [
     success,
     setSuccess,
   ] = useState("");
@@ -454,7 +476,11 @@ export default function OrdersPage() {
   const [
     dateFilter,
     setDateFilter,
-  ] = useState("");
+  ] = useState(() =>
+    localDayKey(
+      new Date().toISOString(),
+    ),
+  );
 
   const [
     sortBy,
@@ -1084,10 +1110,79 @@ export default function OrdersPage() {
     }
   }
 
+  function deleteOrder(
+    order: Order,
+  ) {
+    setError("");
+    setSuccess("");
+    setOrderToDelete(order);
+  }
+
+  async function confirmDeleteOrder() {
+    if (!orderToDelete) {
+      return;
+    }
+
+    const order = orderToDelete;
+
+    setDeletingId(order.id);
+    setError("");
+    setSuccess("");
+
+    try {
+      await apiFetch(
+        `/admin/orders/${order.id}`,
+        {
+          method: "DELETE",
+          headers:
+            adminHeaders(),
+        },
+      );
+
+      setItems((current) =>
+        current.filter(
+          (item) =>
+            item.id !== order.id,
+        ),
+      );
+
+      if (
+        detail?.order.id ===
+        order.id
+      ) {
+        setDetail(null);
+      }
+
+      setOrderToDelete(null);
+
+      setSuccess(
+        `La commande « ${order.tracking_number} » a été supprimée avec succès.`,
+      );
+
+      window.dispatchEvent(
+        new Event(
+          "bricomenage:orders-count-refresh",
+        ),
+      );
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Impossible de supprimer la commande.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   function resetFilters() {
     setQuery("");
     setStatusFilter("all");
-    setDateFilter("");
+    setDateFilter(
+      localDayKey(
+        new Date().toISOString(),
+      ),
+    );
     setSortBy("newest");
   }
 
@@ -1417,7 +1512,9 @@ export default function OrdersPage() {
                       <OrderMobileCard
                         order={order}
                         changing={changingId === order.id}
+                        deleting={deletingId === order.id}
                         onOpen={() => openDetail(order.id)}
+                        onDelete={() => deleteOrder(order)}
                         onChangeStatus={(status) =>
                           changeStatus(order, status)
                         }
@@ -1462,7 +1559,7 @@ export default function OrdersPage() {
                     </th>
 
                     <th className="px-5 py-4 text-right">
-                      Détail
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -1477,9 +1574,18 @@ export default function OrdersPage() {
                           changingId ===
                           order.id
                         }
+                        deleting={
+                          deletingId ===
+                          order.id
+                        }
                         onOpen={() =>
                           openDetail(
                             order.id,
+                          )
+                        }
+                        onDelete={() =>
+                          deleteOrder(
+                            order,
                           )
                         }
                         onChangeStatus={(
@@ -1810,7 +1916,9 @@ export default function OrdersPage() {
                         >
                           <HistoryOrderMobileCard
                             order={order}
+                            deleting={deletingId === order.id}
                             onOpen={() => openDetail(order.id)}
+                            onDelete={() => deleteOrder(order)}
                           />
                         </div>
                       ))}
@@ -1852,7 +1960,7 @@ export default function OrdersPage() {
                         </th>
 
                         <th className="px-5 py-4 text-right">
-                          Détail
+                          Actions
                         </th>
                       </tr>
                     </thead>
@@ -1956,7 +2064,7 @@ export default function OrdersPage() {
                               </td>
 
                               <td className="px-5 py-4">
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-2">
                                   <button
                                     type="button"
                                     onClick={() =>
@@ -1965,9 +2073,33 @@ export default function OrdersPage() {
                                       )
                                     }
                                     title="Voir le détail"
+                                    aria-label="Voir le détail de la commande"
                                     className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition hover:scale-105 hover:bg-orange-500 hover:text-white active:scale-95"
                                   >
                                     <Eye className="h-4 w-4" />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      void deleteOrder(
+                                        order,
+                                      )
+                                    }
+                                    disabled={
+                                      deletingId ===
+                                      order.id
+                                    }
+                                    title="Supprimer la commande"
+                                    aria-label="Supprimer la commande"
+                                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:scale-105 hover:bg-red-500 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {deletingId ===
+                                    order.id ? (
+                                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
                                   </button>
                                 </div>
                               </td>
@@ -2022,6 +2154,115 @@ export default function OrdersPage() {
           }
         />
       )}
+      {orderToDelete && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Fermer la confirmation de suppression"
+            onClick={() => {
+              if (deletingId === null) {
+                setOrderToDelete(null);
+              }
+            }}
+            className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"
+          />
+
+          <div className="relative z-10 w-full max-w-md overflow-hidden rounded-[30px] border border-white/20 bg-white shadow-[0_30px_100px_rgba(0,0,0,0.30)]">
+            <div className="p-6 sm:p-7">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-red-600 ring-1 ring-red-100">
+                  <Trash2 className="h-6 w-6" />
+                </div>
+
+                <div className="min-w-0">
+                  <h2 className="text-xl font-black text-zinc-950">
+                    Supprimer cette commande ?
+                  </h2>
+
+                  <p className="mt-2 text-sm leading-6 text-zinc-500">
+                    Cette action supprimera définitivement la commande suivante.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-red-100 bg-red-50/70 p-4">
+                <span className="block text-xs font-bold uppercase tracking-wider text-red-400">
+                  Commande concernée
+                </span>
+
+                <strong className="mt-1 block break-words text-sm font-black text-zinc-900">
+                  {orderToDelete.tracking_number}
+                </strong>
+
+                <span className="mt-2 block text-xs font-bold text-zinc-600">
+                  {orderToDelete.customer_name}
+                </span>
+
+                <span className="mt-1 block text-xs text-zinc-500">
+                  {orderToDelete.phone}
+                </span>
+
+                <span className="mt-1 block text-xs text-zinc-500">
+                  {orderToDelete.commune}, {orderToDelete.wilaya}
+                </span>
+
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-red-100 pt-3">
+                  <span className="text-[10px] font-black uppercase tracking-[0.12em] text-red-400">
+                    Total
+                  </span>
+
+                  <strong className="text-sm font-black text-zinc-950">
+                    {formatPrice(orderToDelete.total)} DA
+                  </strong>
+                </div>
+              </div>
+
+              <div className="mt-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+
+                <p className="leading-6">
+                  Cette action est irréversible. Vérifiez bien la commande avant de continuer.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 border-t border-zinc-100 bg-zinc-50 p-4 sm:p-5">
+              <button
+                type="button"
+                disabled={deletingId !== null}
+                onClick={() =>
+                  setOrderToDelete(null)
+                }
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-5 text-sm font-black text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="button"
+                disabled={deletingId !== null}
+                onClick={() =>
+                  void confirmDeleteOrder()
+                }
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-red-600 px-5 text-sm font-black text-white shadow-lg shadow-red-600/20 transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deletingId !== null ? (
+                  <>
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                    Suppression...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Supprimer
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx global>{`
         @keyframes modalIn {
           from {
@@ -2083,12 +2324,16 @@ function StatCard({
 function OrderMobileCard({
   order,
   changing,
+  deleting,
   onOpen,
+  onDelete,
   onChangeStatus,
 }: {
   order: Order;
   changing: boolean;
+  deleting: boolean;
   onOpen: () => void;
+  onDelete: () => void;
   onChangeStatus: (status: OrderStatus) => void;
 }) {
   const status = normalizeStatus(order.status);
@@ -2101,9 +2346,32 @@ function OrderMobileCard({
           <strong className="mt-3 block truncate text-base font-black text-zinc-950">{order.customer_name}</strong>
           <span className="mt-1 flex items-center gap-1.5 text-xs text-zinc-400"><Phone className="h-3.5 w-3.5" />{order.phone}</span>
         </div>
-        <button type="button" onClick={onOpen} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition hover:bg-orange-500 hover:text-white" aria-label="Voir le détail">
-          <Eye className="h-4 w-4" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition hover:bg-orange-500 hover:text-white"
+            aria-label="Voir le détail"
+            title="Voir le détail"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Supprimer la commande"
+            title="Supprimer la commande"
+          >
+            {deleting ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 p-4 text-xs">
@@ -2136,7 +2404,17 @@ function OrderMobileCard({
   );
 }
 
-function HistoryOrderMobileCard({ order, onOpen }: { order: Order; onOpen: () => void }) {
+function HistoryOrderMobileCard({
+  order,
+  deleting,
+  onOpen,
+  onDelete,
+}: {
+  order: Order;
+  deleting: boolean;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
   const status = normalizeStatus(order.status);
   return (
     <article className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm">
@@ -2146,7 +2424,32 @@ function HistoryOrderMobileCard({ order, onOpen }: { order: Order; onOpen: () =>
           <strong className="mt-3 block text-base font-black text-zinc-950">{order.customer_name}</strong>
           <span className="mt-1 block text-xs text-zinc-400">{formatOrderDay(order.created_at)}</span>
         </div>
-        <button type="button" onClick={onOpen} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><Eye className="h-4 w-4" /></button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition hover:bg-orange-500 hover:text-white"
+            aria-label="Voir le détail"
+            title="Voir le détail"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:bg-red-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Supprimer la commande"
+            title="Supprimer la commande"
+          >
+            {deleting ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+          </button>
+        </div>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
         <div className="rounded-2xl bg-zinc-50 p-3"><span className="text-zinc-400">Destination</span><strong className="mt-1 block text-zinc-800">{order.commune}, {order.wilaya}</strong></div>
@@ -2160,12 +2463,16 @@ function HistoryOrderMobileCard({ order, onOpen }: { order: Order; onOpen: () =>
 function OrderTableRow({
   order,
   changing,
+  deleting,
   onOpen,
+  onDelete,
   onChangeStatus,
 }: {
   order: Order;
   changing: boolean;
+  deleting: boolean;
   onOpen: () => void;
+  onDelete: () => void;
   onChangeStatus: (
     status: OrderStatus,
   ) => void;
@@ -2272,7 +2579,7 @@ function OrderTableRow({
       </td>
 
       <td className="px-5 py-4">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onOpen}
@@ -2281,6 +2588,21 @@ function OrderTableRow({
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition hover:scale-105 hover:bg-orange-500 hover:text-white active:scale-95"
           >
             <Eye className="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            title="Supprimer la commande"
+            aria-label="Supprimer la commande"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 transition hover:scale-105 hover:bg-red-500 hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleting ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
           </button>
         </div>
       </td>

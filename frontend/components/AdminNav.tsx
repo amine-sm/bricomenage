@@ -2,352 +2,303 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import {
-  useCallback,
-  useEffect,
-  useState,
-} from "react";
-
-import {
-  usePathname,
-  useRouter,
-} from "next/navigation";
-
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Boxes,
   ChartNoAxesCombined,
   FolderTree,
+  ExternalLink,
   LogOut,
+  Menu,
   Package,
   ShoppingCart,
   Store,
   Tags,
   Truck,
+  UsersRound,
+  X,
 } from "lucide-react";
 
+import { adminHeaders, apiFetch } from "@/lib/api";
 import {
-  adminHeaders,
-  apiFetch,
-} from "@/lib/api";
+  type AdminSession,
+  hasAdminPermission,
+  isSuperAdmin,
+} from "@/lib/adminPermissions";
 
-type NavOrder = {
-  id: number;
-  status: string;
+type NavOrder = { id: number; status: string };
+
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  permission?: string;
+  superOnly?: boolean;
 };
 
-const links = [
-  {
-    label: "Dashboard",
-    href: "/admin/dashboard",
-    icon: ChartNoAxesCombined,
-  },
-  {
-    label: "Articles",
-    href: "/admin/articles",
-    icon: Package,
-  },
-  {
-    label: "Promotions",
-    href: "/admin/promotions",
-    icon: Tags,
-  },
-  {
-    label: "Packs",
-    href: "/admin/packs",
-    icon: Boxes,
-  },
-  {
-    label: "Catégories",
-    href: "/admin/categories",
-    icon: FolderTree,
-  },
-  {
-    label: "Fournisseurs",
-    href: "/admin/fournisseurs",
-    icon: Truck,
-  },
-  {
-    label: "Stock",
-    href: "/admin/achats",
-    icon: Store,
-  },
-  {
-    label: "Commandes",
-    href: "/admin/commandes",
-    icon: ShoppingCart,
-  },
+const allLinks: NavItem[] = [
+  { label: "Dashboard", href: "/admin/dashboard", icon: ChartNoAxesCombined, permission: "dashboard.view" },
+  { label: "Articles", href: "/admin/articles", icon: Package, permission: "articles.view" },
+  { label: "Promotions", href: "/admin/promotions", icon: Tags, permission: "promotions.view" },
+  { label: "Packs", href: "/admin/packs", icon: Boxes, permission: "packs.view" },
+  { label: "Catégories", href: "/admin/categories", icon: FolderTree, permission: "categories.view" },
+  { label: "Fournisseurs", href: "/admin/fournisseurs", icon: Truck, permission: "suppliers.view" },
+  { label: "Stock", href: "/admin/achats", icon: Store, permission: "stock.view" },
+  { label: "Commandes", href: "/admin/commandes", icon: ShoppingCart, permission: "orders.view" },
+  { label: "Utilisateurs", href: "/admin/utilisateurs", icon: UsersRound, superOnly: true },
 ];
 
-export default function AdminNav() {
+function OrderBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[9px] font-black text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
+export default function AdminNav({ admin }: { admin: AdminSession }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [
-    newOrdersCount,
-    setNewOrdersCount,
-  ] = useState(0);
+  const [newOrdersCount, setNewOrdersCount] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const refreshOrdersCount =
-    useCallback(async () => {
-      try {
-        const response =
-          await apiFetch<{
-            orders: NavOrder[];
-          }>("/admin/orders", {
-            headers:
-              adminHeaders(),
-          });
+  const links = useMemo(
+    () =>
+      allLinks.filter((link) => {
+        if (link.superOnly) return isSuperAdmin(admin);
+        return !link.permission || hasAdminPermission(admin, link.permission);
+      }),
+    [admin],
+  );
 
-        setNewOrdersCount(
-          (response.orders || []).filter(
-            (order) =>
-              String(order.status) ===
-              "NOUVELLE",
-          ).length,
-        );
-      } catch {
-        // Le compteur ne doit jamais bloquer la navigation.
-      }
-    }, []);
+  const primaryLinks = links.slice(0, 4);
+  const moreLinks = links.slice(4);
+
+  const refreshOrdersCount = useCallback(async () => {
+    if (!hasAdminPermission(admin, "orders.view")) {
+      setNewOrdersCount(0);
+      return;
+    }
+
+    try {
+      const response = await apiFetch<{ orders: NavOrder[] }>("/admin/orders", {
+        headers: adminHeaders(),
+      });
+      setNewOrdersCount(
+        (response.orders || []).filter((order) => String(order.status) === "NOUVELLE").length,
+      );
+    } catch {
+      // Le compteur ne bloque jamais la navigation.
+    }
+  }, [admin]);
 
   useEffect(() => {
     void refreshOrdersCount();
 
-    function handleNewOrder() {
-      setNewOrdersCount(
-        (current) =>
-          current + 1,
-      );
-    }
+    const handleNewOrder = () => setNewOrdersCount((current) => current + 1);
+    const handleRefresh = () => void refreshOrdersCount();
 
-    function handleRefresh() {
-      void refreshOrdersCount();
-    }
-
-    window.addEventListener(
-      "bricomenage:new-order",
-      handleNewOrder,
-    );
-
-    window.addEventListener(
-      "bricomenage:orders-count-refresh",
-      handleRefresh,
-    );
+    window.addEventListener("bricomenage:new-order", handleNewOrder);
+    window.addEventListener("bricomenage:orders-count-refresh", handleRefresh);
 
     return () => {
-      window.removeEventListener(
-        "bricomenage:new-order",
-        handleNewOrder,
-      );
-
-      window.removeEventListener(
-        "bricomenage:orders-count-refresh",
-        handleRefresh,
-      );
+      window.removeEventListener("bricomenage:new-order", handleNewOrder);
+      window.removeEventListener("bricomenage:orders-count-refresh", handleRefresh);
     };
   }, [refreshOrdersCount]);
 
-  function logout() {
-    localStorage.removeItem(
-      "admin_token",
-    );
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
-    localStorage.removeItem(
-      "admin_user",
-    );
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobileMenuOpen]);
 
-    router.replace(
-      "/admin/connexion",
-    );
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
+  function logout() {
+    localStorage.removeItem("admin_token");
+    localStorage.removeItem("admin_user");
+    setMobileMenuOpen(false);
+    router.replace("/admin/connexion");
+  }
+
+  const moreMenuActive = moreLinks.some((link) => isActive(link.href));
+
   return (
-    <aside
-      className="
-        w-full
-        border-b
-        border-zinc-800
-        bg-zinc-950
-        p-4
-        text-white
+    <>
+      <aside className="fixed inset-y-0 left-0 z-50 hidden h-screen w-72 flex-col overflow-y-auto border-r border-zinc-800 bg-zinc-950 p-6 text-white lg:flex">
+        <Link href={links[0]?.href || "/admin/connexion"} prefetch={false} className="flex shrink-0 items-center gap-3">
+          <span className="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-lg">
+            <Image src="/images/logo-bricomenage.jpeg" alt="Logo BricoMénage" fill priority sizes="56px" className="object-contain p-1" />
+          </span>
+          <span className="min-w-0">
+            <strong className="block truncate text-lg font-black">BricoMénage</strong>
+            <small className="block text-zinc-400">
+              {isSuperAdmin(admin) ? "Super Administrateur" : "Utilisateur"}
+            </small>
+          </span>
+        </Link>
 
-        lg:fixed
-        lg:inset-y-0
-        lg:left-0
-        lg:z-50
-        lg:flex
-        lg:h-screen
-        lg:w-72
-        lg:flex-col
-        lg:overflow-y-auto
-        lg:border-b-0
-        lg:border-r
-        lg:p-6
-      "
-    >
-      {/* =========================
-          LOGO
-      ========================= */}
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+          <p className="truncate text-sm font-black text-white">{admin.name}</p>
+          <p className="mt-0.5 truncate text-[11px] font-semibold text-zinc-400">{admin.email}</p>
+        </div>
 
-      <Link
-        href="/admin/dashboard"
-        prefetch={false}
-        className="flex shrink-0 items-center gap-3"
-      >
-        <span className="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-lg">
-          <Image
-            src="/images/logo-bricomenage.jpeg"
-            alt="Logo BricoMénage"
-            fill
-            priority
-            sizes="56px"
-            className="object-contain p-1"
-          />
-        </span>
-
-        <span className="min-w-0">
-          <strong className="block truncate text-lg font-black">
-            BricoMénage
-          </strong>
-
-          <small className="block text-zinc-400">
-            Administration
-          </small>
-        </span>
-      </Link>
-
-      {/* =========================
-          NAVIGATION
-      ========================= */}
-
-      <nav
-        className="
-          mt-6
-          grid
-          gap-2
-          sm:grid-cols-2
-          lg:flex
-          lg:min-h-0
-          lg:flex-1
-          lg:flex-col
-          lg:grid-cols-none
-          lg:overflow-y-auto
-          lg:pr-1
-        "
-      >
-        {links.map(
-          ({
-            label,
-            href,
-            icon: Icon,
-          }) => {
-            const active =
-              pathname === href ||
-              pathname.startsWith(
-                `${href}/`,
-              );
-
+        <nav className="mt-5 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+          {links.map(({ label, href, icon: Icon }) => {
+            const active = isActive(href);
             return (
               <Link
                 key={href}
                 href={href}
                 prefetch={false}
                 className={[
-                  "flex",
-                  "shrink-0",
-                  "items-center",
-                  "gap-3",
-                  "rounded-2xl",
-                  "px-4",
-                  "py-3",
-                  "text-sm",
-                  "font-bold",
-                  "transition",
+                  "flex shrink-0 items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition",
                   active
                     ? "bg-orange-500 text-white shadow-lg shadow-orange-950/20"
                     : "text-zinc-300 hover:bg-white/10 hover:text-white",
                 ].join(" ")}
               >
                 <Icon className="h-5 w-5 shrink-0" />
-
-                <span className="min-w-0 flex-1 truncate">
-                  {label}
-                </span>
-
-                {/* Compteur nouvelles commandes */}
-                {label ===
-                  "Commandes" &&
-                  newOrdersCount >
-                    0 && (
-                    <span
-                      className="
-                        inline-flex
-                        min-w-6
-                        shrink-0
-                        items-center
-                        justify-center
-                        rounded-full
-                        bg-red-500
-                        px-2
-                        py-0.5
-                        text-[11px]
-                        font-black
-                        leading-5
-                        text-white
-                        shadow-lg
-                        shadow-red-950/30
-                        ring-2
-                        ring-zinc-950
-                      "
-                    >
-                      {newOrdersCount >
-                      99
-                        ? "99+"
-                        : newOrdersCount}
-                    </span>
-                  )}
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+                {label === "Commandes" && <OrderBadge count={newOrdersCount} />}
               </Link>
             );
-          },
-        )}
+          })}
+        </nav>
+
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 flex w-full shrink-0 items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-500 hover:text-white"
+        >
+          <ExternalLink className="h-5 w-5" />
+          Voir le site
+        </a>
+
+        <button
+          type="button"
+          onClick={logout}
+          className="mt-3 flex w-full shrink-0 items-center gap-3 rounded-2xl border border-white/10 px-4 py-3 text-sm font-bold text-zinc-300 transition hover:border-red-500 hover:bg-red-500 hover:text-white"
+        >
+          <LogOut className="h-5 w-5" />
+          Déconnexion
+        </button>
+      </aside>
+
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-zinc-200 bg-white/95 px-4 backdrop-blur-xl lg:hidden">
+        <Link href={links[0]?.href || "/admin/connexion"} prefetch={false} className="flex min-w-0 items-center gap-2.5">
+          <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
+            <Image src="/images/logo-bricomenage.jpeg" alt="BricoMénage" fill priority sizes="40px" className="object-contain p-0.5" />
+          </span>
+          <div className="min-w-0">
+            <strong className="block truncate text-sm font-black text-zinc-950">{admin.name}</strong>
+            <span className="block text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+              {isSuperAdmin(admin) ? "Super Admin" : "Utilisateur"}
+            </span>
+          </div>
+        </Link>
+
+        <button type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Ouvrir le menu" className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
+          <Menu className="h-5 w-5" />
+        </button>
+      </header>
+
+      <nav className="fixed inset-x-0 bottom-0 z-[90] border-t border-zinc-200 bg-white/95 px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_35px_rgba(24,24,27,0.08)] backdrop-blur-xl lg:hidden">
+        <div className="mx-auto flex max-w-lg items-end justify-around gap-1">
+          {primaryLinks.map(({ label, href, icon: Icon }) => {
+            const active = isActive(href);
+            return (
+              <Link key={href} href={href} prefetch={false} className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5">
+                <span className={[
+                  "relative flex h-9 w-12 items-center justify-center rounded-2xl transition-all",
+                  active ? "bg-orange-50 text-orange-600" : "text-zinc-500",
+                ].join(" ")}>
+                  <Icon className="h-5 w-5" />
+                  {label === "Commandes" && newOrdersCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white ring-2 ring-white">
+                      {newOrdersCount > 99 ? "99+" : newOrdersCount}
+                    </span>
+                  )}
+                </span>
+                <span className={active ? "max-w-full truncate text-[9px] font-black text-orange-600" : "max-w-full truncate text-[9px] font-black text-zinc-500"}>{label}</span>
+              </Link>
+            );
+          })}
+
+          <button type="button" onClick={() => setMobileMenuOpen(true)} className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1.5">
+            <span className={[
+              "flex h-9 w-12 items-center justify-center rounded-2xl",
+              moreMenuActive || mobileMenuOpen ? "bg-orange-50 text-orange-600" : "text-zinc-500",
+            ].join(" ")}>
+              <Menu className="h-5 w-5" />
+            </span>
+            <span className={moreMenuActive ? "text-[9px] font-black text-orange-600" : "text-[9px] font-black text-zinc-500"}>Plus</span>
+          </button>
+        </div>
       </nav>
 
-      {/* =========================
-          DÉCONNEXION
-      ========================= */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[120] lg:hidden">
+          <button type="button" aria-label="Fermer" onClick={() => setMobileMenuOpen(false)} className="absolute inset-0 bg-zinc-950/45 backdrop-blur-sm" />
+          <section className="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-y-auto rounded-t-[32px] border-t border-zinc-200 bg-white px-4 pb-[max(22px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-30px_80px_rgba(0,0,0,0.18)]">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-zinc-300" />
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
+              <div>
+                <h2 className="text-lg font-black text-zinc-950">Menu administration</h2>
+                <p className="mt-0.5 text-xs font-semibold text-zinc-400">Seulement vos rubriques autorisées</p>
+              </div>
+              <button type="button" onClick={() => setMobileMenuOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-      <button
-        type="button"
-        onClick={logout}
-        className="
-          mt-6
-          flex
-          w-full
-          shrink-0
-          items-center
-          gap-3
-          rounded-2xl
-          border
-          border-white/10
-          px-4
-          py-3
-          text-sm
-          font-bold
-          text-zinc-300
-          transition
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {links.map(({ label, href, icon: Icon }) => {
+                const active = isActive(href);
+                return (
+                  <Link key={href} href={href} prefetch={false} className={[
+                    "flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border p-3 text-center transition active:scale-95",
+                    active ? "border-orange-200 bg-orange-50 text-orange-600" : "border-zinc-200 bg-zinc-50 text-zinc-700",
+                  ].join(" ")}>
+                    <span className={active ? "flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-500 text-white" : "flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-zinc-700 shadow-sm"}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span className="text-[11px] font-black">{label}</span>
+                  </Link>
+                );
+              })}
+            </div>
 
-          hover:border-red-500
-          hover:bg-red-500
-          hover:text-white
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-700"
+            >
+              <ExternalLink className="h-5 w-5" />
+              Voir le site
+            </a>
 
-          lg:mt-auto
-        "
-      >
-        <LogOut className="h-5 w-5 shrink-0" />
-
-        <span>
-          Déconnexion
-        </span>
-      </button>
-    </aside>
+            <button type="button" onClick={logout} className="mt-3 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-red-50 px-4 py-3 text-sm font-black text-red-600">
+              <LogOut className="h-5 w-5" />
+              Déconnexion
+            </button>
+          </section>
+        </div>
+      )}
+    </>
   );
 }

@@ -127,7 +127,61 @@ async function ensurePackSnapshotTable() {
   );
 }
 
+
+async function ensureAdminPermissions() {
+  await ensureColumn(
+    "admins",
+    "role",
+    `
+      ALTER TABLE admins
+      ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'USER'
+      AFTER is_active
+    `,
+  );
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_permissions (
+      admin_id BIGINT UNSIGNED NOT NULL,
+      permission_key VARCHAR(120) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (admin_id, permission_key),
+      INDEX idx_admin_permissions_key (permission_key),
+      CONSTRAINT fk_admin_permissions_admin
+        FOREIGN KEY (admin_id)
+        REFERENCES admins(id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB
+  `);
+
+  const [[superAdmin]] = await pool.query(
+    `SELECT id FROM admins WHERE role = 'SUPER_ADMIN' ORDER BY id ASC LIMIT 1`,
+  );
+
+  if (!superAdmin) {
+    const [[primaryAdmin]] = await pool.query(
+      `
+        SELECT id
+        FROM admins
+        ORDER BY
+          CASE WHEN LOWER(email) = 'admin@bricomenage.dz' THEN 0 ELSE 1 END,
+          id ASC
+        LIMIT 1
+      `,
+    );
+
+    if (primaryAdmin) {
+      await pool.query(
+        `UPDATE admins SET role = 'SUPER_ADMIN' WHERE id = ?`,
+        [primaryAdmin.id],
+      );
+      console.log(`[DB] Super Administrateur défini : admins.id=${primaryAdmin.id}`);
+    }
+  }
+}
+
 async function ensureSchema() {
+  await ensureAdminPermissions();
+
   await ensurePromotionSlugs();
 
   /*

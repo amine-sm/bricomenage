@@ -16,6 +16,7 @@ DROP TABLE IF EXISTS promotions;
 DROP TABLE IF EXISTS articles;
 DROP TABLE IF EXISTS suppliers;
 DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS admin_permissions;
 DROP TABLE IF EXISTS admins;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -26,9 +27,20 @@ CREATE TABLE admins (
   email VARCHAR(190) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
+  role VARCHAR(20) NOT NULL DEFAULT 'USER',
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE admin_permissions (
+  admin_id BIGINT UNSIGNED NOT NULL,
+  permission_key VARCHAR(120) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (admin_id, permission_key),
+  INDEX idx_admin_permissions_key (permission_key),
+  CONSTRAINT fk_admin_permissions_admin
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE categories (

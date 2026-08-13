@@ -2126,6 +2126,50 @@ async function createPack(
     });
 }
 
+
+async function updateArticleStock(req, res) {
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new HttpError(400, "Identifiant article invalide.");
+  }
+
+  const existing = await getArticleRow(id);
+
+  if (!existing) {
+    throw new HttpError(404, "Article introuvable.");
+  }
+
+  const stockQuantity = req.body.stock_quantity !== undefined
+    ? Math.max(0, Math.trunc(number(req.body.stock_quantity)))
+    : existing.stock_quantity;
+
+  const minStock = req.body.min_stock !== undefined
+    ? Math.max(0, Math.trunc(number(req.body.min_stock)))
+    : existing.min_stock;
+
+  const purchasePrice = req.body.purchase_price !== undefined
+    ? nullableNumber(req.body.purchase_price)
+    : existing.purchase_price;
+
+  await pool.query(
+    `
+      UPDATE articles
+      SET purchase_price = ?, stock_quantity = ?, min_stock = ?
+      WHERE id = ?
+    `,
+    [purchasePrice, stockQuantity, minStock, id],
+  );
+
+  const article = await getArticleRow(id);
+
+  return res.json({
+    success: true,
+    message: "Stock mis à jour avec succès.",
+    article,
+  });
+}
+
 module.exports = {
   dashboard,
   listCategories,
@@ -2137,6 +2181,7 @@ module.exports = {
   getArticle,
   createArticle,
   updateArticle,
+  updateArticleStock,
   deleteArticle,
   listSuppliers,
   createSupplier,

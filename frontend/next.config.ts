@@ -5,6 +5,29 @@ const nextConfig: NextConfig = {
 
   images: {
     unoptimized: true,
+
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "bricomenage.com",
+        pathname: "/api/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "www.bricomenage.com",
+        pathname: "/api/uploads/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.pexels.com",
+        pathname: "/**",
+      },
+    ],
   },
 
   trailingSlash: true,

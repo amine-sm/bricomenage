@@ -1,312 +1,351 @@
-const express =
-  require("express");
-
-const asyncHandler =
-  require("../utils/asyncHandler");
-
+const express = require("express");
+const asyncHandler = require("../utils/asyncHandler");
+const { requireAdmin } = require("../middlewares/auth");
 const {
-  requireAdmin,
-} = require("../middlewares/auth");
+  requirePermission,
+  requireSuperAdmin,
+} = require("../middlewares/permissions");
+const { uploadArticleImages } = require("../middlewares/upload");
 
-const {
-  uploadArticleImages,
-} = require(
-  "../middlewares/upload",
-);
+const controller = require("../controllers/adminController");
+const promotionController = require("../controllers/promotionController");
+const packController = require("../controllers/packController");
+const dashboardController = require("../controllers/dashboardController");
+const zrController = require("../controllers/zrController");
+const userController = require("../controllers/userController");
 
-const controller =
-  require("../controllers/adminController");
-
-const promotionController =
-  require("../controllers/promotionController");
-
-const packController =
-  require("../controllers/packController");
-
-const dashboardController =
-  require("../controllers/dashboardController");
-
-const zrController =
-  require("../controllers/zrController");
-
-const router =
-  express.Router();
+const router = express.Router();
 
 router.use(requireAdmin);
 
+/* =========================================================
+   UTILISATEURS - SUPER ADMIN UNIQUEMENT
+========================================================= */
+
 router.get(
-  "/dashboard",
-  asyncHandler(
-    dashboardController.getDashboard,
-  ),
+  "/users/permissions",
+  requireSuperAdmin,
+  asyncHandler(userController.permissionCatalog),
 );
 
 router.get(
+  "/users",
+  requireSuperAdmin,
+  asyncHandler(userController.listUsers),
+);
+
+router.post(
+  "/users",
+  requireSuperAdmin,
+  asyncHandler(userController.createUser),
+);
+
+router.put(
+  "/users/:id",
+  requireSuperAdmin,
+  asyncHandler(userController.updateUser),
+);
+
+router.patch(
+  "/users/:id",
+  requireSuperAdmin,
+  asyncHandler(userController.updateUser),
+);
+
+router.delete(
+  "/users/:id",
+  requireSuperAdmin,
+  asyncHandler(userController.deleteUser),
+);
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+router.get(
+  "/dashboard",
+  requirePermission("dashboard.view"),
+  asyncHandler(dashboardController.getDashboard),
+);
+
+/* =========================================================
+   CATEGORIES
+========================================================= */
+
+router.get(
   "/categories",
-  asyncHandler(
-    controller.listCategories,
-  ),
+  requirePermission("categories.view", "articles.view"),
+  asyncHandler(controller.listCategories),
 );
 
 router.post(
   "/categories",
+  requirePermission("categories.create"),
   uploadArticleImages,
-  asyncHandler(
-    controller.createCategory,
-  ),
+  asyncHandler(controller.createCategory),
 );
 
 router.put(
   "/categories/:id",
+  requirePermission("categories.update"),
   uploadArticleImages,
-  asyncHandler(
-    controller.updateCategory,
-  ),
+  asyncHandler(controller.updateCategory),
 );
 
 router.delete(
   "/categories/:id",
-  asyncHandler(
-    controller.deleteCategory,
-  ),
+  requirePermission("categories.delete"),
+  asyncHandler(controller.deleteCategory),
 );
 
-/*
- * Cette route doit être placée
- * avant /articles/:id.
- */
+/* =========================================================
+   ARTICLES
+========================================================= */
+
+const canReadArticles = requirePermission(
+  "articles.view",
+  "promotions.view",
+  "packs.view",
+);
+
 router.get(
   "/articles/references",
-  asyncHandler(
-    controller.articleReferences,
-  ),
+  canReadArticles,
+  asyncHandler(controller.articleReferences),
 );
 
 router.get(
   "/articles",
-  asyncHandler(
-    controller.listArticles,
-  ),
+  canReadArticles,
+  asyncHandler(controller.listArticles),
 );
 
 router.get(
   "/articles/:id",
-  asyncHandler(
-    controller.getArticle,
-  ),
+  canReadArticles,
+  asyncHandler(controller.getArticle),
 );
 
 router.post(
   "/articles",
+  requirePermission("articles.create"),
   uploadArticleImages,
-  asyncHandler(
-    controller.createArticle,
-  ),
+  asyncHandler(controller.createArticle),
 );
 
 router.put(
   "/articles/:id",
+  requirePermission("articles.update"),
   uploadArticleImages,
-  asyncHandler(
-    controller.updateArticle,
-  ),
+  asyncHandler(controller.updateArticle),
 );
 
 router.patch(
   "/articles/:id",
+  requirePermission("articles.update"),
   uploadArticleImages,
-  asyncHandler(
-    controller.updateArticle,
-  ),
+  asyncHandler(controller.updateArticle),
 );
 
 router.delete(
   "/articles/:id",
-  asyncHandler(
-    controller.deleteArticle,
-  ),
+  requirePermission("articles.delete"),
+  asyncHandler(controller.deleteArticle),
 );
+
+/* =========================================================
+   STOCK - ENDPOINTS DEDIES POUR EVITER DE DONNER LE DROIT
+   DE MODIFIER TOUTE LA FICHE ARTICLE
+========================================================= */
+
+router.get(
+  "/stock",
+  requirePermission("stock.view"),
+  asyncHandler(controller.listArticles),
+);
+
+router.put(
+  "/stock/:id",
+  requirePermission("stock.update"),
+  asyncHandler(controller.updateArticleStock),
+);
+
+router.patch(
+  "/stock/:id",
+  requirePermission("stock.update"),
+  asyncHandler(controller.updateArticleStock),
+);
+
+/* =========================================================
+   FOURNISSEURS
+========================================================= */
 
 router.get(
   "/suppliers",
-  asyncHandler(
-    controller.listSuppliers,
-  ),
+  requirePermission("suppliers.view", "articles.view"),
+  asyncHandler(controller.listSuppliers),
 );
 
 router.post(
   "/suppliers",
-  asyncHandler(
-    controller.createSupplier,
-  ),
+  requirePermission("suppliers.create"),
+  asyncHandler(controller.createSupplier),
 );
 
 router.put(
   "/suppliers/:id",
-  asyncHandler(
-    controller.updateSupplier,
-  ),
+  requirePermission("suppliers.update"),
+  asyncHandler(controller.updateSupplier),
 );
 
 router.delete(
   "/suppliers/:id",
-  asyncHandler(
-    controller.deleteSupplier,
-  ),
+  requirePermission("suppliers.delete"),
+  asyncHandler(controller.deleteSupplier),
 );
+
+/* =========================================================
+   COMMANDES
+========================================================= */
 
 router.get(
   "/orders",
-  asyncHandler(
-    controller.listOrders,
-  ),
+  requirePermission("orders.view"),
+  asyncHandler(controller.listOrders),
 );
 
 router.get(
   "/orders/:id",
-  asyncHandler(
-    controller.getOrder,
-  ),
+  requirePermission("orders.view"),
+  asyncHandler(controller.getOrder),
 );
 
 router.patch(
   "/orders/:id/status",
-  asyncHandler(
-    controller.updateOrderStatus,
-  ),
+  requirePermission("orders.update"),
+  asyncHandler(controller.updateOrderStatus),
 );
 
 router.get(
   "/zr/config",
-  asyncHandler(
-    zrController.adminConfig,
-  ),
+  requirePermission("orders.view", "orders.zr"),
+  asyncHandler(zrController.adminConfig),
 );
 
 router.post(
   "/orders/:id/zr",
-  asyncHandler(
-    zrController.createForOrder,
-  ),
+  requirePermission("orders.zr"),
+  asyncHandler(zrController.createForOrder),
 );
 
 router.post(
   "/orders/:id/zr/sync",
-  asyncHandler(
-    zrController.syncOrder,
-  ),
+  requirePermission("orders.zr"),
+  asyncHandler(zrController.syncOrder),
 );
 
 router.delete(
   "/orders/:id/zr",
-  asyncHandler(
-    zrController.cancelOrder,
-  ),
+  requirePermission("orders.zr"),
+  asyncHandler(zrController.cancelOrder),
 );
 
 router.get(
   "/orders/:id/zr/label",
-  asyncHandler(
-    zrController.label,
-  ),
+  requirePermission("orders.zr"),
+  asyncHandler(zrController.label),
 );
+
+/* =========================================================
+   PROMOTIONS
+========================================================= */
 
 router.get(
   "/promotions",
-  asyncHandler(
-    promotionController.listPromotions,
-  ),
+  requirePermission("promotions.view"),
+  asyncHandler(promotionController.listPromotions),
 );
 
 router.get(
   "/promotions/:id",
-  asyncHandler(
-    promotionController.getPromotion,
-  ),
+  requirePermission("promotions.view"),
+  asyncHandler(promotionController.getPromotion),
 );
 
 router.post(
   "/promotions",
-  asyncHandler(
-    promotionController.createPromotion,
-  ),
+  requirePermission("promotions.create"),
+  asyncHandler(promotionController.createPromotion),
 );
 
 router.put(
   "/promotions/:id",
-  asyncHandler(
-    promotionController.updatePromotion,
-  ),
+  requirePermission("promotions.update"),
+  asyncHandler(promotionController.updatePromotion),
 );
 
 router.patch(
   "/promotions/:id/status",
-  asyncHandler(
-    promotionController.updatePromotionStatus,
-  ),
+  requirePermission("promotions.update"),
+  asyncHandler(promotionController.updatePromotionStatus),
 );
 
 router.patch(
   "/promotions/:id/toggle",
-  asyncHandler(
-    promotionController.togglePromotionStatus,
-  ),
+  requirePermission("promotions.update"),
+  asyncHandler(promotionController.togglePromotionStatus),
 );
 
 router.delete(
   "/promotions/:id",
-  asyncHandler(
-    promotionController.deletePromotion,
-  ),
+  requirePermission("promotions.delete"),
+  asyncHandler(promotionController.deletePromotion),
 );
+
+/* =========================================================
+   PACKS
+========================================================= */
 
 router.get(
   "/packs",
-  asyncHandler(
-    packController.listPacks,
-  ),
+  requirePermission("packs.view"),
+  asyncHandler(packController.listPacks),
 );
 
 router.get(
   "/packs/:id",
-  asyncHandler(
-    packController.getPack,
-  ),
+  requirePermission("packs.view"),
+  asyncHandler(packController.getPack),
 );
 
 router.post(
   "/packs",
-  asyncHandler(
-    packController.createPack,
-  ),
+  requirePermission("packs.create"),
+  asyncHandler(packController.createPack),
 );
 
 router.put(
   "/packs/:id",
-  asyncHandler(
-    packController.updatePack,
-  ),
+  requirePermission("packs.update"),
+  asyncHandler(packController.updatePack),
 );
 
 router.patch(
   "/packs/:id/status",
-  asyncHandler(
-    packController.updatePackStatus,
-  ),
+  requirePermission("packs.update"),
+  asyncHandler(packController.updatePackStatus),
 );
 
 router.patch(
   "/packs/:id/toggle",
-  asyncHandler(
-    packController.togglePackStatus,
-  ),
+  requirePermission("packs.update"),
+  asyncHandler(packController.togglePackStatus),
 );
 
 router.delete(
   "/packs/:id",
-  asyncHandler(
-    packController.deletePack,
-  ),
+  requirePermission("packs.delete"),
+  asyncHandler(packController.deletePack),
 );
 
 module.exports = router;

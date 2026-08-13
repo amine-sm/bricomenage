@@ -75,6 +75,16 @@ function formatPrice(
   ).format(value);
 }
 
+function normalizeSearchValue(
+  value: unknown,
+) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("fr")
+    .trim();
+}
+
 function articleToProduct(
   article: CatalogArticle,
 ): Product {
@@ -478,8 +488,11 @@ function ArticlesPageContent() {
       "categorie",
     ) || "";
 
+  const headerSearch =
+    searchParams.get("search") || "";
+
   const [query, setQuery] =
-    useState("");
+    useState(headerSearch);
 
   const [
     sortBy,
@@ -505,8 +518,21 @@ function ArticlesPageContent() {
     setMaxPrice,
   ] = useState("");
 
+  useEffect(() => {
+    setQuery(headerSearch);
+    setSortBy("newest");
+    setStockFilter("all");
+    setMinPrice("");
+    setMaxPrice("");
+  }, [headerSearch]);
+
   const deferredQuery =
     useDeferredValue(query);
+
+  const serverSearch =
+    mode === "articles"
+      ? deferredQuery.trim()
+      : "";
 
   const [articles, setArticles] =
     useState<Product[]>([]);
@@ -570,11 +596,17 @@ function ArticlesPageContent() {
 
         const response =
           await catalogApi.articles({
-            limit: "200",
+            limit: "100",
             ...(category
               ? {
                   categorie:
                     category,
+                }
+              : {}),
+            ...(serverSearch
+              ? {
+                  search:
+                    serverSearch,
                 }
               : {}),
           });
@@ -611,16 +643,18 @@ function ArticlesPageContent() {
     return () => {
       active = false;
     };
-  }, [category, mode]);
+  }, [
+    category,
+    mode,
+    serverSearch,
+  ]);
 
   const filteredArticles =
     useMemo(() => {
       const term =
-        deferredQuery
-          .trim()
-          .toLocaleLowerCase(
-            "fr",
-          );
+        normalizeSearchValue(
+          deferredQuery,
+        );
 
       const minimum =
         minPrice === ""
@@ -645,11 +679,9 @@ function ArticlesPageContent() {
               ]
                 .filter(Boolean)
                 .some((value) =>
-                  String(value)
-                    .toLocaleLowerCase(
-                      "fr",
-                    )
-                    .includes(term),
+                  normalizeSearchValue(
+                    value,
+                  ).includes(term),
                 );
 
             const price =
@@ -739,11 +771,9 @@ function ArticlesPageContent() {
   const filteredPacks =
     useMemo(() => {
       const term =
-        deferredQuery
-          .trim()
-          .toLocaleLowerCase(
-            "fr",
-          );
+        normalizeSearchValue(
+          deferredQuery,
+        );
 
       const minimum =
         minPrice === ""
@@ -766,11 +796,9 @@ function ArticlesPageContent() {
               ]
                 .filter(Boolean)
                 .some((value) =>
-                  String(value)
-                    .toLocaleLowerCase(
-                      "fr",
-                    )
-                    .includes(term),
+                  normalizeSearchValue(
+                    value,
+                  ).includes(term),
                 );
 
             const price =

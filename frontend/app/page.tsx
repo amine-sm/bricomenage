@@ -43,6 +43,7 @@ import {
   catalogApi,
   type CatalogArticle,
   type CatalogCategory,
+  type CatalogPack,
 } from "@/lib/catalog";
 
 interface Category {
@@ -347,11 +348,7 @@ function CarouselButton({
           ? "Articles précédents"
           : "Articles suivants"
       }
-      className={`flex h-11 w-11 items-center justify-center rounded-2xl shadow-sm transition ${
-        direction === "right"
-          ? "bg-zinc-950 text-white hover:bg-orange-500"
-          : "border border-zinc-200 bg-white text-zinc-700 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600"
-      }`}
+      className="flex h-11 w-11 items-center justify-center rounded-2xl border border-orange-400 bg-orange-500 text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
     >
       <Icon className="h-5 w-5" />
     </motion.button>
@@ -677,7 +674,7 @@ function CategoryCarousel({
           (current + 1) %
           categories.length,
         );
-      }, 5000);
+      }, 5200);
 
     return () => {
       window.clearInterval(intervalId);
@@ -714,20 +711,35 @@ function CategoryCarousel({
     );
   }
 
+  function selectCategory(index: number) {
+    if (index === activeIndex) {
+      return;
+    }
+
+    setDirection(
+      index > activeIndex ? 1 : -1,
+    );
+    setActiveIndex(index);
+  }
+
   const activeCategory =
     categories[activeIndex];
+  const ActiveIcon = activeCategory.icon;
+
   const previousIndex =
     activeIndex === 0
       ? categories.length - 1
       : activeIndex - 1;
+
   const nextIndex =
     (activeIndex + 1) %
     categories.length;
+
   const previousCategoryItem =
     categories[previousIndex];
+
   const nextCategoryItem =
     categories[nextIndex];
-  const ActiveIcon = activeCategory.icon;
 
   return (
     <div
@@ -735,217 +747,395 @@ function CategoryCarousel({
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="relative mx-auto flex min-h-[500px] max-w-6xl items-center justify-center overflow-hidden px-3 sm:min-h-[560px] sm:px-16 lg:px-24">
-        {categories.length > 1 && (
-          <button
-            type="button"
-            onClick={previousCategory}
-            aria-label={`Afficher ${previousCategoryItem.name}`}
-            className="absolute left-0 z-10 hidden w-[42%] max-w-[430px] -translate-x-[38%] overflow-hidden rounded-[34px] border border-zinc-200 bg-white text-left opacity-55 shadow-xl transition duration-300 hover:opacity-80 sm:block"
-          >
-            <div className="relative h-[330px]">
-              {previousCategoryItem.image ? (
-                <img
-                  src={previousCategoryItem.image}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
-                  {(() => {
-                    const Icon =
-                      previousCategoryItem.icon;
-                    return (
-                      <Icon className={`h-20 w-20 ${previousCategoryItem.iconClassName}`} />
-                    );
-                  })()}
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-              <h3 className="absolute bottom-7 left-8 text-3xl font-black text-white">
-                {previousCategoryItem.name}
-              </h3>
-            </div>
-          </button>
-        )}
+      {/* Sélecteur rapide des catégories */}
+      <div className="-mx-4 mb-6 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
+        <div className="mx-auto flex w-max items-center gap-2 sm:w-auto sm:flex-wrap sm:justify-center">
+          {categories.map((category, index) => {
+            const Icon = category.icon;
+            const active = index === activeIndex;
 
-        <AnimatePresence
-          initial={false}
-          mode="wait"
-          custom={direction}
-        >
-          <motion.div
-            key={activeCategory.id}
-            custom={direction}
-            initial={{
-              opacity: 0,
-              x: direction > 0 ? 90 : -90,
-              scale: 0.93,
-              filter: "blur(5px)",
-            }}
-            animate={{
-              opacity: 1,
-              x: 0,
-              scale: 1,
-              filter: "blur(0px)",
-            }}
-            exit={{
-              opacity: 0,
-              x: direction > 0 ? -90 : 90,
-              scale: 0.93,
-              filter: "blur(5px)",
-            }}
-            transition={{
-              duration: 0.55,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            drag="x"
-            dragConstraints={{
-              left: 0,
-              right: 0,
-            }}
-            dragElastic={0.16}
-            onDragEnd={(_event, info) => {
-              if (
-                info.offset.x < -65 ||
-                info.velocity.x < -450
-              ) {
-                nextCategory();
-                return;
-              }
+            return (
+              <motion.button
+                key={category.id}
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() =>
+                  selectCategory(index)
+                }
+                className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2.5 text-xs font-black transition-all duration-300 sm:px-4 sm:text-sm ${
+                  active
+                    ? "border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                    : "border-orange-200 bg-orange-50 text-orange-600 hover:border-orange-400 hover:bg-orange-100"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {category.name}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
 
-              if (
-                info.offset.x > 65 ||
-                info.velocity.x > 450
-              ) {
-                previousCategory();
-              }
-            }}
-            className="relative z-20 w-full max-w-[650px] cursor-grab active:cursor-grabbing"
-          >
-            <Link
-              href={activeCategory.href}
-              className="group block overflow-hidden rounded-[36px] border border-orange-200 bg-white shadow-[0_30px_90px_rgba(0,0,0,0.18)]"
+      <div className="relative mx-auto max-w-7xl">
+        {/* halo décoratif */}
+        <motion.div
+          aria-hidden="true"
+          animate={{
+            scale: [1, 1.08, 1],
+            opacity: [0.28, 0.5, 0.28],
+          }}
+          transition={{
+            duration: 5,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[72%] w-[72%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-300/20 blur-3xl"
+        />
+
+        <div className="relative flex min-h-[430px] items-center justify-center sm:min-h-[540px] lg:min-h-[590px]">
+          {/* aperçu gauche desktop */}
+          {categories.length > 1 && (
+            <motion.button
+              type="button"
+              onClick={previousCategory}
+              whileHover={{
+                x: 8,
+                scale: 1.02,
+                opacity: 0.9,
+              }}
+              aria-label={`Afficher ${previousCategoryItem.name}`}
+              className="absolute left-0 z-10 hidden w-[34%] max-w-[390px] -translate-x-[45%] overflow-hidden rounded-[34px] border border-white/70 bg-white text-left opacity-55 shadow-[0_24px_70px_rgba(24,24,27,0.16)] lg:block"
             >
-              <div className="relative h-[350px] overflow-hidden sm:h-[410px]">
-                {activeCategory.image ? (
+              <div className="relative h-[360px]">
+                {previousCategoryItem.image ? (
                   <img
-                    src={activeCategory.image}
-                    alt={activeCategory.name}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    src={previousCategoryItem.image}
+                    alt=""
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
-                    <span className={`flex h-32 w-32 items-center justify-center rounded-[38px] ${activeCategory.iconBackground} ${activeCategory.iconClassName}`}>
-                      <ActiveIcon className="h-16 w-16" />
-                    </span>
+                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
+                    {(() => {
+                      const Icon =
+                        previousCategoryItem.icon;
+                      return (
+                        <Icon className={`h-20 w-20 ${previousCategoryItem.iconClassName}`} />
+                      );
+                    })()}
                   </div>
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-                <span className="absolute right-5 top-5 rounded-full border border-white/20 bg-black/35 px-4 py-2 text-xs font-black text-white backdrop-blur-md">
-                  {activeCategory.articleCount}{" "}
-                  {activeCategory.articleCount > 1
-                    ? "articles"
-                    : "article"}
-                </span>
-
-                <div className="absolute inset-x-0 bottom-0 p-7 text-white sm:p-9">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500 shadow-xl shadow-orange-950/20">
-                    <ActiveIcon className="h-7 w-7" />
+                <div className="absolute inset-x-0 bottom-0 p-7 text-white">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">
+                    Précédent
                   </span>
-
-                  <h3 className="mt-5 text-4xl font-black tracking-tight sm:text-5xl">
-                    {activeCategory.name}
+                  <h3 className="mt-2 text-3xl font-black">
+                    {previousCategoryItem.name}
                   </h3>
-
-                  <p className="mt-3 max-w-xl text-sm leading-7 text-zinc-200 sm:text-base">
-                    {activeCategory.description}
-                  </p>
                 </div>
               </div>
+            </motion.button>
+          )}
 
-              <div className="flex items-center justify-between gap-4 px-7 py-5 sm:px-9">
-                <span className="text-sm font-black text-orange-600 sm:text-base">
-                  Découvrir cette catégorie
-                </span>
-
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-white transition group-hover:bg-orange-500">
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </div>
-            </Link>
-          </motion.div>
-        </AnimatePresence>
-
-        {categories.length > 1 && (
-          <button
-            type="button"
-            onClick={nextCategory}
-            aria-label={`Afficher ${nextCategoryItem.name}`}
-            className="absolute right-0 z-10 hidden w-[42%] max-w-[430px] translate-x-[38%] overflow-hidden rounded-[34px] border border-zinc-200 bg-white text-left opacity-55 shadow-xl transition duration-300 hover:opacity-80 sm:block"
+          <AnimatePresence
+            initial={false}
+            mode="wait"
+            custom={direction}
           >
-            <div className="relative h-[330px]">
-              {nextCategoryItem.image ? (
-                <img
-                  src={nextCategoryItem.image}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
-                  {(() => {
-                    const Icon =
-                      nextCategoryItem.icon;
-                    return (
-                      <Icon className={`h-20 w-20 ${nextCategoryItem.iconClassName}`} />
-                    );
-                  })()}
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-              <h3 className="absolute bottom-7 left-8 text-3xl font-black text-white">
-                {nextCategoryItem.name}
-              </h3>
-            </div>
-          </button>
-        )}
+            <motion.div
+              key={activeCategory.id}
+              custom={direction}
+              initial={{
+                opacity: 0,
+                x: direction > 0 ? 90 : -90,
+                y: 18,
+                scale: 0.94,
+                rotateY:
+                  direction > 0 ? 5 : -5,
+                filter: "blur(7px)",
+              }}
+              animate={{
+                opacity: 1,
+                x: 0,
+                y: 0,
+                scale: 1,
+                rotateY: 0,
+                filter: "blur(0px)",
+              }}
+              exit={{
+                opacity: 0,
+                x: direction > 0 ? -90 : 90,
+                y: -12,
+                scale: 0.95,
+                rotateY:
+                  direction > 0 ? -4 : 4,
+                filter: "blur(6px)",
+              }}
+              transition={{
+                duration: 0.62,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              drag="x"
+              dragConstraints={{
+                left: 0,
+                right: 0,
+              }}
+              dragElastic={0.15}
+              onDragStart={() =>
+                setPaused(true)
+              }
+              onDragEnd={(_event, info) => {
+                setPaused(false);
 
-        {categories.length > 1 && (
-          <>
-            <button
-              type="button"
-              onClick={previousCategory}
-              aria-label="Catégorie précédente"
-              className="absolute left-2 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-950 shadow-xl transition hover:border-orange-400 hover:bg-orange-500 hover:text-white sm:left-5"
+                if (
+                  info.offset.x < -55 ||
+                  info.velocity.x < -420
+                ) {
+                  nextCategory();
+                  return;
+                }
+
+                if (
+                  info.offset.x > 55 ||
+                  info.velocity.x > 420
+                ) {
+                  previousCategory();
+                }
+              }}
+              className="relative z-20 w-full max-w-[720px] cursor-grab active:cursor-grabbing"
             >
-              <ChevronLeft className="h-6 w-6" />
-            </button>
+              <Link
+                href={activeCategory.href}
+                className="group relative block overflow-hidden rounded-[28px] border border-white bg-white shadow-[0_30px_100px_rgba(24,24,27,0.20)] sm:rounded-[38px]"
+              >
+                {/* image */}
+                <div className="relative h-[300px] overflow-hidden sm:h-[420px] lg:h-[465px]">
+                  {activeCategory.image ? (
+                    <motion.img
+                      key={activeCategory.image}
+                      src={activeCategory.image}
+                      alt={activeCategory.name}
+                      initial={{ scale: 1.08 }}
+                      animate={{ scale: 1 }}
+                      transition={{
+                        duration: 1.1,
+                        ease: "easeOut",
+                      }}
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
+                      <motion.span
+                        animate={{
+                          y: [0, -8, 0],
+                          rotate: [0, 2, 0],
+                        }}
+                        transition={{
+                          duration: 4,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                        }}
+                        className={`flex h-28 w-28 items-center justify-center rounded-[34px] sm:h-36 sm:w-36 ${activeCategory.iconBackground} ${activeCategory.iconClassName}`}
+                      >
+                        <ActiveIcon className="h-14 w-14 sm:h-20 sm:w-20" />
+                      </motion.span>
+                    </div>
+                  )}
 
-            <button
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/5" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent" />
+
+                  {/* badge compteur */}
+                  <motion.span
+                    initial={{
+                      opacity: 0,
+                      y: -12,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    transition={{
+                      delay: 0.18,
+                    }}
+                    className="absolute right-4 top-4 rounded-full border border-white/20 bg-black/35 px-3 py-2 text-[11px] font-black text-white backdrop-blur-md sm:right-6 sm:top-6 sm:px-4 sm:text-xs"
+                  >
+                    {activeCategory.articleCount}{" "}
+                    {activeCategory.articleCount > 1
+                      ? "articles"
+                      : "article"}
+                  </motion.span>
+
+                  {/* contenu */}
+                  <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-9">
+                    <motion.span
+                      initial={{
+                        scale: 0.8,
+                        opacity: 0,
+                      }}
+                      animate={{
+                        scale: 1,
+                        opacity: 1,
+                      }}
+                      transition={{
+                        delay: 0.12,
+                      }}
+                      className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 shadow-xl shadow-orange-950/30 sm:h-14 sm:w-14"
+                    >
+                      <ActiveIcon className="h-6 w-6 sm:h-7 sm:w-7" />
+                    </motion.span>
+
+                    <motion.h3
+                      initial={{
+                        opacity: 0,
+                        y: 24,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                      }}
+                      transition={{
+                        delay: 0.12,
+                        duration: 0.5,
+                      }}
+                      className="mt-4 text-3xl font-black tracking-tight sm:mt-5 sm:text-5xl"
+                    >
+                      {activeCategory.name}
+                    </motion.h3>
+
+                    <motion.p
+                      initial={{
+                        opacity: 0,
+                        y: 18,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                      }}
+                      transition={{
+                        delay: 0.2,
+                        duration: 0.5,
+                      }}
+                      className="mt-2 max-w-xl line-clamp-2 text-sm leading-6 text-zinc-200 sm:mt-3 sm:text-base sm:leading-7"
+                    >
+                      {activeCategory.description}
+                    </motion.p>
+                  </div>
+                </div>
+
+                {/* barre action */}
+                <div className="flex items-center justify-between gap-3 px-5 py-4 sm:px-9 sm:py-5">
+                  <div>
+                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
+                      Explorer l’univers
+                    </span>
+                    <span className="mt-1 block text-sm font-black text-orange-600 sm:text-base">
+                      Découvrir {activeCategory.name}
+                    </span>
+                  </div>
+
+                  <motion.span
+                    whileHover={{
+                      x: 4,
+                      scale: 1.05,
+                    }}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-500 text-white transition-colors group-hover:bg-orange-600 sm:h-12 sm:w-12"
+                  >
+                    <ArrowRight className="h-5 w-5" />
+                  </motion.span>
+                </div>
+              </Link>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* aperçu droite desktop */}
+          {categories.length > 1 && (
+            <motion.button
               type="button"
               onClick={nextCategory}
-              aria-label="Catégorie suivante"
-              className="absolute right-2 z-30 flex h-12 w-12 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-950 shadow-xl transition hover:border-orange-400 hover:bg-orange-500 hover:text-white sm:right-5"
+              whileHover={{
+                x: -8,
+                scale: 1.02,
+                opacity: 0.9,
+              }}
+              aria-label={`Afficher ${nextCategoryItem.name}`}
+              className="absolute right-0 z-10 hidden w-[34%] max-w-[390px] translate-x-[45%] overflow-hidden rounded-[34px] border border-white/70 bg-white text-left opacity-55 shadow-[0_24px_70px_rgba(24,24,27,0.16)] lg:block"
             >
-              <ChevronRight className="h-6 w-6" />
-            </button>
-          </>
-        )}
+              <div className="relative h-[360px]">
+                {nextCategoryItem.image ? (
+                  <img
+                    src={nextCategoryItem.image}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
+                    {(() => {
+                      const Icon =
+                        nextCategoryItem.icon;
+                      return (
+                        <Icon className={`h-20 w-20 ${nextCategoryItem.iconClassName}`} />
+                      );
+                    })()}
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
+
+                <div className="absolute inset-x-0 bottom-0 p-7 text-white">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">
+                    Suivant
+                  </span>
+                  <h3 className="mt-2 text-3xl font-black">
+                    {nextCategoryItem.name}
+                  </h3>
+                </div>
+              </div>
+            </motion.button>
+          )}
+
+          {/* Flèches - très lisibles mobile/tablette */}
+          {categories.length > 1 && (
+            <>
+              <motion.button
+                type="button"
+                whileTap={{
+                  scale: 0.9,
+                }}
+                onClick={previousCategory}
+                aria-label="Catégorie précédente"
+                className="absolute left-2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-orange-400 bg-orange-500 text-white shadow-xl shadow-orange-500/20 backdrop-blur transition hover:bg-orange-600 sm:left-4 sm:h-12 sm:w-12 lg:left-[8%]"
+              >
+                <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
+              </motion.button>
+
+              <motion.button
+                type="button"
+                whileTap={{
+                  scale: 0.9,
+                }}
+                onClick={nextCategory}
+                aria-label="Catégorie suivante"
+                className="absolute right-2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-orange-400 bg-orange-500 text-white shadow-xl shadow-orange-500/20 backdrop-blur transition hover:bg-orange-600 sm:right-4 sm:h-12 sm:w-12 lg:right-[8%]"
+              >
+                <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+              </motion.button>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+      {/* Pagination */}
+      <div className="mt-4 flex items-center justify-center gap-2 sm:mt-6">
         {categories.map((category, index) => (
           <button
             key={category.id}
             type="button"
-            onClick={() => {
-              setDirection(
-                index >= activeIndex ? 1 : -1,
-              );
-              setActiveIndex(index);
-            }}
+            onClick={() =>
+              selectCategory(index)
+            }
             aria-label={`Afficher ${category.name}`}
             className={`h-2.5 rounded-full transition-all duration-300 ${
               index === activeIndex
@@ -955,6 +1145,13 @@ function CategoryCarousel({
           />
         ))}
       </div>
+
+      {/* Astuce swipe mobile */}
+      {categories.length > 1 && (
+        <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 sm:hidden">
+          Glissez à gauche ou à droite
+        </p>
+      )}
     </div>
   );
 }
@@ -984,7 +1181,7 @@ function SectionHeading({
 
       <Link
         href={href}
-        className="group inline-flex w-fit items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-5 py-3 text-sm font-black transition hover:border-orange-300 hover:text-orange-600"
+        className="group inline-flex w-fit items-center gap-2 rounded-2xl border border-orange-500 bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
       >
         {label}
 
@@ -993,6 +1190,915 @@ function SectionHeading({
     </div>
   );
 }
+
+
+type HomePack = CatalogPack & {
+  images?: string[];
+  article_images?: string[];
+  articles?: Array<{
+    id?: number;
+    slug?: string;
+    designation?: string;
+    image?: string | null;
+    images?: string[];
+    quantity?: number;
+  }>;
+};
+
+function formatPackPrice(value: number) {
+  return new Intl.NumberFormat("fr-DZ").format(
+    Number(value || 0),
+  );
+}
+
+function LatestPackShowcase({
+  pack,
+  loading,
+  error,
+}: {
+  pack: HomePack | null;
+  loading: boolean;
+  error: string;
+}) {
+  const [
+    activePackImageIndex,
+    setActivePackImageIndex,
+  ] = useState(0);
+
+  useEffect(() => {
+    setActivePackImageIndex(0);
+  }, [pack?.id]);
+
+  if (loading) {
+    return (
+      <div className="relative overflow-hidden rounded-[30px] border border-zinc-800 bg-zinc-950 px-5 py-14 text-white shadow-2xl sm:rounded-[42px] sm:px-10">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-orange-500/20 blur-3xl" />
+        <div className="relative flex min-h-[320px] items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-white/10 border-t-orange-500" />
+            <p className="mt-5 text-sm font-black text-zinc-300">
+              Chargement du dernier pack...
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!pack) {
+    return (
+      <div className="relative overflow-hidden rounded-[30px] border border-zinc-200 bg-zinc-50 px-6 py-14 text-center sm:rounded-[42px]">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
+          <Award className="h-8 w-8" />
+        </div>
+
+        <h3 className="mt-5 text-2xl font-black text-zinc-950">
+          Aucun pack disponible.
+        </h3>
+
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-zinc-500">
+          {error ||
+            "Le dernier pack ajouté depuis l’administration apparaîtra automatiquement ici."}
+        </p>
+
+        <Link
+          href="/articles/?pack=1"
+          className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+        >
+          Voir les packs
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    );
+  }
+
+  const articleImages = (pack.articles || [])
+    .flatMap((article) => [
+      article.image,
+      ...(article.images || []),
+    ])
+    .filter(
+      (image): image is string =>
+        Boolean(image),
+    );
+
+  const visualImages = Array.from(
+    new Set(
+      [
+        pack.image,
+        ...(pack.images || []),
+        ...(pack.article_images || []),
+        ...articleImages,
+      ].filter(
+        (image): image is string =>
+          Boolean(image),
+      ),
+    ),
+  ).slice(0, 8);
+
+  const activePackImage =
+    visualImages[
+      activePackImageIndex
+    ] || visualImages[0];
+
+  function showNextPackImage() {
+    if (visualImages.length <= 1) {
+      return;
+    }
+
+    setActivePackImageIndex(
+      (current) =>
+        (current + 1) %
+        visualImages.length,
+    );
+  }
+
+  function selectPackImage(
+    index: number,
+  ) {
+    if (
+      index < 0 ||
+      index >= visualImages.length
+    ) {
+      return;
+    }
+
+    setActivePackImageIndex(index);
+  }
+
+  const oldPrice = Number(
+    pack.old_price || 0,
+  );
+
+  const price = Number(pack.price || 0);
+
+  const saving =
+    oldPrice > price
+      ? oldPrice - price
+      : 0;
+
+  const reduction =
+    oldPrice > price && oldPrice > 0
+      ? Math.round(
+          (saving / oldPrice) * 100,
+        )
+      : 0;
+
+  const packHref =
+    `/pack?slug=${encodeURIComponent(
+      pack.slug,
+    )}`;
+
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        y: 35,
+      }}
+      whileInView={{
+        opacity: 1,
+        y: 0,
+      }}
+      viewport={{
+        once: true,
+        amount: 0.16,
+      }}
+      transition={{
+        duration: 0.7,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className="relative isolate overflow-hidden rounded-[30px] border border-zinc-800/80 bg-zinc-950 text-white shadow-[0_40px_110px_rgba(24,24,27,0.28)] sm:rounded-[42px]"
+    >
+      {/* halos animés */}
+      <motion.div
+        aria-hidden="true"
+        animate={{
+          x: ["-12%", "15%", "-12%"],
+          y: ["-10%", "12%", "-10%"],
+          scale: [1, 1.15, 1],
+        }}
+        transition={{
+          duration: 11,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="pointer-events-none absolute -right-28 -top-32 h-[440px] w-[440px] rounded-full bg-orange-500/25 blur-[100px]"
+      />
+
+      <motion.div
+        aria-hidden="true"
+        animate={{
+          x: ["10%", "-12%", "10%"],
+          y: ["12%", "-8%", "12%"],
+          scale: [1.06, 0.96, 1.06],
+        }}
+        transition={{
+          duration: 14,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="pointer-events-none absolute -bottom-44 -left-28 h-[460px] w-[460px] rounded-full bg-amber-400/10 blur-[120px]"
+      />
+
+      {/* balayage lumineux */}
+      <motion.div
+        aria-hidden="true"
+        initial={{
+          x: "-130%",
+        }}
+        animate={{
+          x: "230%",
+        }}
+        transition={{
+          duration: 5.5,
+          repeat: Infinity,
+          repeatDelay: 2.2,
+          ease: "easeInOut",
+        }}
+        className="pointer-events-none absolute inset-y-0 z-0 w-28 rotate-12 bg-gradient-to-r from-transparent via-white/[0.055] to-transparent blur-xl"
+      />
+
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:44px_44px]" />
+
+      <div className="relative z-10 grid lg:grid-cols-[0.92fr_1.08fr]">
+        {/* =================================================
+            VISUEL 3D
+        ================================================= */}
+        <div className="relative overflow-hidden border-b border-white/10 px-4 py-7 sm:px-8 sm:py-10 lg:border-b-0 lg:border-r lg:px-10 lg:py-14">
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-orange-500/70 to-transparent" />
+
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-orange-400/25 bg-orange-500/10 px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-orange-300 backdrop-blur sm:text-xs">
+              <Sparkles className="h-4 w-4" />
+              Dernier pack ajouté
+            </span>
+
+            <motion.span
+              animate={{
+                boxShadow: pack.inStock
+                  ? [
+                      "0 0 0 0 rgba(34,197,94,0)",
+                      "0 0 0 8px rgba(34,197,94,0.08)",
+                      "0 0 0 0 rgba(34,197,94,0)",
+                    ]
+                  : [
+                      "0 0 0 0 rgba(161,161,170,0)",
+                      "0 0 0 8px rgba(161,161,170,0.06)",
+                      "0 0 0 0 rgba(161,161,170,0)",
+                    ],
+              }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+              }}
+              className={`rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] ${
+                pack.inStock
+                  ? "bg-emerald-500/15 text-emerald-300"
+                  : "bg-white/5 text-zinc-400"
+              }`}
+            >
+              {pack.inStock
+                ? "Disponible"
+                : "Indisponible"}
+            </motion.span>
+          </div>
+
+          {/* scène 3D */}
+          <div className="relative mt-5 min-h-[350px] [perspective:1300px] sm:mt-7 sm:min-h-[440px] lg:min-h-[500px]">
+            <motion.div
+              animate={{
+                y: [0, -9, 0],
+                rotateY: [-7, 7, -7],
+                rotateX: [3, -3, 3],
+              }}
+              transition={{
+                y: {
+                  duration: 4.8,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                },
+                rotateY: {
+                  duration: 7.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                },
+                rotateX: {
+                  duration: 6.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                },
+              }}
+              whileHover={{
+                rotateY: 0,
+                rotateX: 0,
+                scale: 1.02,
+              }}
+              style={{
+                transformStyle:
+                  "preserve-3d",
+              }}
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              {/* anneaux 3D */}
+              <motion.div
+                aria-hidden="true"
+                animate={{
+                  rotate: [0, 360],
+                }}
+                transition={{
+                  duration: 18,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+                className="absolute h-[260px] w-[260px] rounded-full border border-orange-500/20 sm:h-[350px] sm:w-[350px] lg:h-[390px] lg:w-[390px]"
+                style={{
+                  transform:
+                    "translateZ(-70px) rotateX(68deg)",
+                }}
+              />
+
+              <motion.div
+                aria-hidden="true"
+                animate={{
+                  rotate: [360, 0],
+                }}
+                transition={{
+                  duration: 24,
+                  repeat: Infinity,
+                  ease: "linear",
+                }}
+                className="absolute h-[220px] w-[220px] rounded-full border border-white/10 sm:h-[310px] sm:w-[310px]"
+                style={{
+                  transform:
+                    "translateZ(-40px) rotateY(64deg)",
+                }}
+              />
+
+              {/* image principale cliquable */}
+              <motion.button
+                type="button"
+                onClick={
+                  showNextPackImage
+                }
+                whileTap={{
+                  scale: 0.985,
+                }}
+                aria-label={
+                  visualImages.length > 1
+                    ? "Afficher la photo suivante du pack"
+                    : "Photo du pack"
+                }
+                className="group relative h-[255px] w-[78%] max-w-[330px] cursor-pointer overflow-hidden rounded-[28px] border border-white/15 bg-zinc-900 text-left shadow-[0_35px_80px_rgba(0,0,0,0.45)] outline-none transition focus-visible:ring-4 focus-visible:ring-orange-500/30 sm:h-[340px] sm:max-w-[400px] sm:rounded-[34px] lg:h-[390px]"
+                style={{
+                  transform:
+                    "translateZ(55px)",
+                }}
+              >
+                {activePackImage ? (
+                  <AnimatePresence
+                    mode="wait"
+                    initial={false}
+                  >
+                    <motion.img
+                      key={`${activePackImage}-${activePackImageIndex}`}
+                      src={
+                        activePackImage
+                      }
+                      alt={`${pack.name} - photo ${
+                        activePackImageIndex +
+                        1
+                      }`}
+                      draggable={false}
+                      initial={{
+                        opacity: 0,
+                        scale: 1.08,
+                        rotateY: 8,
+                        x: 20,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        scale: 1,
+                        rotateY: 0,
+                        x: 0,
+                      }}
+                      exit={{
+                        opacity: 0,
+                        scale: 0.96,
+                        rotateY: -8,
+                        x: -20,
+                      }}
+                      transition={{
+                        duration: 0.42,
+                        ease: [
+                          0.22,
+                          1,
+                          0.36,
+                          1,
+                        ],
+                      }}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  </AnimatePresence>
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-900 via-zinc-800 to-orange-950/40">
+                    <motion.div
+                      animate={{
+                        y: [0, -8, 0],
+                        rotate: [0, 3, 0],
+                      }}
+                      transition={{
+                        duration: 4,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                      }}
+                      className="flex h-24 w-24 items-center justify-center rounded-[30px] bg-orange-500/15 text-orange-400 sm:h-32 sm:w-32"
+                    >
+                      <Award className="h-12 w-12 sm:h-16 sm:w-16" />
+                    </motion.div>
+                  </div>
+                )}
+
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-white/[0.04]" />
+
+                {/* nombre d'articles */}
+                <div className="pointer-events-none absolute bottom-4 left-4 sm:bottom-5 sm:left-5">
+                  <span className="rounded-full border border-white/15 bg-black/50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white backdrop-blur">
+                    {pack.article_count} article
+                    {pack.article_count > 1
+                      ? "s"
+                      : ""}
+                  </span>
+                </div>
+
+                {/* compteur photos */}
+                {visualImages.length > 0 && (
+                  <div className="pointer-events-none absolute right-4 top-4 rounded-full border border-white/15 bg-black/55 px-3 py-1.5 text-[10px] font-black text-white backdrop-blur sm:right-5 sm:top-5">
+                    {activePackImageIndex + 1}
+                    {" / "}
+                    {visualImages.length}
+                  </div>
+                )}
+
+                {/* indication de clic */}
+                {visualImages.length > 1 && (
+                  <motion.div
+                    animate={{
+                      opacity: [
+                        0.72,
+                        1,
+                        0.72,
+                      ],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                    className="pointer-events-none absolute bottom-4 right-4 hidden items-center gap-2 rounded-full border border-orange-400/25 bg-orange-500/90 px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-lg backdrop-blur sm:flex"
+                  >
+                    Cliquer pour changer
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </motion.div>
+                )}
+              </motion.button>
+
+              {/* cartes flottantes */}
+              {visualImages[1] && (
+                <motion.button
+                  type="button"
+                  onClick={() =>
+                    selectPackImage(1)
+                  }
+                  animate={{
+                    y: [0, -12, 0],
+                    rotate: [-5, 2, -5],
+                  }}
+                  transition={{
+                    duration: 4.6,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  whileTap={{
+                    scale: 0.94,
+                  }}
+                  aria-label="Afficher la photo 2"
+                  className={`absolute left-0 top-[16%] h-24 w-24 overflow-hidden rounded-2xl border-2 bg-zinc-900 shadow-2xl sm:h-32 sm:w-32 ${
+                    activePackImageIndex === 1
+                      ? "border-orange-500"
+                      : "border-white/15"
+                  }`}
+                  style={{
+                    transform:
+                      "translateZ(105px)",
+                  }}
+                >
+                  <img
+                    src={visualImages[1]}
+                    alt={`${pack.name} - photo 2`}
+                    draggable={false}
+                    className="h-full w-full object-cover"
+                  />
+                </motion.button>
+              )}
+
+              {visualImages[2] && (
+                <motion.button
+                  type="button"
+                  onClick={() =>
+                    selectPackImage(2)
+                  }
+                  animate={{
+                    y: [0, 10, 0],
+                    rotate: [6, -2, 6],
+                  }}
+                  transition={{
+                    duration: 5.2,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  whileTap={{
+                    scale: 0.94,
+                  }}
+                  aria-label="Afficher la photo 3"
+                  className={`absolute bottom-[12%] right-0 h-24 w-24 overflow-hidden rounded-2xl border-2 bg-zinc-900 shadow-2xl sm:h-32 sm:w-32 ${
+                    activePackImageIndex === 2
+                      ? "border-orange-500"
+                      : "border-orange-400/30"
+                  }`}
+                  style={{
+                    transform:
+                      "translateZ(125px)",
+                  }}
+                >
+                  <img
+                    src={visualImages[2]}
+                    alt={`${pack.name} - photo 3`}
+                    draggable={false}
+                    className="h-full w-full object-cover"
+                  />
+                </motion.button>
+              )}
+
+              {visualImages[3] && (
+                <motion.button
+                  type="button"
+                  onClick={() =>
+                    selectPackImage(3)
+                  }
+                  animate={{
+                    y: [0, -7, 0],
+                    rotate: [-2, 5, -2],
+                  }}
+                  transition={{
+                    duration: 5.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  whileTap={{
+                    scale: 0.94,
+                  }}
+                  aria-label="Afficher la photo 4"
+                  className={`absolute bottom-[3%] left-[12%] hidden h-20 w-20 overflow-hidden rounded-2xl border bg-zinc-900 shadow-xl sm:block sm:h-24 sm:w-24 ${
+                    activePackImageIndex === 3
+                      ? "border-orange-500"
+                      : "border-white/15"
+                  }`}
+                  style={{
+                    transform:
+                      "translateZ(80px)",
+                  }}
+                >
+                  <img
+                    src={visualImages[3]}
+                    alt={`${pack.name} - photo 4`}
+                    draggable={false}
+                    className="h-full w-full object-cover"
+                  />
+                </motion.button>
+              )}
+
+              {/* badge réduction flottant */}
+              {reduction > 0 && (
+                <motion.div
+                  animate={{
+                    y: [0, -8, 0],
+                    rotate: [-3, 3, -3],
+                  }}
+                  transition={{
+                    duration: 3.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                  className="absolute right-[4%] top-[4%] rounded-2xl bg-orange-500 px-3 py-2 text-center text-white shadow-xl shadow-orange-500/25 sm:px-4 sm:py-3"
+                  style={{
+                    transform:
+                      "translateZ(150px)",
+                  }}
+                >
+                  <span className="block text-[9px] font-black uppercase tracking-[0.16em]">
+                    Remise
+                  </span>
+                  <strong className="mt-0.5 block text-xl font-black sm:text-2xl">
+                    -{reduction}%
+                  </strong>
+                </motion.div>
+              )}
+            </motion.div>
+
+            <div className="pointer-events-none absolute inset-x-[18%] bottom-2 h-10 rounded-[50%] bg-black/50 blur-xl" />
+          </div>
+
+          {visualImages.length > 1 && (
+            <div className="-mx-1 mt-3 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex w-max gap-2 sm:mx-auto">
+                {visualImages.map(
+                  (image, index) => {
+                    const active =
+                      index ===
+                      activePackImageIndex;
+
+                    return (
+                      <motion.button
+                        key={`${image}-${index}`}
+                        type="button"
+                        whileTap={{
+                          scale: 0.94,
+                        }}
+                        onClick={() =>
+                          selectPackImage(
+                            index,
+                          )
+                        }
+                        aria-label={`Afficher la photo ${
+                          index + 1
+                        } du pack`}
+                        className={`relative h-14 w-16 shrink-0 overflow-hidden rounded-xl border-2 bg-zinc-900 transition sm:h-16 sm:w-20 ${
+                          active
+                            ? "border-orange-500 shadow-lg shadow-orange-500/15"
+                            : "border-white/10 opacity-65 hover:border-white/30 hover:opacity-100"
+                        }`}
+                      >
+                        <img
+                          src={image}
+                          alt=""
+                          draggable={false}
+                          className="h-full w-full object-cover"
+                        />
+
+                        {active && (
+                          <span className="absolute inset-x-1 bottom-1 rounded-full bg-orange-500 py-0.5 text-center text-[8px] font-black uppercase text-white">
+                            Actif
+                          </span>
+                        )}
+                      </motion.button>
+                    );
+                  },
+                )}
+              </div>
+            </div>
+          )}
+
+          <p className="mt-2 text-center text-[10px] font-black uppercase tracking-[0.17em] text-zinc-600 sm:text-xs">
+            {visualImages.length > 1
+              ? "Cliquez sur la grande photo ou choisissez une miniature"
+              : "Animation 3D · survolez le pack"}
+          </p>
+        </div>
+
+        {/* =================================================
+            INFORMATIONS
+        ================================================= */}
+        <div className="relative flex flex-col justify-center px-5 py-8 sm:px-9 sm:py-12 lg:px-14 lg:py-16">
+          <motion.span
+            initial={{
+              opacity: 0,
+              x: 18,
+            }}
+            whileInView={{
+              opacity: 1,
+              x: 0,
+            }}
+            viewport={{
+              once: true,
+            }}
+            transition={{
+              delay: 0.12,
+            }}
+            className="w-fit rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-orange-300 sm:text-xs"
+          >
+            Pack n° {pack.id}
+          </motion.span>
+
+          <motion.h2
+            initial={{
+              opacity: 0,
+              y: 24,
+            }}
+            whileInView={{
+              opacity: 1,
+              y: 0,
+            }}
+            viewport={{
+              once: true,
+            }}
+            transition={{
+              delay: 0.16,
+              duration: 0.55,
+            }}
+            className="mt-5 text-3xl font-black leading-[1.04] tracking-tight sm:text-5xl lg:text-6xl"
+          >
+            {pack.name}
+          </motion.h2>
+
+          <motion.p
+            initial={{
+              opacity: 0,
+              y: 18,
+            }}
+            whileInView={{
+              opacity: 1,
+              y: 0,
+            }}
+            viewport={{
+              once: true,
+            }}
+            transition={{
+              delay: 0.22,
+              duration: 0.5,
+            }}
+            className="mt-5 max-w-2xl text-sm leading-7 text-zinc-400 sm:text-base sm:leading-8"
+          >
+            {pack.description ||
+              "Découvrez notre dernier pack ajouté : un ensemble complet proposé à un prix avantageux."}
+          </motion.p>
+
+          {/* infos rapides */}
+          <div className="mt-7 grid grid-cols-3 gap-2 sm:gap-3">
+            {[
+              [
+                String(
+                  pack.article_count || 0,
+                ),
+                "Articles",
+              ],
+              [
+                String(
+                  pack.stock_quantity || 0,
+                ),
+                "Stock",
+              ],
+              [
+                pack.inStock
+                  ? "Oui"
+                  : "Non",
+                "Disponible",
+              ],
+            ].map(([value, label], index) => (
+              <motion.div
+                key={label}
+                initial={{
+                  opacity: 0,
+                  y: 14,
+                }}
+                whileInView={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                viewport={{
+                  once: true,
+                }}
+                transition={{
+                  delay:
+                    0.26 + index * 0.06,
+                }}
+                className="rounded-2xl border border-white/10 bg-white/[0.04] px-2 py-3 text-center backdrop-blur sm:px-4 sm:py-4"
+              >
+                <strong className="block text-lg font-black text-white sm:text-2xl">
+                  {value}
+                </strong>
+                <span className="mt-1 block text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-500 sm:text-[10px]">
+                  {label}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* prix */}
+          <motion.div
+            initial={{
+              opacity: 0,
+              y: 20,
+            }}
+            whileInView={{
+              opacity: 1,
+              y: 0,
+            }}
+            viewport={{
+              once: true,
+            }}
+            transition={{
+              delay: 0.3,
+            }}
+            className="mt-7 rounded-[24px] border border-white/10 bg-white/[0.055] p-5 backdrop-blur sm:rounded-[28px] sm:p-6"
+          >
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+                  Prix du pack
+                </span>
+
+                <div className="mt-2 flex flex-wrap items-baseline gap-2">
+                  <motion.strong
+                    animate={{
+                      scale: [
+                        1,
+                        1.02,
+                        1,
+                      ],
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                    className="text-4xl font-black tracking-tight text-white sm:text-5xl"
+                  >
+                    {formatPackPrice(
+                      price,
+                    )}
+                  </motion.strong>
+
+                  <span className="text-lg font-black text-orange-500">
+                    DA
+                  </span>
+                </div>
+
+                {oldPrice > price && (
+                  <span className="mt-2 block text-sm font-bold text-zinc-500 line-through">
+                    {formatPackPrice(
+                      oldPrice,
+                    )}{" "}
+                    DA
+                  </span>
+                )}
+              </div>
+
+              {saving > 0 && (
+                <div className="rounded-2xl border border-orange-500/20 bg-orange-500/10 px-4 py-3 sm:text-right">
+                  <span className="block text-[9px] font-black uppercase tracking-[0.16em] text-orange-300">
+                    Vous économisez
+                  </span>
+
+                  <strong className="mt-1 block text-lg font-black text-white">
+                    {formatPackPrice(
+                      saving,
+                    )}{" "}
+                    DA
+                  </strong>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+            <motion.div
+              whileHover={{
+                y: -3,
+                scale: 1.01,
+              }}
+              whileTap={{
+                scale: 0.98,
+              }}
+              className="w-full sm:w-auto"
+            >
+              <Link
+                href={packHref}
+                className="group inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition-colors hover:bg-orange-600 sm:w-auto"
+              >
+                Découvrir ce pack
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </motion.div>
+
+            <Link
+              href="/articles/?pack=1"
+              className="inline-flex min-h-14 w-full items-center justify-center rounded-2xl border border-orange-400 bg-orange-500 px-6 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 sm:w-auto"
+            >
+              Voir tous les packs
+            </Link>
+          </div>
+
+          {pack.created_at && (
+            <span className="mt-5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600">
+              Dernier ajout détecté automatiquement
+            </span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 
 export default function Home() {
   const [
@@ -1004,6 +2110,21 @@ export default function Home() {
     latestProducts,
     setLatestProducts,
   ] = useState<Product[]>([]);
+
+  const [
+    latestPack,
+    setLatestPack,
+  ] = useState<HomePack | null>(null);
+
+  const [
+    packLoading,
+    setPackLoading,
+  ] = useState(true);
+
+  const [
+    packError,
+    setPackError,
+  ] = useState("");
 
   const [
     categoriesLoading,
@@ -1207,6 +2328,122 @@ export default function Home() {
     }
 
     void loadLatestProducts();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadLatestPack() {
+      setPackLoading(true);
+      setPackError("");
+
+      try {
+        /*
+         * On récupère plusieurs packs puis on choisit
+         * le plus récent par created_at, avec l'id
+         * comme solution de repli.
+         */
+        const response =
+          await catalogApi.packs({
+            limit: "100",
+          });
+
+        if (!active) {
+          return;
+        }
+
+        const orderedPacks = [
+          ...(response.packs || []),
+        ].sort((a, b) => {
+          const dateA = a.created_at
+            ? Date.parse(a.created_at)
+            : 0;
+
+          const dateB = b.created_at
+            ? Date.parse(b.created_at)
+            : 0;
+
+          const validDateA =
+            Number.isFinite(dateA)
+              ? dateA
+              : 0;
+
+          const validDateB =
+            Number.isFinite(dateB)
+              ? dateB
+              : 0;
+
+          if (validDateA !== validDateB) {
+            return (
+              validDateB - validDateA
+            );
+          }
+
+          return (
+            Number(b.id) -
+            Number(a.id)
+          );
+        });
+
+        const newestPack =
+          orderedPacks[0];
+
+        if (!newestPack) {
+          setLatestPack(null);
+          return;
+        }
+
+        /*
+         * On enrichit ensuite le dernier pack avec
+         * sa composition et les images de ses articles.
+         */
+        try {
+          const detailResponse =
+            await catalogApi.packBySlug(
+              newestPack.slug,
+            );
+
+          if (!active) {
+            return;
+          }
+
+          setLatestPack({
+            ...(newestPack as HomePack),
+            ...(detailResponse.pack as HomePack),
+          });
+        } catch {
+          /*
+           * Même si le détail échoue, on affiche
+           * quand même le dernier pack de la liste.
+           */
+          if (active) {
+            setLatestPack(
+              newestPack as HomePack,
+            );
+          }
+        }
+      } catch (requestError) {
+        if (active) {
+          setLatestPack(null);
+          setPackError(
+            requestError instanceof Error
+              ? requestError.message
+              : "Impossible de charger le dernier pack.",
+          );
+        }
+      } finally {
+        if (active) {
+          setPackLoading(false);
+        }
+      }
+    }
+
+    void loadLatestPack();
 
     return () => {
       active = false;
@@ -1559,7 +2796,7 @@ export default function Home() {
 
                 <Link
                   href="/articles"
-                  className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-white/25 bg-white/10 px-7 text-sm font-black text-white backdrop-blur-md transition hover:border-orange-400 hover:bg-white/15"
+                  className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-orange-400 bg-orange-500 px-7 text-sm font-black text-white shadow-xl shadow-orange-500/25 backdrop-blur-md transition hover:bg-orange-600"
                 >
                   Voir tout le catalogue
                 </Link>
@@ -1633,7 +2870,7 @@ export default function Home() {
                   heroTransitioning
                 }
                 aria-label="Image précédente"
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white backdrop-blur-md transition hover:border-orange-400 hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-orange-400 bg-orange-500 text-white shadow-lg shadow-orange-500/20 backdrop-blur-md transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ChevronLeft className="h-5 w-5" />
               </motion.button>
@@ -1691,7 +2928,7 @@ export default function Home() {
                   heroTransitioning
                 }
                 aria-label="Image suivante"
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/45 text-white backdrop-blur-md transition hover:border-orange-400 hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-orange-400 bg-orange-500 text-white shadow-lg shadow-orange-500/20 backdrop-blur-md transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ChevronRight className="h-5 w-5" />
               </motion.button>
@@ -1764,28 +3001,63 @@ export default function Home() {
 
       {/* CATÉGORIES */}
       <SectionWrapper delay={0.08}>
-        <section className="overflow-hidden border-y border-zinc-200 bg-zinc-50 py-16 lg:py-24">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center">
-              <span className="text-xs font-black uppercase tracking-[0.2em] text-orange-500">
-                Nos univers
-              </span>
+        <section className="relative overflow-hidden border-y border-zinc-200 bg-[radial-gradient(circle_at_top,#fff7ed_0%,#fafafa_42%,#ffffff_100%)] py-14 sm:py-16 lg:py-24">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-[-120px] top-20 h-72 w-72 rounded-full bg-orange-200/25 blur-3xl" />
+            <div className="absolute right-[-140px] top-1/3 h-80 w-80 rounded-full bg-amber-100/30 blur-3xl" />
+          </div>
 
-              <h2 className="mt-4 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl lg:text-5xl">
-                Tout ce qu’il vous faut,
-                <span className="block text-orange-500">
-                  classé par catégorie.
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <motion.div
+              initial={{
+                opacity: 0,
+                y: 20,
+              }}
+              whileInView={{
+                opacity: 1,
+                y: 0,
+              }}
+              viewport={{
+                once: true,
+                amount: 0.3,
+              }}
+              transition={{
+                duration: 0.55,
+                ease: "easeOut",
+              }}
+              className="mx-auto max-w-3xl text-center"
+            >
+              <motion.span
+                initial={{
+                  opacity: 0,
+                  scale: 0.9,
+                }}
+                whileInView={{
+                  opacity: 1,
+                  scale: 1,
+                }}
+                viewport={{ once: true }}
+                className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white/90 px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-orange-500 shadow-sm backdrop-blur sm:text-xs"
+              >
+                <Sparkles className="h-4 w-4" />
+                Nos univers
+              </motion.span>
+
+              <h2 className="mt-5 text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl lg:text-5xl">
+                Trouvez votre univers,
+                <span className="mt-1 block bg-gradient-to-r from-orange-600 via-orange-500 to-amber-400 bg-clip-text text-transparent">
+                  trouvez votre prochain projet.
                 </span>
               </h2>
 
               <p className="mx-auto mt-5 max-w-2xl text-sm leading-7 text-zinc-500 sm:text-base">
-                Faites défiler nos univers et sélectionnez la catégorie adaptée à votre projet.
+                Parcourez nos catégories, glissez sur mobile et accédez directement aux produits qui vous intéressent.
               </p>
-            </div>
+            </motion.div>
 
-            <div className="mt-8 lg:mt-12">
+            <div className="mt-8 sm:mt-10 lg:mt-12">
               {categoriesLoading ? (
-                <div className="flex min-h-[300px] items-center justify-center rounded-3xl border border-zinc-200 bg-white">
+                <div className="flex min-h-[330px] items-center justify-center rounded-[30px] border border-zinc-200 bg-white/80 shadow-sm backdrop-blur">
                   <div className="text-center">
                     <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-zinc-200 border-t-orange-500" />
                     <p className="mt-4 text-sm font-bold text-zinc-500">
@@ -1798,7 +3070,7 @@ export default function Home() {
                   categories={categories}
                 />
               ) : (
-                <div className="rounded-3xl border border-dashed border-zinc-300 bg-white p-10 text-center">
+                <div className="rounded-[30px] border border-dashed border-zinc-300 bg-white/80 p-8 text-center sm:p-10">
                   <p className="font-black text-zinc-800">
                     Aucune catégorie disponible.
                   </p>
@@ -1809,15 +3081,24 @@ export default function Home() {
               )}
             </div>
 
-            <div className="mt-10 flex justify-center">
-              <Link
-                href="/articles"
-                className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-zinc-950 px-7 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-orange-500"
+            <div className="mt-9 flex justify-center sm:mt-11">
+              <motion.div
+                whileHover={{
+                  y: -3,
+                  scale: 1.01,
+                }}
+                whileTap={{
+                  scale: 0.98,
+                }}
               >
-                Voir tout le catalogue
-
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Link>
+                <Link
+                  href="/articles"
+                  className="group inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition-colors hover:bg-orange-600 sm:min-h-14 sm:px-7"
+                >
+                  Voir toutes les catégories
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+                </Link>
+              </motion.div>
             </div>
           </div>
         </section>
@@ -1866,83 +3147,15 @@ export default function Home() {
         </section>
       </SectionWrapper>
 
-      {/* PACK */}
+      {/* PACK VEDETTE - DERNIER PACK EN BASE */}
       <SectionWrapper delay={0.16}>
-        <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-[40px] bg-zinc-950 px-6 py-10 text-white shadow-2xl sm:px-10 lg:px-16 lg:py-16">
-            <div className="absolute -right-20 -top-28 h-96 w-96 rounded-full bg-orange-500/20 blur-3xl" />
-
-            <div className="relative z-10 grid items-center gap-10 lg:grid-cols-[1fr_320px]">
-              <div>
-                <span className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-xs font-black uppercase tracking-[0.18em]">
-                  <Sparkles className="h-4 w-4" />
-
-                  Pack jardin
-                </span>
-
-                <h2 className="mt-6 text-3xl font-black sm:text-5xl">
-                  Table, quatre chaises
-
-                  <span className="block text-orange-500">
-                    et parasol.
-                  </span>
-                </h2>
-
-                <p className="mt-5 max-w-xl leading-8 text-zinc-400">
-                  Un ensemble complet pour
-                  aménager votre jardin ou
-                  votre terrasse.
-                </p>
-
-                <div className="mt-7 flex flex-wrap gap-3">
-                  {[
-                    "Table résistante",
-                    "4 chaises confort",
-                    "Parasol inclus",
-                  ].map((item) => (
-                    <span
-                      key={item}
-                      className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm"
-                    >
-                      <BadgeCheck className="h-4 w-4 text-orange-500" />
-
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-8">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-zinc-400">
-                    Prix du pack
-                  </span>
-
-                  <Award className="h-5 w-5 text-orange-500" />
-                </div>
-
-                <strong className="mt-3 block text-4xl font-black">
-                  39 900
-
-                  <span className="ml-2 text-lg text-orange-500">
-                    DA
-                  </span>
-                </strong>
-
-                <span className="mt-2 block text-sm text-zinc-500 line-through">
-                  47 500 DA
-                </span>
-
-                <Link
-                  href="/articles/?pack=1"
-                  className="group mt-7 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-orange-500 px-6 text-sm font-black transition hover:bg-orange-600"
-                >
-                  Découvrir le pack
-
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </div>
-            </div>
+        <section className="relative overflow-hidden bg-white px-4 py-14 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-7xl">
+            <LatestPackShowcase
+              pack={latestPack}
+              loading={packLoading}
+              error={packError}
+            />
           </div>
         </section>
       </SectionWrapper>
@@ -1972,7 +3185,7 @@ export default function Home() {
 
             <Link
               href="/articles"
-              className="group inline-flex min-h-14 items-center gap-2 rounded-2xl bg-zinc-950 px-7 text-sm font-black text-white transition hover:bg-orange-500"
+              className="group inline-flex min-h-14 items-center gap-2 rounded-2xl bg-orange-500 px-7 text-sm font-black text-white shadow-xl shadow-orange-500/25 transition hover:bg-orange-600"
             >
               Parcourir le catalogue
 

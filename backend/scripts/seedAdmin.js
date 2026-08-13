@@ -20,12 +20,13 @@ async function run() {
     await pool.query(
       `
         INSERT INTO admins (
-          name, email, password_hash, is_active
+          name, email, password_hash, is_active, role
         )
-        VALUES (?, ?, ?, 1)
+        VALUES (?, ?, ?, 1, 'SUPER_ADMIN')
         ON DUPLICATE KEY UPDATE
           password_hash = VALUES(password_hash),
-          is_active = 1
+          is_active = 1,
+          role = 'SUPER_ADMIN'
       `,
       [
         "Administrateur BricoMénage",

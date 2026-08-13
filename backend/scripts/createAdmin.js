@@ -27,14 +27,16 @@ async function createAdmin() {
           name,
           email,
           password_hash,
-          is_active
+          is_active,
+          role
         )
-        VALUES (?, ?, ?, 1)
+        VALUES (?, ?, ?, 1, 'SUPER_ADMIN')
 
         ON DUPLICATE KEY UPDATE
           name = VALUES(name),
           password_hash = VALUES(password_hash),
           is_active = 1,
+          role = 'SUPER_ADMIN',
           updated_at = CURRENT_TIMESTAMP
       `,
       [

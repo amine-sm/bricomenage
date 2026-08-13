@@ -602,13 +602,21 @@ export default function Header() {
             </Link>
 
             <div className="hidden flex-1 justify-center px-6 lg:flex">
-              <Link
-                href="/articles"
-                className="relative flex h-12 w-full max-w-md items-center rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-4 text-sm text-zinc-400 transition hover:border-orange-300 hover:bg-white"
+              <form
+                action="/articles"
+                method="get"
+                className="relative w-full max-w-md"
               >
-                <Search className="absolute left-4 h-5 w-5" />
-                Rechercher un marteau, une chaise, un parasol...
-              </Link>
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+
+                <input
+                  type="search"
+                  name="search"
+                  placeholder="Rechercher un marteau, une chaise, un parasol..."
+                  autoComplete="off"
+                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 hover:border-orange-300 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
+                />
+              </form>
             </div>
 
             <div className="flex items-center gap-2">

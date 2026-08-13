@@ -208,7 +208,7 @@ function Code39Barcode({
         viewBox={`0 0 ${encoded.width} 58`}
         role="img"
         aria-label={`Code-barres ${encoded.normalized}`}
-        className="h-[74px] w-full"
+        className="thermal-barcode-svg h-[74px] w-full"
         preserveAspectRatio="none"
       >
         <rect
@@ -233,7 +233,7 @@ function Code39Barcode({
         )}
       </svg>
 
-      <div className="mt-1 text-center font-mono text-[11px] font-black tracking-[0.18em] text-black">
+      <div className="thermal-barcode-text mt-1 text-center font-mono text-[11px] font-black tracking-[0.18em] text-black">
         {encoded.normalized}
       </div>
     </div>
@@ -339,30 +339,327 @@ function LabelContent() {
       : "DOMICILE";
 
   return (
-    <main className="min-h-screen bg-zinc-100 px-4 py-6 print:bg-white print:p-0">
+    <main className="thermal-page min-h-screen bg-zinc-100 px-4 py-6 print:bg-white print:p-0">
       <style jsx global>{`
+        /*
+         * =====================================================
+         * FORMAT THERMIQUE A6
+         * 105 mm × 148 mm - portrait
+         * =====================================================
+         */
         @page {
-          size: A6 portrait;
-          margin: 5mm;
+          size: 105mm 148mm;
+          margin: 0;
         }
 
         @media print {
           html,
           body {
+            width: 105mm !important;
+            min-width: 105mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
             background: #fff !important;
+          }
+
+          html {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          body {
+            overflow: visible !important;
+          }
+
+          *,
+          *::before,
+          *::after {
+            box-sizing: border-box !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
 
           .print-hidden {
             display: none !important;
           }
 
-          .print-sheet {
-            width: 100% !important;
-            min-height: auto !important;
+          /*
+           * Une page physique A6.
+           * 3 mm de marge interne, mais aucune marge navigateur.
+           */
+          .thermal-page {
+            width: 105mm !important;
+            min-height: 148mm !important;
             margin: 0 !important;
-            border: 0 !important;
+            padding: 3mm !important;
+            background: #fff !important;
+          }
+
+          .print-sheet {
+            width: 99mm !important;
+            max-width: 99mm !important;
+            min-height: 142mm !important;
+            margin: 0 auto !important;
+            overflow: visible !important;
+            border: 0.35mm solid #000 !important;
             border-radius: 0 !important;
             box-shadow: none !important;
+            background: #fff !important;
+          }
+
+          /*
+           * Évite autant que possible les coupures au milieu
+           * d'un bloc si une commande nécessite une 2e page A6.
+           */
+          .thermal-tracking,
+          .thermal-info-grid,
+          .thermal-recipient,
+          .thermal-note,
+          .thermal-footer {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+
+          .thermal-header {
+            min-height: 17mm !important;
+            gap: 2mm !important;
+            padding: 2.5mm 3mm !important;
+            border-bottom: 0.45mm solid #000 !important;
+            background: #000 !important;
+            color: #fff !important;
+          }
+
+          .thermal-logo {
+            width: 10.5mm !important;
+            height: 10.5mm !important;
+            border-radius: 1.5mm !important;
+          }
+
+          .thermal-brand {
+            font-size: 12pt !important;
+            line-height: 1.05 !important;
+          }
+
+          .thermal-subtitle {
+            font-size: 6.2pt !important;
+            line-height: 1.1 !important;
+            letter-spacing: 0.08em !important;
+            color: #fff !important;
+          }
+
+          .thermal-zr-badge {
+            padding: 1mm 2mm !important;
+            border-radius: 1.5mm !important;
+            background: #fff !important;
+            color: #000 !important;
+            font-size: 6pt !important;
+            line-height: 1 !important;
+          }
+
+          .thermal-date {
+            margin-top: 1.2mm !important;
+            color: #fff !important;
+            font-size: 5.8pt !important;
+            line-height: 1.1 !important;
+          }
+
+          .thermal-body {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 2mm !important;
+            padding: 2.5mm 3mm 2.8mm !important;
+          }
+
+          /*
+           * Tailwind space-y ne doit pas ajouter d'espace
+           * supplémentaire pendant l'impression.
+           */
+          .thermal-body > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 0 !important;
+          }
+
+          .thermal-tracking {
+            padding: 2mm !important;
+            border: 0.45mm solid #000 !important;
+            border-radius: 1.8mm !important;
+          }
+
+          .thermal-tracking-head {
+            margin-bottom: 1mm !important;
+          }
+
+          .thermal-small-label {
+            font-size: 5.8pt !important;
+            line-height: 1.05 !important;
+            letter-spacing: 0.06em !important;
+            color: #222 !important;
+          }
+
+          .thermal-mode-badge {
+            padding: 0.8mm 1.8mm !important;
+            border-radius: 1.2mm !important;
+            background: #000 !important;
+            color: #fff !important;
+            font-size: 5.8pt !important;
+            line-height: 1 !important;
+          }
+
+          .thermal-barcode-svg {
+            display: block !important;
+            width: 100% !important;
+            height: 13mm !important;
+            shape-rendering: crispEdges !important;
+          }
+
+          .thermal-barcode-text {
+            margin-top: 0.5mm !important;
+            font-size: 7pt !important;
+            line-height: 1 !important;
+            letter-spacing: 0.10em !important;
+          }
+
+          .thermal-info-grid {
+            gap: 1.6mm !important;
+          }
+
+          .thermal-info-box {
+            padding: 1.8mm 2mm !important;
+            border: 0.28mm solid #555 !important;
+            border-radius: 1.5mm !important;
+          }
+
+          .thermal-info-label {
+            font-size: 5.4pt !important;
+            line-height: 1.05 !important;
+            letter-spacing: 0.05em !important;
+            color: #333 !important;
+          }
+
+          .thermal-info-value {
+            margin-top: 0.6mm !important;
+            font-size: 7pt !important;
+            line-height: 1.15 !important;
+          }
+
+          .thermal-info-value-strong {
+            font-size: 10pt !important;
+            line-height: 1.05 !important;
+          }
+
+          .thermal-recipient,
+          .thermal-parcel {
+            border: 0.28mm solid #666 !important;
+            border-radius: 1.5mm !important;
+          }
+
+          .thermal-section-title {
+            padding: 1.3mm 2mm !important;
+            border-bottom: 0.28mm solid #777 !important;
+            background: #f3f3f3 !important;
+          }
+
+          .thermal-section-title span {
+            color: #222 !important;
+            font-size: 5.6pt !important;
+            line-height: 1 !important;
+            letter-spacing: 0.06em !important;
+          }
+
+          .thermal-recipient-body {
+            padding: 1.8mm 2.2mm !important;
+          }
+
+          .thermal-recipient-body > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 0.8mm !important;
+          }
+
+          .thermal-customer-name {
+            font-size: 10pt !important;
+            line-height: 1.05 !important;
+          }
+
+          .thermal-phone {
+            font-size: 9pt !important;
+            line-height: 1.05 !important;
+          }
+
+          .thermal-address {
+            font-size: 7pt !important;
+            line-height: 1.25 !important;
+          }
+
+          .thermal-location {
+            font-size: 7.5pt !important;
+            line-height: 1.1 !important;
+          }
+
+          .thermal-item-count {
+            font-size: 5.5pt !important;
+            line-height: 1 !important;
+            color: #222 !important;
+          }
+
+          .thermal-item-row {
+            gap: 1.5mm !important;
+            padding: 1.2mm 2mm !important;
+          }
+
+          .thermal-item-name {
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            font-size: 6.5pt !important;
+            line-height: 1.15 !important;
+          }
+
+          .thermal-item-type {
+            font-size: 5pt !important;
+            line-height: 1 !important;
+            color: #444 !important;
+          }
+
+          .thermal-quantity {
+            padding: 0.7mm 1.6mm !important;
+            border-radius: 1mm !important;
+            background: #000 !important;
+            color: #fff !important;
+            font-size: 6.5pt !important;
+            line-height: 1 !important;
+          }
+
+          .thermal-note {
+            padding: 1.6mm 2mm !important;
+            border-color: #555 !important;
+            border-radius: 1.5mm !important;
+          }
+
+          .thermal-note-label {
+            font-size: 5.2pt !important;
+            color: #333 !important;
+          }
+
+          .thermal-note-text {
+            margin-top: 0.6mm !important;
+            font-size: 6.3pt !important;
+            line-height: 1.2 !important;
+            color: #111 !important;
+          }
+
+          .thermal-footer {
+            padding-top: 1.5mm !important;
+            border-top: 0.4mm solid #000 !important;
+          }
+
+          .thermal-footer strong {
+            font-size: 6.5pt !important;
+            line-height: 1 !important;
+          }
+
+          .thermal-footer span {
+            margin-top: 0.6mm !important;
+            font-size: 5pt !important;
+            line-height: 1.1 !important;
+            color: #333 !important;
           }
         }
       `}</style>
@@ -391,33 +688,33 @@ function LabelContent() {
         </button>
       </div>
 
-      <section className="print-sheet mx-auto min-h-[700px] w-full max-w-[520px] overflow-hidden rounded-3xl border-2 border-zinc-950 bg-white shadow-2xl">
-        <header className="flex items-center justify-between gap-4 border-b-2 border-zinc-950 bg-zinc-950 px-5 py-4 text-white">
+      <section className="print-sheet mx-auto w-full max-w-[520px] overflow-hidden rounded-3xl border-2 border-zinc-950 bg-white shadow-2xl">
+        <header className="thermal-header flex items-center justify-between gap-4 border-b-2 border-zinc-950 bg-zinc-950 px-5 py-4 text-white">
           <div className="flex items-center gap-3">
             <img
               src="/images/logo-bricomenage.jpeg"
               alt="BricoMénage"
-              className="h-12 w-12 rounded-xl bg-white object-cover"
+              className="thermal-logo h-12 w-12 rounded-xl bg-white object-cover"
             />
 
             <div>
-              <strong className="block text-xl font-black">
+              <strong className="thermal-brand block text-xl font-black">
                 BricoMénage
               </strong>
 
-              <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">
+              <span className="thermal-subtitle text-[10px] font-bold uppercase tracking-[0.16em] text-orange-400">
                 Bon d’expédition
               </span>
             </div>
           </div>
 
           <div className="text-right">
-            <span className="inline-flex items-center gap-1 rounded-full bg-orange-500 px-3 py-1 text-[10px] font-black uppercase">
+            <span className="thermal-zr-badge inline-flex items-center gap-1 rounded-full bg-orange-500 px-3 py-1 text-[10px] font-black uppercase">
               <Truck className="h-3 w-3" />
               ZR Express
             </span>
 
-            <span className="mt-2 block text-[10px] text-zinc-400">
+            <span className="thermal-date mt-2 block text-[10px] text-zinc-400">
               {formatDate(
                 order.created_at,
               )}
@@ -425,14 +722,14 @@ function LabelContent() {
           </div>
         </header>
 
-        <div className="space-y-4 p-5">
-          <div className="rounded-2xl border-2 border-black p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
+        <div className="thermal-body space-y-4 p-5">
+          <div className="thermal-tracking rounded-2xl border-2 border-black p-3">
+            <div className="thermal-tracking-head mb-2 flex items-center justify-between gap-3">
+              <span className="thermal-small-label text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
                 Tracking ZR
               </span>
 
-              <span className="rounded-lg bg-black px-3 py-1 text-[10px] font-black text-white">
+              <span className="thermal-mode-badge rounded-lg bg-black px-3 py-1 text-[10px] font-black text-white">
                 {deliveryMode}
               </span>
             </div>
@@ -442,7 +739,7 @@ function LabelContent() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="thermal-info-grid grid grid-cols-2 gap-3">
             <InfoBox
               label="Référence commande"
               value={
@@ -459,39 +756,39 @@ function LabelContent() {
             />
           </div>
 
-          <section className="rounded-2xl border border-zinc-300">
-            <div className="border-b border-zinc-300 bg-zinc-50 px-4 py-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
+          <section className="thermal-recipient rounded-2xl border border-zinc-300">
+            <div className="thermal-section-title border-b border-zinc-300 bg-zinc-50 px-4 py-2">
+              <span className="thermal-small-label text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
                 Destinataire
               </span>
             </div>
 
-            <div className="space-y-2 p-4">
-              <h1 className="text-xl font-black uppercase leading-tight text-black">
+            <div className="thermal-recipient-body space-y-2 p-4">
+              <h1 className="thermal-customer-name text-xl font-black uppercase leading-tight text-black">
                 {order.customer_name}
               </h1>
 
-              <p className="text-lg font-black text-black">
+              <p className="thermal-phone text-lg font-black text-black">
                 {order.phone}
               </p>
 
-              <p className="text-sm font-bold leading-5 text-zinc-800">
+              <p className="thermal-address text-sm font-bold leading-5 text-zinc-800">
                 {order.address || "-"}
               </p>
 
-              <p className="text-sm font-black text-black">
+              <p className="thermal-location text-sm font-black text-black">
                 {order.commune} — {order.wilaya}
               </p>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-zinc-300">
-            <div className="flex items-center justify-between border-b border-zinc-300 bg-zinc-50 px-4 py-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
+          <section className="thermal-parcel rounded-2xl border border-zinc-300">
+            <div className="thermal-section-title flex items-center justify-between border-b border-zinc-300 bg-zinc-50 px-4 py-2">
+              <span className="thermal-small-label text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500">
                 Contenu du colis
               </span>
 
-              <span className="text-[10px] font-black text-zinc-500">
+              <span className="thermal-item-count text-[10px] font-black text-zinc-500">
                 {items.reduce(
                   (sum, item) =>
                     sum +
@@ -508,14 +805,14 @@ function LabelContent() {
               {items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-3 px-4 py-2.5"
+                  className="thermal-item-row flex items-center justify-between gap-3 px-4 py-2.5"
                 >
                   <div className="min-w-0">
-                    <strong className="block truncate text-xs font-black text-black">
+                    <strong className="thermal-item-name block truncate text-xs font-black text-black">
                       {item.designation}
                     </strong>
 
-                    <span className="text-[9px] font-bold uppercase text-zinc-400">
+                    <span className="thermal-item-type text-[9px] font-bold uppercase text-zinc-400">
                       {item.item_type ===
                       "PACK"
                         ? "Pack"
@@ -523,7 +820,7 @@ function LabelContent() {
                     </span>
                   </div>
 
-                  <span className="shrink-0 rounded-lg bg-zinc-950 px-3 py-1 text-xs font-black text-white">
+                  <span className="thermal-quantity shrink-0 rounded-lg bg-zinc-950 px-3 py-1 text-xs font-black text-white">
                     × {item.quantity}
                   </span>
                 </div>
@@ -531,7 +828,7 @@ function LabelContent() {
             </div>
           </section>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="thermal-info-grid grid grid-cols-2 gap-3">
             <InfoBox
               label="Frais livraison"
               value={`${formatPrice(
@@ -550,18 +847,18 @@ function LabelContent() {
           </div>
 
           {order.note && (
-            <section className="rounded-2xl border border-dashed border-zinc-400 p-3">
-              <span className="text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
+            <section className="thermal-note rounded-2xl border border-dashed border-zinc-400 p-3">
+              <span className="thermal-note-label text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
                 Remarque
               </span>
 
-              <p className="mt-1 text-xs font-bold leading-5 text-zinc-700">
+              <p className="thermal-note-text mt-1 text-xs font-bold leading-5 text-zinc-700">
                 {order.note}
               </p>
             </section>
           )}
 
-          <footer className="border-t-2 border-black pt-3 text-center">
+          <footer className="thermal-footer border-t-2 border-black pt-3 text-center">
             <strong className="block text-xs font-black uppercase text-black">
               BricoMénage × ZR Express
             </strong>
@@ -586,15 +883,15 @@ function InfoBox({
   strong?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-300 p-3">
-      <span className="block text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
+    <div className="thermal-info-box rounded-2xl border border-zinc-300 p-3">
+      <span className="thermal-info-label block text-[9px] font-black uppercase tracking-[0.12em] text-zinc-400">
         {label}
       </span>
 
       <strong
-        className={`mt-1 block break-words text-black ${
+        className={`thermal-info-value mt-1 block break-words text-black ${
           strong
-            ? "text-lg font-black"
+            ? "thermal-info-value-strong text-lg font-black"
             : "text-xs font-black"
         }`}
       >
