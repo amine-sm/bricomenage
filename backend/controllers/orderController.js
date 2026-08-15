@@ -25,7 +25,7 @@ async function createOrder(req, res) {
     phone: required(req.body.phone, "Le téléphone"),
     wilaya: required(req.body.wilaya, "La wilaya"),
     commune: required(req.body.commune, "La commune"),
-    address: required(req.body.address, "L’adresse"),
+    address: String(req.body.address || "").trim() || null,
     note: String(req.body.note || "").trim(),
     zrCityId: String(req.body.zrCityId || "").trim(),
     zrDistrictId: String(req.body.zrDistrictId || "").trim(),

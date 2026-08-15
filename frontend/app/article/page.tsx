@@ -129,6 +129,8 @@ function normalizeProduct(
             product.stock_quantity,
           )
         : undefined,
+    stock_managed:
+      product.stock_managed !== false,
     rating:
       product.rating !==
       undefined
@@ -672,11 +674,14 @@ function ArticleContent() {
         0,
     );
 
+  const stockManaged =
+    product.stock_managed !== false;
+
   const inStock =
     product.inStock !==
     undefined
       ? product.inStock
-      : stock > 0;
+      : !stockManaged || stock > 0;
 
   const oldPrice =
     Number(
@@ -1182,8 +1187,9 @@ function ArticleContent() {
                           Math.min(
                             current +
                               1,
-                            stock ||
-                              99,
+                            stockManaged
+                              ? Math.max(stock, 1)
+                              : 99,
                           ),
                       )
                     }
@@ -1268,42 +1274,41 @@ function ArticleContent() {
                 </div>
               </div>
 
-              <div
-                className={`mt-5 flex items-center gap-4 rounded-2xl border p-4 ${
-                  inStock
-                    ? "border-emerald-200 bg-emerald-50"
-                    : "border-red-200 bg-red-50"
-                }`}
-              >
-                <PackageCheck
-                  className={`h-6 w-6 shrink-0 ${
+              {stockManaged && (
+                <div
+                  className={`mt-5 flex items-center gap-4 rounded-2xl border p-4 ${
                     inStock
-                      ? "text-emerald-600"
-                      : "text-red-600"
+                      ? "border-emerald-200 bg-emerald-50"
+                      : "border-red-200 bg-red-50"
                   }`}
-                />
-
-                <div>
-                  <strong
-                    className={`block ${
+                >
+                  <PackageCheck
+                    className={`h-6 w-6 shrink-0 ${
                       inStock
-                        ? "text-emerald-800"
-                        : "text-red-800"
+                        ? "text-emerald-600"
+                        : "text-red-600"
                     }`}
-                  >
-                    {inStock
-                      ? "Article disponible"
-                      : "Rupture de stock"}
-                  </strong>
+                  />
 
-                  <span className="text-sm text-zinc-500">
-                    {stock} unité
-                    {stock > 1
-                      ? "s"
-                      : ""}
-                  </span>
+                  <div>
+                    <strong
+                      className={`block ${
+                        inStock
+                          ? "text-emerald-800"
+                          : "text-red-800"
+                      }`}
+                    >
+                      {inStock
+                        ? "Article disponible"
+                        : "Rupture de stock"}
+                    </strong>
+
+                    <span className="text-sm text-zinc-500">
+                      {`${stock} unité${stock > 1 ? "s" : ""}`}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
                 <FeatureCard
@@ -1446,6 +1451,13 @@ function ArticleContent() {
                         0,
                     );
 
+                  const relatedStockManaged =
+                    item.stock_managed !== false;
+
+                  const relatedInStock =
+                    !relatedStockManaged ||
+                    relatedStock > 0;
+
                   return (
                     <Link
                       key={item.id}
@@ -1488,15 +1500,16 @@ function ArticleContent() {
 
                         <span
                           className={`absolute bottom-3 left-3 rounded-full px-3 py-1.5 text-[10px] font-black shadow-sm ${
-                            relatedStock > 0
+                            relatedInStock
                               ? "bg-emerald-500 text-white"
                               : "bg-red-500 text-white"
                           }`}
                         >
-                          {relatedStock >
-                          0
-                            ? "En stock"
-                            : "Rupture"}
+                          {!relatedStockManaged
+                            ? "Disponible"
+                            : relatedInStock
+                              ? "En stock"
+                              : "Rupture"}
                         </span>
                       </div>
 

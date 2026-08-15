@@ -72,6 +72,7 @@ const PERMISSION_GROUPS = [
     permissions: [
       ["orders.view", "Voir les commandes"],
       ["orders.update", "Modifier le statut des commandes"],
+      ["orders.delete", "Supprimer les commandes"],
       ["orders.zr", "Gérer ZR Express"],
     ],
   },

@@ -45,6 +45,7 @@ type Article = {
   purchase_price?: number | null;
   old_price?: number;
   stock_quantity: number;
+  stock_managed?: boolean;
   min_stock?: number;
   category_id: number;
   category: string;
@@ -124,6 +125,16 @@ function createSlug(
 function getStockStatus(
   article: Article,
 ) {
+  if (article.stock_managed === false) {
+    return {
+      label: "Non géré",
+      className:
+        "bg-sky-50 text-sky-700 ring-sky-200",
+      dotClassName:
+        "bg-sky-500",
+    };
+  }
+
   const stock = Number(
     article.stock_quantity || 0,
   );
@@ -462,6 +473,10 @@ export default function ArticlesPage() {
     const lowStock =
       items.filter(
         (article) => {
+          if (article.stock_managed === false) {
+            return false;
+          }
+
           const stock =
             Number(
               article.stock_quantity ||
@@ -484,6 +499,7 @@ export default function ArticlesPage() {
     const outOfStock =
       items.filter(
         (article) =>
+          article.stock_managed !== false &&
           Number(
             article.stock_quantity ||
               0,
@@ -569,6 +585,9 @@ export default function ArticlesPage() {
                   0,
               );
 
+            const stockManaged =
+              article.stock_managed !== false;
+
             const minimum =
               Number(
                 article.min_stock ||
@@ -580,13 +599,16 @@ export default function ArticlesPage() {
                 "all" ||
               (stockFilter ===
                 "available" &&
-                stock > minimum) ||
+                (!stockManaged ||
+                  stock > minimum)) ||
               (stockFilter ===
                 "low" &&
+                stockManaged &&
                 stock > 0 &&
                 stock <= minimum) ||
               (stockFilter ===
                 "out" &&
+                stockManaged &&
                 stock <= 0);
 
             return (
@@ -1826,9 +1848,9 @@ function ArticleTableRow({
             className={`h-2 w-2 rounded-full ${stockStatus.dotClassName}`}
           />
 
-          {
-            article.stock_quantity
-          }{" "}
+          {article.stock_managed === false
+            ? "—"
+            : article.stock_quantity}{" "}
           · {stockStatus.label}
         </span>
       </td>
@@ -2001,12 +2023,9 @@ function ArticleMobileCard({
             </span>
 
             <strong className="mt-1 block text-xs font-black text-zinc-700">
-              {article.stock_quantity} unité
-              {Number(
-                article.stock_quantity,
-              ) > 1
-                ? "s"
-                : ""}
+              {article.stock_managed === false
+                ? "Non géré"
+                : `${article.stock_quantity} unité${Number(article.stock_quantity) > 1 ? "s" : ""}`}
             </strong>
           </div>
         </div>
@@ -2044,7 +2063,9 @@ function ArticleMobileCard({
             <span
               className={`h-2 w-2 rounded-full ${stockStatus.dotClassName}`}
             />
-            {article.stock_quantity}
+            {article.stock_managed === false
+              ? "—"
+              : article.stock_quantity}
           </span>
         </div>
       </div>
@@ -2565,14 +2586,17 @@ function ArticleModal({
 
             <Field
               name="stock_quantity"
-              label="Stock actuel"
+              label="Stock actuel (facultatif)"
               value={
-                editing?.stock_quantity
+                editing?.stock_managed === false
+                  ? ""
+                  : editing?.stock_quantity
               }
               type="number"
               min="0"
               step="1"
-              required
+              placeholder="Laisser vide si le stock n’est pas suivi"
+              helper="Facultatif : laissez vide pour autoriser les commandes sans gestion de stock."
             />
 
             <Field
@@ -2969,7 +2993,11 @@ function ArticlePreviewModal({
 
             <PreviewValue
               label="Stock"
-              value={`${article.stock_quantity} unités`}
+              value={
+                article.stock_managed === false
+                  ? "Non géré"
+                  : `${article.stock_quantity} unités`
+              }
             />
 
             <PreviewValue

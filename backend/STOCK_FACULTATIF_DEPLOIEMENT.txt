@@ -1,0 +1,19 @@
+BRICOMENAGE - STOCK FACULTATIF
+
+Fonctionnement :
+- Stock vide lors de la création/modification d'un article = stock NON suivi.
+- L'article reste disponible et commandable.
+- Aucune déduction de stock n'est faite pour cet article.
+- Si une quantité est saisie, le stock redevient suivi normalement.
+
+Base de données :
+- Nouvelle colonne : articles.stock_managed (TINYINT 0/1).
+- Le backend ajoute automatiquement cette colonne au démarrage grâce à scripts/ensureSchema.js.
+- Les articles déjà existants gardent la gestion de stock active (stock_managed=1).
+- sql/MAKE_ARTICLE_STOCK_OPTIONAL.sql est fourni uniquement si vous souhaitez appliquer la migration manuellement.
+
+Déploiement cPanel :
+1. Remplacer les fichiers backend par cette version.
+2. Exécuter npm install si node_modules n'est pas déjà présent sur le serveur.
+3. Redémarrer l'application Node.js depuis cPanel (éviter de lancer une deuxième instance sur le port 5000).
+4. Vérifier le log : [DB] Schéma vérifié.

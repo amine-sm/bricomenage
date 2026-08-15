@@ -96,6 +96,7 @@ async function createOrder(payload) {
              a.image,
              a.purchase_price,
              a.stock_quantity,
+             a.stock_managed,
              a.is_active
            FROM pack_items pi
            INNER JOIN articles a ON a.id=pi.article_id
@@ -111,7 +112,9 @@ async function createOrder(payload) {
             throw new HttpError(409, `L’article ${part.designation} du pack est inactif.`);
           }
           lockedArticles.set(Number(part.article_id), part);
-          addStockNeed(Number(part.article_id), Number(part.quantity) * quantity);
+          if (part.stock_managed === undefined || Number(part.stock_managed) === 1) {
+            addStockNeed(Number(part.article_id), Number(part.quantity) * quantity);
+          }
         }
 
         const unitPrice = money(pack.price);
@@ -122,7 +125,7 @@ async function createOrder(payload) {
 
       if (articleId) {
         const [[article]] = await cn.query(
-          `SELECT a.id,a.designation,a.price,a.purchase_price,a.stock_quantity,a.is_active,
+          `SELECT a.id,a.designation,a.price,a.purchase_price,a.stock_quantity,a.stock_managed,a.is_active,
                   ${promotionPriceSql('a')} AS effective_price
            FROM articles a
            WHERE a.id=?
@@ -135,7 +138,9 @@ async function createOrder(payload) {
         }
 
         lockedArticles.set(Number(article.id), article);
-        addStockNeed(Number(article.id), quantity);
+        if (article.stock_managed === undefined || Number(article.stock_managed) === 1) {
+          addStockNeed(Number(article.id), quantity);
+        }
 
         const unitPrice = money(article.effective_price);
         subtotal = money(subtotal + unitPrice * quantity);
@@ -150,7 +155,7 @@ async function createOrder(payload) {
       let article = lockedArticles.get(articleId);
       if (!article) {
         const [[row]] = await cn.query(
-          `SELECT id,designation,purchase_price,stock_quantity,is_active FROM articles WHERE id=? FOR UPDATE`,
+          `SELECT id,designation,purchase_price,stock_quantity,stock_managed,is_active FROM articles WHERE id=? FOR UPDATE`,
           [articleId],
         );
         article = row;
@@ -202,7 +207,7 @@ async function createOrder(payload) {
         payload.phone,
         payload.wilaya,
         payload.commune,
-        payload.address,
+        payload.address || null,
         payload.note || null,
         subtotal,
         deliveryFee,
@@ -342,7 +347,7 @@ async function createOrder(payload) {
       const [result] = await cn.query(
         `UPDATE articles
          SET stock_quantity = stock_quantity - ?
-         WHERE id = ? AND stock_quantity >= ?`,
+         WHERE id = ? AND stock_managed = 1 AND stock_quantity >= ?`,
         [needed, articleId, needed],
       );
       if (!result.affectedRows) {

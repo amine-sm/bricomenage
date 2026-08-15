@@ -36,16 +36,28 @@ function normalizeArticle(row) {
         ? null
         : numberValue(row.old_price),
     stock_quantity: numberValue(row.stock_quantity),
+    stock_managed:
+      row.stock_managed === undefined
+        ? true
+        : Boolean(Number(row.stock_managed)),
     rating: numberValue(row.rating),
     reviews: numberValue(row.reviews),
     image,
     images: images.length > 0 ? images : image ? [image] : [],
-    inStock: numberValue(row.stock_quantity) > 0,
+    inStock:
+      row.stock_managed !== undefined && Number(row.stock_managed) === 0
+        ? true
+        : numberValue(row.stock_quantity) > 0,
     item_type: "ARTICLE",
   };
 }
 
 function normalizePack(row) {
+  const stockManaged =
+    row.stock_managed === undefined
+      ? true
+      : Boolean(Number(row.stock_managed));
+
   return {
     ...row,
     id: Number(row.id),
@@ -55,9 +67,10 @@ function normalizePack(row) {
         ? null
         : numberValue(row.old_price),
     article_count: numberValue(row.article_count),
-    stock_quantity: numberValue(row.calculated_stock),
-    calculated_stock: numberValue(row.calculated_stock),
-    inStock: numberValue(row.calculated_stock) > 0,
+    stock_quantity: stockManaged ? numberValue(row.calculated_stock) : 0,
+    calculated_stock: stockManaged ? numberValue(row.calculated_stock) : 0,
+    stock_managed: stockManaged,
+    inStock: !stockManaged || numberValue(row.calculated_stock) > 0,
     item_type: "PACK",
   };
 }
@@ -95,11 +108,16 @@ async function listPacks({
         CASE
           WHEN COUNT(pi.article_id) = 0 THEN 0
           WHEN SUM(CASE WHEN a.id IS NULL OR a.is_active = 0 THEN 1 ELSE 0 END) > 0 THEN 0
+          WHEN SUM(CASE WHEN a.stock_managed = 1 THEN 1 ELSE 0 END) = 0 THEN NULL
           ELSE COALESCE(
-            MIN(FLOOR(a.stock_quantity / NULLIF(pi.quantity, 0))),
+            MIN(CASE WHEN a.stock_managed = 1 THEN FLOOR(a.stock_quantity / NULLIF(pi.quantity, 0)) ELSE NULL END),
             0
           )
-        END AS calculated_stock
+        END AS calculated_stock,
+        CASE
+          WHEN SUM(CASE WHEN a.stock_managed = 1 THEN 1 ELSE 0 END) > 0 THEN 1
+          ELSE 0
+        END AS stock_managed
       FROM packs p
       LEFT JOIN pack_items pi
         ON pi.pack_id = p.id
@@ -235,11 +253,16 @@ async function findPackBySlug(slug) {
         CASE
           WHEN COUNT(pi.article_id) = 0 THEN 0
           WHEN SUM(CASE WHEN a.id IS NULL OR a.is_active = 0 THEN 1 ELSE 0 END) > 0 THEN 0
+          WHEN SUM(CASE WHEN a.stock_managed = 1 THEN 1 ELSE 0 END) = 0 THEN NULL
           ELSE COALESCE(
-            MIN(FLOOR(a.stock_quantity / NULLIF(pi.quantity, 0))),
+            MIN(CASE WHEN a.stock_managed = 1 THEN FLOOR(a.stock_quantity / NULLIF(pi.quantity, 0)) ELSE NULL END),
             0
           )
-        END AS calculated_stock
+        END AS calculated_stock,
+        CASE
+          WHEN SUM(CASE WHEN a.stock_managed = 1 THEN 1 ELSE 0 END) > 0 THEN 1
+          ELSE 0
+        END AS stock_managed
       FROM packs p
       LEFT JOIN pack_items pi
         ON pi.pack_id = p.id
@@ -268,6 +291,7 @@ async function findPackBySlug(slug) {
         a.images,
         a.price,
         a.stock_quantity,
+        a.stock_managed,
         pi.quantity,
         (a.price * pi.quantity) AS line_total
       FROM pack_items pi
@@ -311,6 +335,10 @@ async function findPackBySlug(slug) {
             numberValue(
               article.stock_quantity,
             ),
+          stock_managed:
+            article.stock_managed === undefined
+              ? true
+              : Boolean(Number(article.stock_managed)),
           quantity: numberValue(
             article.quantity,
           ),

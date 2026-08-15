@@ -1,0 +1,9 @@
+MODIFICATION STOCK FACULTATIF
+
+- Le champ Stock actuel n'est plus obligatoire dans Admin > Articles.
+- Champ vide = stock non suivi. L'article reste commandable.
+- Champ avec une quantité = stock suivi normalement (rupture et décrément à la commande).
+- Les cartes et la fiche produit respectent ce mode.
+- Le backend utilise articles.stock_managed (0/1).
+- Le backend ajoute automatiquement la colonne au démarrage via ensureSchema.js.
+- Migration manuelle disponible : sql/MAKE_ARTICLE_STOCK_OPTIONAL.sql

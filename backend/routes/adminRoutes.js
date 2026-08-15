@@ -226,6 +226,12 @@ router.patch(
   asyncHandler(controller.updateOrderStatus),
 );
 
+router.delete(
+  "/orders/:id",
+  requirePermission("orders.delete"),
+  asyncHandler(controller.deleteOrder),
+);
+
 router.get(
   "/zr/config",
   requirePermission("orders.view", "orders.zr"),

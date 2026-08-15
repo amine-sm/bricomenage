@@ -122,6 +122,10 @@ function safeArticle(row) {
     stock_quantity: Number(
       row.stock_quantity || 0,
     ),
+    stock_managed:
+      row.stock_managed === undefined
+        ? true
+        : Boolean(Number(row.stock_managed)),
     min_stock: Number(
       row.min_stock || 0,
     ),
@@ -696,21 +700,21 @@ async function listArticles(
 
   if (stock === "available") {
     where.push(
-      "a.stock_quantity > a.min_stock",
+      "(a.stock_managed = 0 OR a.stock_quantity > a.min_stock)",
     );
   }
 
   if (stock === "low") {
     where.push(`
-      a.stock_quantity > 0
-      AND
-      a.stock_quantity <= a.min_stock
+      a.stock_managed = 1
+      AND a.stock_quantity > 0
+      AND a.stock_quantity <= a.min_stock
     `);
   }
 
   if (stock === "out") {
     where.push(
-      "a.stock_quantity <= 0",
+      "a.stock_managed = 1 AND a.stock_quantity <= 0",
     );
   }
 
@@ -836,6 +840,18 @@ async function createArticle(
     images[0] ||
     null;
 
+  const stockManaged =
+    clean(req.body.stock_quantity) !== ""
+      ? 1
+      : 0;
+
+  const stockQuantity = stockManaged
+    ? Math.max(
+        0,
+        Math.trunc(number(req.body.stock_quantity)),
+      )
+    : 0;
+
   const [result] =
     await pool.query(
       `
@@ -851,6 +867,7 @@ async function createArticle(
           old_price,
           purchase_price,
           stock_quantity,
+          stock_managed,
           min_stock,
           image,
           images,
@@ -861,7 +878,7 @@ async function createArticle(
         VALUES (
           ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?
+          ?, ?, ?, ?
         )
       `,
       [
@@ -890,14 +907,8 @@ async function createArticle(
         nullableNumber(
           req.body.purchase_price,
         ),
-        Math.max(
-          0,
-          Math.trunc(
-            number(
-              req.body.stock_quantity,
-            ),
-          ),
-        ),
+        stockQuantity,
+        stockManaged,
         Math.max(
           0,
           Math.trunc(
@@ -1090,6 +1101,23 @@ async function updateArticle(
     );
   }
 
+  const stockFieldProvided =
+    req.body.stock_quantity !== undefined;
+
+  const stockManaged = stockFieldProvided
+    ? clean(req.body.stock_quantity) !== ""
+      ? 1
+      : 0
+    : existing.stock_managed
+      ? 1
+      : 0;
+
+  const stockQuantity = stockFieldProvided
+    ? stockManaged
+      ? Math.max(0, Math.trunc(number(req.body.stock_quantity)))
+      : 0
+    : existing.stock_quantity;
+
   await pool.query(
     `
       UPDATE articles
@@ -1105,6 +1133,7 @@ async function updateArticle(
         old_price = ?,
         purchase_price = ?,
         stock_quantity = ?,
+        stock_managed = ?,
         min_stock = ?,
         image = ?,
         images = ?,
@@ -1157,17 +1186,8 @@ async function updateArticle(
             req.body.purchase_price,
           )
         : existing.purchase_price,
-      req.body.stock_quantity !==
-      undefined
-        ? Math.max(
-            0,
-            Math.trunc(
-              number(
-                req.body.stock_quantity,
-              ),
-            ),
-          )
-        : existing.stock_quantity,
+      stockQuantity,
+      stockManaged,
       req.body.min_stock !==
       undefined
         ? Math.max(
@@ -1768,6 +1788,241 @@ async function getOrder(
   });
 }
 
+
+async function deleteOrder(
+  req,
+  res,
+) {
+  const orderId = Number(req.params.id);
+
+  if (!Number.isInteger(orderId) || orderId <= 0) {
+    throw new HttpError(
+      400,
+      "Identifiant de commande invalide.",
+    );
+  }
+
+  const [[existingOrder]] =
+    await pool.query(
+      `
+        SELECT
+          id,
+          tracking_number,
+          stock_deducted,
+          zr_tracking_number,
+          zr_parcel_id
+        FROM orders
+        WHERE id = ?
+        LIMIT 1
+      `,
+      [orderId],
+    );
+
+  if (!existingOrder) {
+    throw new HttpError(
+      404,
+      "Commande introuvable.",
+    );
+  }
+
+  /*
+   * Si un colis ZR existe déjà, on l'annule avant de supprimer
+   * la commande locale afin d'éviter de laisser un colis actif
+   * chez le transporteur sans commande correspondante dans BricoMénage.
+   */
+  if (
+    (existingOrder.zr_tracking_number ||
+      existingOrder.zr_parcel_id) &&
+    zrExpressService.configured()
+  ) {
+    try {
+      await zrExpressService.cancelParcelForOrder(
+        orderId,
+      );
+    } catch (error) {
+      throw new HttpError(
+        502,
+        `Impossible de supprimer la commande car le colis ZR Express n'a pas pu être annulé : ${error.message}`,
+      );
+    }
+  }
+
+  const connection =
+    await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[order]] =
+      await connection.query(
+        `
+          SELECT id, stock_deducted
+          FROM orders
+          WHERE id = ?
+          FOR UPDATE
+        `,
+        [orderId],
+      );
+
+    if (!order) {
+      throw new HttpError(
+        404,
+        "Commande introuvable.",
+      );
+    }
+
+    /*
+     * Une commande déduit le stock dès sa création.
+     * Lors d'une suppression définitive, on remet donc le stock
+     * uniquement s'il n'a pas déjà été restauré par une annulation.
+     */
+    if (Number(order.stock_deducted) === 1) {
+      const [items] =
+        await connection.query(
+          `
+            SELECT
+              id,
+              article_id,
+              pack_id,
+              item_type,
+              quantity
+            FROM order_items
+            WHERE order_id = ?
+            FOR UPDATE
+          `,
+          [orderId],
+        );
+
+      const stockNeeds = new Map();
+
+      const addNeed = (
+        articleId,
+        quantity,
+      ) => {
+        const id = Number(articleId);
+        const qty = Number(quantity);
+
+        if (!id || !qty) {
+          return;
+        }
+
+        stockNeeds.set(
+          id,
+          (stockNeeds.get(id) || 0) + qty,
+        );
+      };
+
+      for (const item of items) {
+        if (
+          String(item.item_type).toUpperCase() ===
+          "PACK"
+        ) {
+          const [snapshotParts] =
+            await connection.query(
+              `
+                SELECT article_id, total_quantity
+                FROM order_pack_components
+                WHERE order_item_id = ?
+              `,
+              [item.id],
+            );
+
+          if (snapshotParts.length > 0) {
+            for (const part of snapshotParts) {
+              addNeed(
+                part.article_id,
+                part.total_quantity,
+              );
+            }
+          } else if (item.pack_id) {
+            /* Compatibilité avec les anciennes commandes. */
+            const [parts] =
+              await connection.query(
+                `
+                  SELECT article_id, quantity
+                  FROM pack_items
+                  WHERE pack_id = ?
+                `,
+                [item.pack_id],
+              );
+
+            for (const part of parts) {
+              addNeed(
+                part.article_id,
+                Number(part.quantity) *
+                  Number(item.quantity || 1),
+              );
+            }
+          }
+        } else if (item.article_id) {
+          addNeed(
+            item.article_id,
+            item.quantity,
+          );
+        }
+      }
+
+      for (const [articleId, qty] of
+        stockNeeds.entries()) {
+        await connection.query(
+          `
+            UPDATE articles
+            SET stock_quantity = stock_quantity + ?
+            WHERE id = ? AND stock_managed = 1
+          `,
+          [qty, articleId],
+        );
+      }
+    }
+
+    /*
+     * order_items et order_history sont liés à orders avec
+     * ON DELETE CASCADE. order_pack_components est lui-même lié
+     * à order_items avec ON DELETE CASCADE.
+     */
+    const [result] =
+      await connection.query(
+        `DELETE FROM orders WHERE id = ?`,
+        [orderId],
+      );
+
+    if (!result.affectedRows) {
+      throw new HttpError(
+        404,
+        "Commande introuvable.",
+      );
+    }
+
+    await connection.commit();
+
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to("admins").emit(
+        "order:deleted",
+        {
+          id: orderId,
+          tracking_number:
+            existingOrder.tracking_number,
+          deleted_at:
+            new Date().toISOString(),
+        },
+      );
+    }
+
+    return res.json({
+      success: true,
+      message:
+        "Commande supprimée avec succès.",
+    });
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function updateOrderStatus(
   req,
   res,
@@ -1879,7 +2134,7 @@ async function updateOrderStatus(
     if (status === "ANNULEE" && Number(order.stock_deducted) === 1) {
       for (const [articleId, qty] of stockNeeds.entries()) {
         await connection.query(
-          `UPDATE articles SET stock_quantity = stock_quantity + ? WHERE id = ?`,
+          `UPDATE articles SET stock_quantity = stock_quantity + ? WHERE id = ? AND stock_managed = 1`,
           [qty, articleId],
         );
       }
@@ -1888,22 +2143,35 @@ async function updateOrderStatus(
 
     // Réactivation d'une commande annulée : vérifier puis redéduire le stock.
     if (status !== "ANNULEE" && Number(order.stock_deducted) === 0) {
+      const managedStockIds = new Set();
+
       for (const [articleId, qty] of stockNeeds.entries()) {
         const [[article]] = await connection.query(
-          `SELECT id,designation,stock_quantity,is_active FROM articles WHERE id=? FOR UPDATE`,
+          `SELECT id,designation,stock_quantity,stock_managed,is_active FROM articles WHERE id=? FOR UPDATE`,
           [articleId],
         );
         if (!article || !Number(article.is_active)) {
           throw new HttpError(409, "Un article de cette commande n’est plus disponible.");
         }
+
+        if (Number(article.stock_managed) === 0) {
+          continue;
+        }
+
+        managedStockIds.add(Number(articleId));
+
         if (Number(article.stock_quantity) < qty) {
           throw new HttpError(409, `Stock insuffisant pour ${article.designation}.`);
         }
       }
 
       for (const [articleId, qty] of stockNeeds.entries()) {
+        if (!managedStockIds.has(Number(articleId))) {
+          continue;
+        }
+
         const [result] = await connection.query(
-          `UPDATE articles SET stock_quantity=stock_quantity-? WHERE id=? AND stock_quantity>=?`,
+          `UPDATE articles SET stock_quantity=stock_quantity-? WHERE id=? AND stock_managed=1 AND stock_quantity>=?`,
           [qty, articleId, qty],
         );
         if (!result.affectedRows) {
@@ -2140,8 +2408,19 @@ async function updateArticleStock(req, res) {
     throw new HttpError(404, "Article introuvable.");
   }
 
-  const stockQuantity = req.body.stock_quantity !== undefined
-    ? Math.max(0, Math.trunc(number(req.body.stock_quantity)))
+  const stockFieldProvided = req.body.stock_quantity !== undefined;
+  const stockManaged = stockFieldProvided
+    ? clean(req.body.stock_quantity) !== ""
+      ? 1
+      : 0
+    : existing.stock_managed
+      ? 1
+      : 0;
+
+  const stockQuantity = stockFieldProvided
+    ? stockManaged
+      ? Math.max(0, Math.trunc(number(req.body.stock_quantity)))
+      : 0
     : existing.stock_quantity;
 
   const minStock = req.body.min_stock !== undefined
@@ -2155,10 +2434,10 @@ async function updateArticleStock(req, res) {
   await pool.query(
     `
       UPDATE articles
-      SET purchase_price = ?, stock_quantity = ?, min_stock = ?
+      SET purchase_price = ?, stock_quantity = ?, stock_managed = ?, min_stock = ?
       WHERE id = ?
     `,
-    [purchasePrice, stockQuantity, minStock, id],
+    [purchasePrice, stockQuantity, stockManaged, minStock, id],
   );
 
   const article = await getArticleRow(id);
@@ -2190,6 +2469,7 @@ module.exports = {
   listOrders,
   getOrder,
   updateOrderStatus,
+  deleteOrder,
   listPromotions,
   createPromotion,
   listPacks,

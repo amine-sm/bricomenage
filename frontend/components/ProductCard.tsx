@@ -28,6 +28,7 @@ export interface Product {
   image?: string;
   images?: string[];
   stock_quantity?: number;
+  stock_managed?: boolean;
   rating?: number;
   reviews?: number;
   inStock?: boolean;
@@ -64,12 +65,17 @@ export default function ProductCard({
     p.stock_quantity ?? 0,
   );
 
+  const stockManaged =
+    p.stock_managed !== false;
+
   const inStock =
     p.inStock !== undefined
       ? p.inStock
-      : p.stock_quantity !== undefined
-        ? stockQuantity > 0
-        : true;
+      : !stockManaged
+        ? true
+        : p.stock_quantity !== undefined
+          ? stockQuantity > 0
+          : true;
 
 
   const promotion =
@@ -296,12 +302,18 @@ export default function ProductCard({
             }
           >
             <span className="sm:hidden">
-              {inStock ? "En stock" : "Indisponible"}
+              {!stockManaged
+                ? "Disponible"
+                : inStock
+                  ? "En stock"
+                  : "Indisponible"}
             </span>
             <span className="hidden sm:inline">
-              {inStock
-                ? "Disponible en stock"
-                : "Indisponible"}
+              {!stockManaged
+                ? "Disponible"
+                : inStock
+                  ? "Disponible en stock"
+                  : "Indisponible"}
             </span>
           </span>
         </div>

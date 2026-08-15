@@ -93,7 +93,8 @@ export default function DynamicProductSeo({ product }: { product: Product }) {
       priceCurrency: "DZD",
       price: Number(product.price).toFixed(2),
       availability:
-        product.inStock === false || Number(product.stock_quantity ?? 1) <= 0
+        product.inStock === false ||
+        (product.stock_managed !== false && Number(product.stock_quantity ?? 1) <= 0)
           ? "https://schema.org/OutOfStock"
           : "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",

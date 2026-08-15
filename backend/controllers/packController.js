@@ -77,7 +77,18 @@ const CALCULATED_STOCK_SQL = `
   CASE
     WHEN COUNT(pi.article_id) = 0 THEN 0
     WHEN SUM(CASE WHEN a.id IS NULL OR a.is_active = 0 THEN 1 ELSE 0 END) > 0 THEN 0
-    ELSE COALESCE(MIN(FLOOR(a.stock_quantity / NULLIF(pi.quantity, 0))), 0)
+    WHEN SUM(CASE WHEN a.stock_managed = 1 THEN 1 ELSE 0 END) = 0 THEN NULL
+    ELSE COALESCE(
+      MIN(CASE WHEN a.stock_managed = 1 THEN FLOOR(a.stock_quantity / NULLIF(pi.quantity, 0)) ELSE NULL END),
+      0
+    )
+  END
+`;
+
+const STOCK_MANAGED_SQL = `
+  CASE
+    WHEN SUM(CASE WHEN a.stock_managed = 1 THEN 1 ELSE 0 END) > 0 THEN 1
+    ELSE 0
   END
 `;
 
@@ -85,7 +96,8 @@ async function listPacks(req, res) {
   const [rows] = await pool.query(`
     SELECT p.*,
       COUNT(pi.article_id) AS article_count,
-      ${CALCULATED_STOCK_SQL} AS calculated_stock
+      ${CALCULATED_STOCK_SQL} AS calculated_stock,
+      ${STOCK_MANAGED_SQL} AS stock_managed
     FROM packs p
     LEFT JOIN pack_items pi ON pi.pack_id = p.id
     LEFT JOIN articles a ON a.id = pi.article_id
@@ -101,13 +113,15 @@ async function listPacks(req, res) {
       article_count: Number(row.article_count || 0),
       calculated_stock: Number(row.calculated_stock || 0),
       stock_quantity: Number(row.calculated_stock || 0),
+      stock_managed: Boolean(Number(row.stock_managed)),
+      inStock: !Boolean(Number(row.stock_managed)) || Number(row.calculated_stock || 0) > 0,
     })),
   });
 }
 
 async function getPack(req, res) {
   const [[pack]] = await pool.query(
-    `SELECT p.*, ${CALCULATED_STOCK_SQL} AS calculated_stock
+    `SELECT p.*, ${CALCULATED_STOCK_SQL} AS calculated_stock, ${STOCK_MANAGED_SQL} AS stock_managed
      FROM packs p
      LEFT JOIN pack_items pi ON pi.pack_id=p.id
      LEFT JOIN articles a ON a.id=pi.article_id
@@ -118,7 +132,7 @@ async function getPack(req, res) {
   if (!pack) throw new HttpError(404, 'Pack introuvable.');
 
   const [articles] = await pool.query(
-    `SELECT a.id,a.designation,a.reference,a.image,a.images,a.price,a.stock_quantity,a.is_active,
+    `SELECT a.id,a.designation,a.reference,a.image,a.images,a.price,a.stock_quantity,a.stock_managed,a.is_active,
       pi.quantity,(a.price*pi.quantity) AS line_total
      FROM pack_items pi
      JOIN articles a ON a.id=pi.article_id
@@ -134,12 +148,16 @@ async function getPack(req, res) {
       is_active: Boolean(Number(pack.is_active)),
       calculated_stock: Number(pack.calculated_stock || 0),
       stock_quantity: Number(pack.calculated_stock || 0),
+      stock_managed: Boolean(Number(pack.stock_managed)),
+      inStock: !Boolean(Number(pack.stock_managed)) || Number(pack.calculated_stock || 0) > 0,
       articles: articles.map((a) => ({ ...a, is_active: Boolean(Number(a.is_active)) })),
     },
     ...pack,
     is_active: Boolean(Number(pack.is_active)),
     calculated_stock: Number(pack.calculated_stock || 0),
     stock_quantity: Number(pack.calculated_stock || 0),
+    stock_managed: Boolean(Number(pack.stock_managed)),
+    inStock: !Boolean(Number(pack.stock_managed)) || Number(pack.calculated_stock || 0) > 0,
     articles: articles.map((a) => ({ ...a, is_active: Boolean(Number(a.is_active)) })),
   });
 }

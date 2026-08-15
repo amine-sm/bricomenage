@@ -490,7 +490,9 @@ function PackPageContent() {
               }`}
             >
               {pack.inStock
-                ? `${pack.stock_quantity} pack(s) disponible(s)`
+                ? pack.stock_managed === false
+                  ? "Pack disponible — stock non suivi"
+                  : `${pack.stock_quantity} pack(s) disponible(s)`
                 : "Pack indisponible"}
             </p>
 

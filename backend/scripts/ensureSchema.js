@@ -185,6 +185,20 @@ async function ensureSchema() {
   await ensurePromotionSlugs();
 
   /*
+   * Stock facultatif : les anciennes lignes restent suivies (1),
+   * mais un nouvel article peut être créé sans quantité de stock.
+   */
+  await ensureColumn(
+    "articles",
+    "stock_managed",
+    `
+      ALTER TABLE articles
+      ADD COLUMN stock_managed TINYINT(1) NOT NULL DEFAULT 1
+      AFTER stock_quantity
+    `,
+  );
+
+  /*
    * Coût d'achat figé au moment de la vente.
    * Cela évite de modifier l'historique des bénéfices
    * si le prix d'achat d'un article change plus tard.
@@ -270,6 +284,34 @@ async function ensureSchema() {
   );
 
   await ensurePackSnapshotTable();
+
+  /*
+   * L’adresse de livraison est facultative.
+   * Cette migration corrige aussi les bases déjà installées
+   * où orders.address était encore défini en NOT NULL.
+   */
+  const [addressColumnRows] = await pool.query(
+    `
+      SELECT IS_NULLABLE
+      FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'orders'
+        AND COLUMN_NAME = 'address'
+      LIMIT 1
+    `,
+  );
+
+  if (
+    addressColumnRows.length > 0 &&
+    String(addressColumnRows[0].IS_NULLABLE).toUpperCase() !== 'YES'
+  ) {
+    await pool.query(
+      `ALTER TABLE orders MODIFY COLUMN address TEXT NULL`,
+    );
+    console.log(
+      '[DB] Colonne orders.address rendue facultative.',
+    );
+  }
 
   /* ZR Express : destination, prix et suivi logistique. */
   const zrColumns = [

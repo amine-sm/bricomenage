@@ -32,6 +32,7 @@ type Article = {
   reference?: string;
   category?: string;
   stock_quantity: number;
+  stock_managed?: boolean;
   min_stock: number;
   category_id: number;
   price: number;

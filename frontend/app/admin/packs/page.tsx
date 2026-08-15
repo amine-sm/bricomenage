@@ -42,6 +42,7 @@ type Article = {
   image?: string;
   price: number;
   stock_quantity: number;
+  stock_managed?: boolean;
   category?: string;
 };
 
@@ -1332,7 +1333,11 @@ export default function PacksPage() {
                               <input
                                 type="number"
                                 min="1"
-                                max={Math.max(1, Number(article.stock_quantity))}
+                                max={
+                                  article.stock_managed === false
+                                    ? undefined
+                                    : Math.max(1, Number(article.stock_quantity))
+                                }
                                 value={selectedItem?.quantity || 1}
                                 onChange={(event) =>
                                   changeItemQuantity(
@@ -1348,7 +1353,9 @@ export default function PacksPage() {
                         </div>
 
                         <span className="mt-2 block text-[10px] font-bold text-zinc-400">
-                          Stock disponible : {article.stock_quantity}
+                          {article.stock_managed === false
+                            ? "Stock non suivi"
+                            : `Stock disponible : ${article.stock_quantity}`}
                         </span>
                       </div>
                     );

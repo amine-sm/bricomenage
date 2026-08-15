@@ -606,7 +606,7 @@ async function getDashboardStats(filters = {}) {
     getSingleValue(`
       SELECT COUNT(*) AS total
       FROM articles
-      WHERE stock_quantity <= min_stock
+      WHERE stock_managed = 1 AND stock_quantity <= min_stock
     `),
 
     getSingleValue(

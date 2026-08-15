@@ -23,6 +23,7 @@ export type CatalogArticle = {
   image?: string | null;
   images?: string[];
   stock_quantity?: number;
+  stock_managed?: boolean;
   rating?: number;
   reviews?: number;
   reference?: string | null;
@@ -45,6 +46,7 @@ export type CatalogPack = {
   image?: string | null;
   article_count: number;
   stock_quantity: number;
+  stock_managed?: boolean;
   calculated_stock: number;
   inStock: boolean;
   item_type: "PACK";
