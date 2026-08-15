@@ -31,8 +31,10 @@ import {
 import { apiFetch } from "@/lib/api";
 
 import {
+  clearDirectCheckout,
   type CartItem,
   getCart,
+  getDirectCheckout,
   saveCart,
 } from "@/lib/cart";
 
@@ -57,6 +59,12 @@ export default function Checkout() {
 
   const [loaded, setLoaded] =
     useState(false);
+
+  const [directMode, setDirectMode] =
+    useState(false);
+
+  const [returnHref, setReturnHref] =
+    useState("/panier");
 
   const [error, setError] =
     useState("");
@@ -101,7 +109,29 @@ export default function Checkout() {
 
   useEffect(() => {
     try {
+      const directRequested =
+        new URLSearchParams(
+          window.location.search,
+        ).get("direct") === "1";
+
+      if (directRequested) {
+        const direct =
+          getDirectCheckout();
+
+        if (direct?.items.length) {
+          setItems(direct.items);
+          setDirectMode(true);
+          setReturnHref(
+            direct.returnHref ||
+              "/articles",
+          );
+          return;
+        }
+      }
+
       setItems(getCart());
+      setDirectMode(false);
+      setReturnHref("/panier");
     } catch {
       setItems([]);
     } finally {
@@ -480,13 +510,17 @@ export default function Checkout() {
           }),
         });
 
-      saveCart([]);
+      if (directMode) {
+        clearDirectCheckout();
+      } else {
+        saveCart([]);
 
-      window.dispatchEvent(
-        new Event(
-          "cart-change",
-        ),
-      );
+        window.dispatchEvent(
+          new Event(
+            "cart-change",
+          ),
+        );
+      }
 
       router.push(
         `/confirmation/?tracking=${encodeURIComponent(
@@ -510,7 +544,7 @@ export default function Checkout() {
 
   return (
     <main
-      className="min-h-screen overflow-x-hidden bg-[#f7f7f8]"
+      className="min-h-screen overflow-x-hidden bg-[#f7f7f8] pb-24 lg:pb-0"
       dir="ltr"
     >
       {/* HEADER */}
@@ -523,19 +557,21 @@ export default function Checkout() {
           <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.022)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.022)_1px,transparent_1px)] bg-[size:55px_55px]" />
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        <div className="relative mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
           <Link
-            href="/panier"
+            href={returnHref}
             className="group inline-flex max-w-full items-center gap-2 rounded-full border border-zinc-200 bg-white/90 px-3.5 py-2 text-xs font-bold text-zinc-600 shadow-sm backdrop-blur transition-all hover:-translate-y-0.5 hover:border-orange-200 hover:text-orange-500 hover:shadow-md sm:px-4 sm:text-sm"
           >
             <ArrowLeft className="h-4 w-4 shrink-0 transition-transform duration-300 group-hover:-translate-x-1" />
 
             <span className="truncate">
-              Retour au panier / العودة إلى السلة
+              {directMode
+                ? "Retour à l’article / العودة إلى المنتج"
+                : "Retour au panier / العودة إلى السلة"}
             </span>
           </Link>
 
-          <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="mt-4 grid gap-5 sm:mt-5 lg:mt-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="min-w-0 max-w-2xl">
               <span className="inline-flex max-w-full items-center gap-2 rounded-full border border-orange-200 bg-gradient-to-r from-orange-50 to-white px-3 py-2 text-[10px] font-black uppercase tracking-[0.12em] text-orange-600 shadow-sm sm:px-4 sm:text-xs sm:tracking-[0.16em]">
                 <ClipboardList className="h-4 w-4 shrink-0" />
@@ -545,7 +581,7 @@ export default function Checkout() {
                 </span>
               </span>
 
-              <h1 className="mt-4 text-[34px] font-black leading-[1.05] tracking-[-0.035em] text-zinc-950 min-[420px]:text-[38px] sm:text-5xl lg:text-[58px]">
+              <h1 className="mt-3 text-[29px] font-black leading-[1.06] tracking-[-0.035em] text-zinc-950 min-[390px]:text-[32px] sm:mt-4 sm:text-5xl lg:text-[58px]">
                 Finaliser votre / إتمام
 
                 <span className="block text-orange-500">
@@ -553,7 +589,7 @@ export default function Checkout() {
                 </span>
               </h1>
 
-              <p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-600 sm:text-base sm:leading-7">
+              <p className="mt-3 max-w-2xl text-[13px] leading-5 text-zinc-600 sm:mt-4 sm:text-base sm:leading-7">
                 Renseignez vos informations de
                 livraison puis confirmez votre
                 commande. / أدخل معلومات التوصيل ثم
@@ -562,7 +598,7 @@ export default function Checkout() {
               </p>
             </div>
 
-            <div className="grid w-full grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3 lg:w-auto lg:min-w-[450px]">
+            <div className="grid w-full grid-cols-3 gap-2 sm:gap-3 lg:w-auto lg:min-w-[450px]">
               <CheckoutStat
                 value={items.length}
                 label="Produits / المنتجات"
@@ -580,7 +616,7 @@ export default function Checkout() {
                   grandTotal,
                 )} DA`}
                 label="Total / المجموع"
-                className="col-span-2 sm:col-span-1"
+                className="col-span-1"
               />
             </div>
           </div>
@@ -589,8 +625,8 @@ export default function Checkout() {
 
       {/* STEPS */}
       <section className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto max-w-5xl overflow-x-auto px-4 py-4 sm:px-6 sm:py-5 lg:px-8">
-          <div className="grid min-w-[500px] grid-cols-3 items-center gap-2 sm:min-w-0 sm:gap-3">
+        <div className="mx-auto max-w-5xl px-3 py-3 sm:px-6 sm:py-5 lg:px-8">
+          <div className="grid grid-cols-3 items-center gap-1.5 sm:gap-3">
             <CheckoutStep
               number="1"
               title="Informations"
@@ -614,9 +650,9 @@ export default function Checkout() {
       </section>
 
       {/* CONTENT */}
-      <section className="mx-auto grid max-w-7xl items-start gap-5 px-3 py-5 min-[400px]:px-4 sm:gap-7 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:px-8 lg:py-10 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <section className="mx-auto grid max-w-7xl items-start gap-4 px-3 py-4 min-[400px]:px-4 sm:gap-7 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:px-8 lg:py-10 xl:grid-cols-[minmax(0,1fr)_420px]">
         {/* FORM */}
-        <div className="min-w-0 overflow-hidden rounded-[22px] border border-zinc-200 bg-white shadow-[0_14px_45px_rgba(24,24,27,0.07)] sm:rounded-[30px] sm:shadow-[0_18px_55px_rgba(24,24,27,0.08)]">
+        <div className="min-w-0 overflow-hidden rounded-[24px] border border-zinc-200/90 bg-white shadow-[0_12px_34px_rgba(24,24,27,0.07)] sm:rounded-[30px] sm:shadow-[0_18px_55px_rgba(24,24,27,0.08)]">
           <div className="border-b border-zinc-100 bg-white px-4 py-5 sm:px-7 sm:py-6 lg:px-8">
             <div className="flex items-start gap-3 sm:gap-4">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500 text-white shadow-[0_10px_26px_rgba(249,115,22,0.28)] sm:h-12 sm:w-12 sm:rounded-2xl">
@@ -890,6 +926,10 @@ export default function Checkout() {
                 className="mb-2 block text-sm font-black text-zinc-800"
               >
                 Adresse complète / العنوان الكامل
+
+                <span className="ml-2 font-normal text-zinc-400">
+                  facultatif / اختياري
+                </span>
               </label>
 
               <div className="relative">
@@ -898,9 +938,8 @@ export default function Checkout() {
                 <textarea
                   id="address"
                   name="address"
-                  required
                   rows={4}
-                  placeholder="Quartier, rue, numéro, point de repère... / الحي، الشارع، الرقم، معلم قريب..."
+                  placeholder="Facultatif : quartier, rue, numéro, point de repère... / اختياري: الحي، الشارع، الرقم، معلم قريب..."
                   className="w-full resize-none rounded-xl border border-zinc-200 bg-white py-4 pl-12 pr-4 text-[13px] font-medium text-zinc-900 outline-none transition-all placeholder:text-[12px] placeholder:text-zinc-400 hover:border-zinc-300 focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10 sm:rounded-2xl sm:text-sm sm:placeholder:text-sm"
                 />
               </div>
@@ -1077,7 +1116,7 @@ export default function Checkout() {
                   loading ||
                   !items.length
                 }
-                className="group mt-6 flex min-h-[58px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-center text-xs font-black leading-5 text-white shadow-[0_14px_30px_rgba(249,115,22,0.30)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(249,115,22,0.36)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 sm:px-6 sm:text-sm"
+                className="group mt-6 hidden min-h-[58px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-3 text-center text-xs font-black leading-5 text-white shadow-[0_14px_30px_rgba(249,115,22,0.30)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(249,115,22,0.36)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 sm:px-6 sm:text-sm lg:flex"
               >
                 {loading ? (
                   <>
@@ -1101,15 +1140,49 @@ export default function Checkout() {
               </button>
 
               <Link
-                href="/panier"
+                href={returnHref}
                 className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 text-center text-xs font-bold text-zinc-700 transition-all hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 sm:px-5 sm:text-sm"
               >
-                Modifier le panier / تعديل السلة
+                {directMode
+                  ? "Retour à l’article / العودة إلى المنتج"
+                  : "Modifier le panier / تعديل السلة"}
               </Link>
             </div>
           </div>
         </aside>
       </section>
+
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-200 bg-white/95 px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-12px_38px_rgba(24,24,27,0.12)] backdrop-blur-xl lg:hidden">
+        <div className="mx-auto flex max-w-2xl items-center gap-3">
+          <div className="min-w-0 shrink-0">
+            <span className="block text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+              Total / المجموع
+            </span>
+            <strong className="mt-0.5 block whitespace-nowrap text-lg font-black text-zinc-950">
+              {formatPrice(grandTotal)}
+              <span className="ml-1 text-xs text-orange-500">DA</span>
+            </strong>
+          </div>
+
+          <button
+            type="submit"
+            form="checkout-form"
+            disabled={loading || !items.length}
+            className="flex min-h-[52px] min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 text-xs font-black text-white shadow-[0_10px_24px_rgba(249,115,22,0.30)] transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? (
+              <LoaderCircle className="h-5 w-5 animate-spin" />
+            ) : (
+              <ShieldCheck className="h-5 w-5" />
+            )}
+            <span className="truncate">
+              {loading
+                ? "Enregistrement..."
+                : "Confirmer / تأكيد الطلب"}
+            </span>
+          </button>
+        </div>
+      </div>
     </main>
   );
 }

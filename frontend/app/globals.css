@@ -22,3 +22,133 @@ a {
   color: #ffffff;
   background: #f97316;
 }
+/* =========================================================
+   MOBILE PERFORMANCE & RESPONSIVE MODALS
+   ========================================================= */
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  body {
+    overscroll-behavior-x: none;
+  }
+
+  /* Les flous GPU sont chers sur téléphone. */
+  [class*="backdrop-blur"] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .mobile-performance-root [style*="filter: blur"] {
+    filter: none !important;
+  }
+
+  /* Les gros halos floutés sont uniquement décoratifs et coûteux pour le GPU mobile. */
+  .mobile-performance-root .absolute.blur-3xl,
+  .mobile-performance-root .absolute.blur-2xl,
+  .mobile-performance-root .absolute.blur-xl {
+    display: none !important;
+  }
+
+  /* Le navigateur peut différer le layout/paint des sections très loin sous l'écran. */
+  .mobile-performance-root main > section:nth-of-type(n + 3) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 720px;
+  }
+
+  /* Les transitions tactiles doivent répondre immédiatement. */
+  .mobile-performance-root [class*="transition"] {
+    transition-duration: 120ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .mobile-performance-root [class*="hover:shadow"],
+  .mobile-performance-root [class*="hover:-translate"],
+  .mobile-performance-root [class*="hover:scale"] {
+    transition-duration: 100ms !important;
+  }
+
+  /* Dialogs : dimensions basées sur la vraie hauteur du téléphone. */
+  .fixed.inset-0 [role="dialog"],
+  .fixed.inset-0 > form {
+    width: 100% !important;
+    max-height: 100dvh !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .fixed.inset-0 [role="dialog"] input,
+  .fixed.inset-0 [role="dialog"] select,
+  .fixed.inset-0 [role="dialog"] textarea,
+  .fixed.inset-0 > form input,
+  .fixed.inset-0 > form select,
+  .fixed.inset-0 > form textarea {
+    font-size: 16px;
+  }
+
+  .fixed.inset-0 [role="dialog"],
+  .fixed.inset-0 > form {
+    box-shadow: 0 10px 32px rgba(24, 24, 27, 0.18) !important;
+  }
+
+  /* Scroll interne fluide pour menus, modals et listes longues. */
+  .fixed.inset-0,
+  [role="dialog"] {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 639px) {
+  /*
+   * Sur téléphone les grandes modals deviennent de vraies vues plein écran.
+   * Cela évite le contenu coupé en haut/bas et la double barre de scroll.
+   */
+  .mobile-performance-root .fixed.inset-0:has(> [role="dialog"]),
+  .mobile-performance-root .fixed.inset-0:has(> form) {
+    align-items: stretch !important;
+    padding: 0 !important;
+  }
+
+  .mobile-performance-root .fixed.inset-0 > [role="dialog"],
+  .mobile-performance-root .fixed.inset-0 > form {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Anciennes modals sans role=dialog utilisées dans l'admin. */
+  .mobile-performance-root .fixed.inset-0.overflow-y-auto {
+    padding: 0 !important;
+  }
+
+  .mobile-performance-root .fixed.inset-0.overflow-y-auto > div:first-of-type {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    border-radius: 0 !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

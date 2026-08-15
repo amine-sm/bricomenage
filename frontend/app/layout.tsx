@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import SiteChrome from "@/components/SiteChrome";
+import MobilePerformance from "@/components/MobilePerformance";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -76,9 +77,9 @@ export const metadata: Metadata = {
   },
 
   icons: {
-    icon: "/images/logo-bricomenage.jpeg",
-    shortcut: "/images/logo-bricomenage.jpeg",
-    apple: "/images/logo-bricomenage.jpeg",
+    icon: "/images/favicon-64.png",
+    shortcut: "/images/favicon-64.png",
+    apple: "/images/apple-touch-icon.png",
   },
 
   category: "shopping",
@@ -168,7 +169,9 @@ export default function RootLayout({
           }}
         />
 
-        <SiteChrome>{children}</SiteChrome>
+        <MobilePerformance>
+          <SiteChrome>{children}</SiteChrome>
+        </MobilePerformance>
       </body>
     </html>
   );

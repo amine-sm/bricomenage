@@ -99,7 +99,7 @@ export default function Login() {
             {/* Logo */}
             <div className="mx-auto flex h-[105px] w-[180px] items-center justify-center">
               <Image
-                src="/images/logo-bricomenage.jpeg"
+                src="/images/logo-bricomenage-320.webp"
                 alt="BricoMénage"
                 width={180}
                 height={105}

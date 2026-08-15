@@ -1,0 +1,20 @@
+BRICOMENAGE - OPTIMISATION MOBILE
+
+Ameliorations appliquees :
+- Animations Framer Motion reduites automatiquement sur mobile/tactile.
+- Duree par defaut des animations mobile raccourcie.
+- Suppression des backdrop-blur couteux sur mobile.
+- Suppression des blur animes inline sur mobile.
+- Modals/dialogs adaptes a 100dvh, scroll tactile et format bottom-sheet sur petit ecran.
+- Inputs de modal a 16px sur mobile pour eviter le zoom automatique au focus.
+- Images hero converties en WebP desktop + versions mobiles legeres.
+- Prechargement du hero differe et adapte a la taille d'ecran.
+- Images produits chargees en lazy + decoding async.
+- Logo interface reduit en WebP, favicon et apple-touch-icon optimises.
+- Scroll horizontal parasite bloque et interactions tactiles ameliorees.
+
+Verification effectuee :
+- 56 fichiers TypeScript/TSX analyses syntaxiquement : 0 erreur.
+- CSS : accolades equilibrees.
+
+Note : le build npm complet n'a pas pu etre execute dans l'environnement de travail car le registre npm n'etait pas joignable (EAI_AGAIN). Les modifications TypeScript/TSX ont toutefois ete parsees avec TypeScript.

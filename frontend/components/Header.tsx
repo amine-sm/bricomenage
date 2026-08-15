@@ -330,10 +330,18 @@ export default function Header() {
       }
     }
 
-    void loadCategories();
+    // Sur mobile, on laisse d'abord le contenu visible se peindre.
+    // Le menu possède déjà des catégories de secours, donc l'API peut
+    // arriver un peu après sans ralentir le premier affichage.
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    const timerId = window.setTimeout(
+      () => void loadCategories(),
+      mobile ? 3000 : 0,
+    );
 
     return () => {
       active = false;
+      window.clearTimeout(timerId);
     };
   }, []);
 
@@ -386,27 +394,38 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    function onScroll() {
-      setScrolled(
-        window.scrollY > 8,
-      );
+    let frame = 0;
+
+    function updateScrolled() {
+      frame = 0;
+      setScrolled((current) => {
+        const next = window.scrollY > 8;
+        return current === next ? current : next;
+      });
     }
 
-    onScroll();
+    function onScroll() {
+      if (frame) return;
+      frame = window.requestAnimationFrame(updateScrolled);
+    }
+
+    updateScrolled();
 
     window.addEventListener(
       "scroll",
       onScroll,
-      {
-        passive: true,
-      },
+      { passive: true },
     );
 
-    return () =>
+    return () => {
       window.removeEventListener(
         "scroll",
         onScroll,
       );
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -581,7 +600,7 @@ export default function Header() {
                 className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
               >
                 <img
-                  src="/images/logo-bricomenage.jpeg"
+                  src="/images/logo-bricomenage-320.webp"
                   alt="BricoMénage"
                   className="h-full w-full object-contain p-1"
                 />
@@ -933,9 +952,40 @@ export default function Header() {
               transition={{
                 duration: 0.28,
               }}
-              className="max-h-[calc(100vh-78px)] overflow-y-auto border-t border-zinc-200 bg-white lg:hidden"
+              className="fixed inset-0 z-[110] h-[100dvh] overflow-y-auto overscroll-contain bg-white lg:hidden"
             >
-              <div className="space-y-2 px-4 py-4 sm:px-6">
+              <div className="min-h-full px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+                <div className="sticky top-0 z-20 -mx-4 mb-3 flex items-center justify-between border-b border-zinc-100 bg-white/95 px-4 py-3 sm:-mx-6 sm:px-6">
+                  <Link
+                    href="/"
+                    className="flex min-w-0 items-center gap-2.5"
+                  >
+                    <img
+                      src="/images/logo-bricomenage-320.webp"
+                      alt="BricoMénage"
+                      width={42}
+                      height={42}
+                      className="h-10 w-10 rounded-xl border border-zinc-200 bg-white object-contain p-0.5"
+                    />
+                    <div className="min-w-0">
+                      <strong className="block truncate text-sm font-black text-zinc-950">
+                     
+                      </strong>
+                
+                    </div>
+                  </Link>
+
+                  <button
+                    type="button"
+                    aria-label="Fermer le menu"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-700 active:scale-95"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-2">
                 {mainNavigation.map(
                   (
                     item,
@@ -987,6 +1037,8 @@ export default function Header() {
                     );
                   },
                 )}
+
+                </div>
 
                 <button
                   type="button"
@@ -1147,7 +1199,7 @@ export default function Header() {
                 false,
               )
             }
-            className="fixed inset-0 z-40 bg-zinc-950/30 backdrop-blur-[2px] lg:hidden"
+            className="pointer-events-none fixed inset-0 z-40 hidden lg:hidden"
           />
         )}
       </AnimatePresence>

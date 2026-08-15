@@ -228,7 +228,7 @@ export default function Footer() {
               >
 
                 <img
-                  src="/images/logo-bricomenage.jpeg"
+                  src="/images/logo-bricomenage-320.webp"
                   alt="Logo BricoMénage"
                   className="h-full w-full rounded-2xl object-contain"
                 />

@@ -409,6 +409,11 @@ function productImageUrl(
 
 export default function OrdersPage() {
   const [
+    desktopLayout,
+    setDesktopLayout,
+  ] = useState(false);
+
+  const [
     items,
     setItems,
   ] = useState<Order[]>([]);
@@ -549,8 +554,16 @@ export default function OrdersPage() {
               adminHeaders(),
           });
 
-        setItems(
-          response.orders || [],
+        const loadedOrders = response.orders || [];
+
+        setItems(loadedOrders);
+
+        window.dispatchEvent(
+          new CustomEvent("bricomenage:orders-count-set", {
+            detail: loadedOrders.filter(
+              (order) => String(order.status) === "NOUVELLE",
+            ).length,
+          }),
         );
       } catch (requestError) {
         setError(
@@ -565,6 +578,21 @@ export default function OrdersPage() {
     },
     [],
   );
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+
+    const updateLayout = () => {
+      setDesktopLayout(media.matches);
+    };
+
+    updateLayout();
+    media.addEventListener?.("change", updateLayout);
+
+    return () => {
+      media.removeEventListener?.("change", updateLayout);
+    };
+  }, []);
 
   useEffect(() => {
     load();
@@ -1292,7 +1320,7 @@ export default function OrdersPage() {
 
         {activeTab === "orders" && (
           <>
-        <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:overflow-visible md:snap-none xl:grid-cols-4">
+        <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           <StatCard
             icon={ClipboardList}
             label="Commandes"
@@ -1502,6 +1530,7 @@ export default function OrdersPage() {
             </div>
           ) : (
             <>
+              {!desktopLayout && (
               <div className="md:hidden">
                 <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 py-4 pb-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {paginatedItems.map((order) => (
@@ -1529,7 +1558,9 @@ export default function OrdersPage() {
                   </p>
                 )}
               </div>
+              )}
 
+              {desktopLayout && (
               <div className="hidden overflow-x-auto md:block">
                 <table className="w-full min-w-[1180px] text-left text-sm">
                 <thead className="border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-orange-50/40">
@@ -1602,6 +1633,7 @@ export default function OrdersPage() {
                 </tbody>
                 </table>
               </div>
+              )}
             </>
           )}
 
@@ -1907,6 +1939,7 @@ export default function OrdersPage() {
                 </div>
               ) : (
                 <>
+                  {!desktopLayout && (
                   <div className="md:hidden">
                     <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 py-4 pb-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {historyItems.map((order) => (
@@ -1930,7 +1963,9 @@ export default function OrdersPage() {
                       </p>
                     )}
                   </div>
+                  )}
 
+                  {desktopLayout && (
                   <div className="hidden overflow-x-auto md:block">
                     <table className="w-full min-w-[1120px] text-left text-sm">
                     <thead className="border-b border-zinc-200 bg-gradient-to-r from-zinc-50 to-orange-50/40">
@@ -2110,6 +2145,7 @@ export default function OrdersPage() {
                     </tbody>
                     </table>
                   </div>
+                  )}
                 </>
               )}
             </section>
@@ -2841,7 +2877,7 @@ function OrderDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[140] overflow-y-auto bg-zinc-950/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[240] overflow-hidden bg-zinc-950/60 p-0 sm:overflow-y-auto sm:p-4"
       onMouseDown={(event) => {
         if (
           event.target ===
@@ -2855,12 +2891,12 @@ function OrderDetailModal({
         role="dialog"
         aria-modal="true"
         aria-label="Détail de la commande"
-        className="mx-auto my-5 w-full max-w-5xl animate-[modalIn_.25s_ease-out] overflow-hidden rounded-[30px] bg-white shadow-2xl"
+        className="mx-auto flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-none bg-white shadow-2xl sm:my-5 sm:h-auto sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-[30px]"
         onMouseDown={(event) =>
           event.stopPropagation()
         }
       >
-        <div className="relative overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-orange-950 p-6 text-white sm:p-7">
+        <div className="relative shrink-0 overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-orange-950 p-4 pr-16 text-white sm:p-7">
           <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-orange-500/20 blur-3xl" />
 
           <button
@@ -2871,7 +2907,7 @@ function OrderDetailModal({
               event.stopPropagation();
               onClose();
             }}
-            className="absolute right-4 top-4 z-30 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/15 text-white shadow-lg backdrop-blur transition hover:scale-105 hover:bg-orange-500 active:scale-95"
+            className="absolute right-3 top-3 z-30 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/15 text-white shadow-lg transition active:scale-95 sm:right-4 sm:top-4 sm:h-11 sm:w-11 sm:hover:bg-orange-500"
           >
             <X className="h-5 w-5" />
           </button>
@@ -2882,7 +2918,7 @@ function OrderDetailModal({
               Détail de commande
             </span>
 
-            <h2 className="mt-4 text-2xl font-black sm:text-3xl">
+            <h2 className="mt-3 break-all text-xl font-black leading-tight sm:mt-4 sm:text-3xl">
               {
                 detail.order
                   .tracking_number
@@ -2899,8 +2935,8 @@ function OrderDetailModal({
           </div>
         </div>
 
-        <div className="border-b border-zinc-200 bg-orange-50/50 px-5 py-3 sm:px-7">
-          <div className="flex flex-wrap items-center gap-4 text-xs font-bold text-zinc-600">
+        <div className="shrink-0 overflow-x-auto border-b border-zinc-200 bg-orange-50/50 px-4 py-2.5 sm:px-7 sm:py-3">
+          <div className="flex min-w-max items-center gap-4 text-[10px] font-bold text-zinc-600 sm:min-w-0 sm:flex-wrap sm:text-xs">
             <span className="inline-flex items-center gap-2">
               <ClipboardList className="h-4 w-4 text-orange-500" />
               Commande #{detail.order.id}
@@ -2919,9 +2955,9 @@ function OrderDetailModal({
           </div>
         </div>
 
-        <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[1fr_320px]">
+        <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain p-3 pb-[max(24px,env(safe-area-inset-bottom))] sm:gap-6 sm:p-7 lg:grid-cols-[1fr_320px]">
           <div className="space-y-6">
-            <section className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:overflow-visible md:snap-none xl:grid-cols-4">
+            <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
               <InfoCard
                 icon={UserRound}
                 label="Client"
@@ -3017,10 +3053,10 @@ function OrderDetailModal({
                     return (
                       <article
                         key={item.id}
-                        className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white transition hover:border-orange-200 hover:shadow-md"
+                        className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white transition sm:hover:border-orange-200 sm:hover:shadow-md"
                       >
-                        <div className="grid gap-4 p-3 sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center">
-                          <div className="relative h-24 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 sm:h-[92px]">
+                        <div className="grid grid-cols-[82px_minmax(0,1fr)] gap-3 p-3 sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center sm:gap-4">
+                          <div className="relative h-20 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 sm:h-[92px] sm:rounded-2xl">
                             {item.item_type ===
                             "PACK" ? (
                               <OrderPackPhotoLayout
@@ -3041,7 +3077,9 @@ function OrderDetailModal({
                                 alt={
                                   item.designation
                                 }
-                                className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                                loading="lazy"
+                                decoding="async"
+                                className="h-full w-full object-cover transition duration-300 sm:group-hover:scale-105"
                               />
                             ) : (
                               <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-zinc-300">
@@ -3062,7 +3100,7 @@ function OrderDetailModal({
                           </div>
 
                           <div className="min-w-0">
-                            <h4 className="truncate text-sm font-black text-zinc-950 sm:text-base">
+                            <h4 className="break-words text-sm font-black leading-5 text-zinc-950 sm:truncate sm:text-base">
                               {
                                 item.designation
                               }
@@ -3104,7 +3142,7 @@ function OrderDetailModal({
                             </div>
                           </div>
 
-                          <div className="rounded-2xl bg-zinc-950 px-4 py-3 text-left text-white sm:min-w-[135px] sm:text-right">
+                          <div className="col-span-2 rounded-2xl bg-zinc-950 px-4 py-3 text-left text-white sm:col-span-1 sm:min-w-[135px] sm:text-right">
                             <span className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
                               Total
                             </span>
@@ -3170,6 +3208,8 @@ function OrderDetailModal({
                                               alt={
                                                 component.designation
                                               }
+                                              loading="lazy"
+                                              decoding="async"
                                               className="h-full w-full object-cover"
                                             />
                                           ) : (

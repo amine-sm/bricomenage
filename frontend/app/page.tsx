@@ -200,7 +200,8 @@ const advantages: Advantage[] = [
 
 const heroImages = [
   {
-    src: "/images/bg1.png",
+    src: "/images/bg1.webp",
+    mobileSrc: "/images/bg1-mobile.webp",
     alt: "Atelier de bricolage avec perceuse et outils",
     eyebrow: "Outillage professionnel",
     title: "Construisez vos projets",
@@ -211,7 +212,8 @@ const heroImages = [
     buttonLabel: "Découvrir l’outillage",
   },
   {
-    src: "/images/bg2.png",
+    src: "/images/bg2.webp",
+    mobileSrc: "/images/bg2-mobile.webp",
     alt: "Matériel de jardinage et aménagement extérieur",
     eyebrow: "Maison et jardin",
     title: "Aménagez vos espaces",
@@ -222,7 +224,8 @@ const heroImages = [
     buttonLabel: "Voir l’univers jardin",
   },
   {
-    src: "/images/bg4.png",
+    src: "/images/bg4.webp",
+    mobileSrc: "/images/bg4-mobile.webp",
     alt: "Outils et équipements professionnels de bricolage",
     eyebrow: "Offres BricoMénage",
     title: "Équipez-vous mieux",
@@ -2231,10 +2234,15 @@ export default function Home() {
       }
     }
 
-    void loadCategories();
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    const timerId = window.setTimeout(
+      () => void loadCategories(),
+      mobile ? 180 : 0,
+    );
 
     return () => {
       active = false;
+      window.clearTimeout(timerId);
     };
   }, []);
 
@@ -2246,7 +2254,7 @@ export default function Home() {
 
       try {
         const response =
-          await catalogApi.latestArticles(8);
+          await catalogApi.latestArticles(24);
 
         if (
           !active ||
@@ -2305,12 +2313,30 @@ export default function Home() {
                 article.brand ||
                 undefined,
               inStock: article.inStock,
+              promotion_id:
+                article.promotion_id,
+              promotion_name:
+                article.promotion_name,
               item_type: "ARTICLE",
             }),
           );
 
+        const regularProducts =
+          normalized.filter(
+            (article) =>
+              !article.promotion_id &&
+              !(
+                Number(
+                  article.old_price || 0,
+                ) >
+                Number(
+                  article.price || 0,
+                )
+              ),
+          );
+
         setLatestProducts(
-          normalized,
+          regularProducts.slice(0, 8),
         );
       } catch (requestError) {
         if (active) {
@@ -2328,10 +2354,15 @@ export default function Home() {
       }
     }
 
-    void loadLatestProducts();
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    const timerId = window.setTimeout(
+      () => void loadLatestProducts(),
+      mobile ? 320 : 0,
+    );
 
     return () => {
       active = false;
+      window.clearTimeout(timerId);
     };
   }, []);
 
@@ -2444,10 +2475,17 @@ export default function Home() {
       }
     }
 
-    void loadLatestPack();
+    // Le bloc pack est loin sous la ligne de flottaison sur mobile :
+    // on évite de lancer ses 2 requêtes en concurrence avec le hero.
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    const timerId = window.setTimeout(
+      () => void loadLatestPack(),
+      mobile ? 1600 : 0,
+    );
 
     return () => {
       active = false;
+      window.clearTimeout(timerId);
     };
   }, []);
 
@@ -2455,12 +2493,24 @@ export default function Home() {
    * Préchargement des images du carrousel.
    */
   useEffect(() => {
-    heroImages.forEach((hero) => {
-      const image =
-        new window.Image();
+    /*
+     * On laisse d'abord le navigateur charger l'image visible.
+     * Les autres slides sont préchargés ensuite, dans une version
+     * beaucoup plus légère sur mobile, pour ne pas saturer le réseau.
+     */
+    const mobile = window.matchMedia(
+      "(max-width: 767px)",
+    ).matches;
 
-      image.src = hero.src;
-    });
+    const timerId = window.setTimeout(() => {
+      heroImages.slice(1).forEach((hero) => {
+        const image = new window.Image();
+        image.decoding = "async";
+        image.src = mobile ? hero.mobileSrc : hero.src;
+      });
+    }, mobile ? 2600 : 900);
+
+    return () => window.clearTimeout(timerId);
   }, []);
 
   /*
@@ -2573,22 +2623,34 @@ export default function Home() {
                   }`}
                   aria-hidden={!active}
                 >
-                  <img
-                    src={hero.src}
-                    alt={
-                      active
-                        ? hero.alt
-                        : ""
-                    }
-                    loading={
-                      index === 0
-                        ? "eager"
-                        : "lazy"
-                    }
-                    decoding="async"
-                    draggable={false}
-                    className="h-full w-full select-none object-cover"
-                  />
+                  <picture className="block h-full w-full">
+                    <source
+                      media="(max-width: 767px)"
+                      srcSet={hero.mobileSrc}
+                      type="image/webp"
+                    />
+                    <img
+                      src={hero.src}
+                      alt={
+                        active
+                          ? hero.alt
+                          : ""
+                      }
+                      loading={
+                        index === 0
+                          ? "eager"
+                          : "lazy"
+                      }
+                      fetchPriority={
+                        index === 0
+                          ? "high"
+                          : "auto"
+                      }
+                      decoding="async"
+                      draggable={false}
+                      className="h-full w-full select-none object-cover"
+                    />
+                  </picture>
                 </motion.div>
               );
             },

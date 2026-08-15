@@ -13,6 +13,8 @@ import {
 } from "next/navigation";
 import {
   Boxes,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   LoaderCircle,
   ArrowUpDown,
@@ -57,6 +59,8 @@ type StockOption =
   | "all"
   | "available"
   | "unavailable";
+
+const PAGE_SIZE = 20;
 
 type PackWithImages =
   CatalogPack & {
@@ -108,6 +112,7 @@ function articleToProduct(
       undefined,
     image:
       article.image ||
+      article.images?.find(Boolean) ||
       undefined,
     images:
       article.images,
@@ -128,6 +133,10 @@ function articleToProduct(
       undefined,
     inStock:
       article.inStock,
+    promotion_id:
+      article.promotion_id,
+    promotion_name:
+      article.promotion_name,
     item_type: "ARTICLE",
   };
 }
@@ -317,6 +326,8 @@ function PackCard({
           <img
             src={cardImages[0]}
             alt={pack.name}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           />
         ) : cardImages.length === 2 ? (
@@ -333,7 +344,9 @@ function PackCard({
                   <img
                     src={image}
                     alt={`${pack.name} ${index + 1}`}
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   />
 
                   <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
@@ -360,7 +373,9 @@ function PackCard({
                   <img
                     src={image}
                     alt={`${pack.name} ${index + 1}`}
-                    className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    loading="lazy"
+            decoding="async"
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                   />
 
                   <span className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
@@ -519,13 +534,25 @@ function ArticlesPageContent() {
     setMaxPrice,
   ] = useState("");
 
+  const [
+    mobileFiltersOpen,
+    setMobileFiltersOpen,
+  ] = useState(false);
+
+  const [
+    currentPage,
+    setCurrentPage,
+  ] = useState(1);
+
   useEffect(() => {
     setQuery(headerSearch);
     setSortBy("newest");
     setStockFilter("all");
     setMinPrice("");
     setMaxPrice("");
-  }, [headerSearch]);
+    setCurrentPage(1);
+    setMobileFiltersOpen(false);
+  }, [headerSearch, mode, category]);
 
   const deferredQuery =
     useDeferredValue(query);
@@ -716,11 +743,24 @@ function ArticlesPageContent() {
                 "unavailable" &&
                 !available);
 
+            const hasActivePromotion =
+              Boolean(
+                article.promotion_id,
+              ) ||
+              Number(
+                article.old_price || 0,
+              ) > price;
+
+            const matchesCatalogMode =
+              mode !== "articles" ||
+              !hasActivePromotion;
+
             return (
               matchesSearch &&
               matchesMinPrice &&
               matchesMaxPrice &&
-              matchesStock
+              matchesStock &&
+              matchesCatalogMode
             );
           },
         );
@@ -765,6 +805,7 @@ function ArticlesPageContent() {
       deferredQuery,
       maxPrice,
       minPrice,
+      mode,
       sortBy,
       stockFilter,
     ]);
@@ -890,6 +931,7 @@ function ArticlesPageContent() {
     setStockFilter("all");
     setMinPrice("");
     setMaxPrice("");
+    setCurrentPage(1);
   }
 
   const hasActiveFilters =
@@ -920,6 +962,44 @@ function ArticlesPageContent() {
     mode === "packs"
       ? filteredPacks.length
       : filteredArticles.length;
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(count / PAGE_SIZE),
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    deferredQuery,
+    maxPrice,
+    minPrice,
+    mode,
+    category,
+    sortBy,
+    stockFilter,
+  ]);
+
+  useEffect(() => {
+    setCurrentPage((page) =>
+      Math.min(page, totalPages),
+    );
+  }, [totalPages]);
+
+  const pageStart =
+    (currentPage - 1) * PAGE_SIZE;
+
+  const paginatedArticles =
+    filteredArticles.slice(
+      pageStart,
+      pageStart + PAGE_SIZE,
+    );
+
+  const paginatedPacks =
+    filteredPacks.slice(
+      pageStart,
+      pageStart + PAGE_SIZE,
+    );
 
   return (
     <>
@@ -990,8 +1070,31 @@ function ArticlesPageContent() {
           <div className="pointer-events-none absolute -left-20 -top-20 h-48 w-48 rounded-full bg-orange-100/50 blur-3xl" />
 
           <div className="relative">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setMobileFiltersOpen(
+                    (open) => !open,
+                  )
+                }
+                aria-expanded={mobileFiltersOpen}
+                aria-controls="catalog-mobile-filters"
+                className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition lg:hidden ${
+                  mobileFiltersOpen ||
+                  hasActiveFilters
+                    ? "border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                    : "border-zinc-200 bg-white text-zinc-700"
+                }`}
+              >
+                <SlidersHorizontal className="h-5 w-5" />
+
+                {hasActiveFilters && (
+                  <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
+                )}
+              </button>
+
+              <div className="hidden items-center gap-3 lg:flex">
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
                   <SlidersHorizontal className="h-5 w-5" />
                 </span>
@@ -1007,14 +1110,33 @@ function ArticlesPageContent() {
                 </div>
               </div>
 
-              <span className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-4 py-2 text-sm font-black text-zinc-600">
+              <div className="min-w-0 flex-1 lg:hidden">
+                <p className="text-sm font-black text-zinc-900">
+                  Filtres
+                </p>
+                <p className="truncate text-[11px] font-semibold text-zinc-500">
+                  Touchez l’icône pour afficher les options
+                </p>
+              </div>
+
+              <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-zinc-100 px-3 py-2 text-xs font-black text-zinc-600 sm:px-4 sm:text-sm">
                 <Sparkles className="h-4 w-4 text-orange-500" />
-                {count} résultat
-                {count > 1 ? "s" : ""}
+                {count}
+                <span className="hidden sm:inline">
+                  résultat{count > 1 ? "s" : ""}
+                </span>
               </span>
             </div>
 
-            <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(260px,1.5fr)_repeat(4,minmax(140px,1fr))]">
+            <div
+              id="catalog-mobile-filters"
+              className={`${
+                mobileFiltersOpen
+                  ? "block"
+                  : "hidden"
+              } mt-4 lg:block lg:mt-5`}
+            >
+            <div className="grid gap-3 lg:grid-cols-[minmax(260px,1.5fr)_repeat(4,minmax(140px,1fr))]">
               <label className="relative block">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
 
@@ -1161,6 +1283,7 @@ function ArticlesPageContent() {
                 Réinitialiser les filtres
               </button>
             </div>
+            </div>
           </div>
         </div>
 
@@ -1175,8 +1298,8 @@ function ArticlesPageContent() {
         ) : mode === "packs" ? (
           filteredPacks.length >
           0 ? (
-            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredPacks.map(
+            <div className="mt-6 grid grid-cols-1 gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+              {paginatedPacks.map(
                 (pack) => (
                   <PackCard
                     key={pack.id}
@@ -1192,8 +1315,8 @@ function ArticlesPageContent() {
           )
         ) : filteredArticles.length >
           0 ? (
-          <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredArticles.map(
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+            {paginatedArticles.map(
               (article) => (
                 <ProductCard
                   key={article.id}
@@ -1212,9 +1335,119 @@ function ArticlesPageContent() {
             }
           />
         )}
+
+        {!loading &&
+          !error &&
+          count > PAGE_SIZE && (
+            <CatalogPagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => {
+                setCurrentPage(page);
+                window.scrollTo({
+                  top: 0,
+                  behavior: "smooth",
+                });
+              }}
+            />
+          )}
       </section>
     </main>
     </>
+  );
+}
+
+function CatalogPagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  const pages = Array.from(
+    { length: totalPages },
+    (_, index) => index + 1,
+  ).filter(
+    (page) =>
+      page === 1 ||
+      page === totalPages ||
+      Math.abs(page - currentPage) <= 1,
+  );
+
+  return (
+    <nav
+      aria-label="Pagination du catalogue"
+      className="mt-8 flex items-center justify-center gap-2 sm:mt-10"
+    >
+      <button
+        type="button"
+        onClick={() =>
+          onPageChange(currentPage - 1)
+        }
+        disabled={currentPage === 1}
+        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-35"
+        aria-label="Page précédente"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+
+      <div className="flex items-center gap-1.5">
+        {pages.map((page, index) => {
+          const previous = pages[index - 1];
+          const showGap =
+            previous !== undefined &&
+            page - previous > 1;
+
+          return (
+            <span
+              key={page}
+              className="flex items-center gap-1.5"
+            >
+              {showGap && (
+                <span className="px-1 text-sm font-black text-zinc-400">
+                  …
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={() =>
+                  onPageChange(page)
+                }
+                aria-current={
+                  page === currentPage
+                    ? "page"
+                    : undefined
+                }
+                className={`flex h-11 min-w-11 items-center justify-center rounded-2xl px-3 text-sm font-black transition ${
+                  page === currentPage
+                    ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                    : "border border-zinc-200 bg-white text-zinc-700 hover:border-orange-300 hover:text-orange-600"
+                }`}
+              >
+                {page}
+              </button>
+            </span>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          onPageChange(currentPage + 1)
+        }
+        disabled={
+          currentPage === totalPages
+        }
+        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:border-orange-300 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-35"
+        aria-label="Page suivante"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </nav>
   );
 }
 

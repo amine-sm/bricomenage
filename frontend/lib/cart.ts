@@ -120,3 +120,107 @@ export function addToCart(
 
   saveCart(items);
 }
+
+const DIRECT_CHECKOUT_KEY =
+  "bricomenage_direct_checkout";
+
+export type DirectCheckoutPayload = {
+  items: CartItem[];
+  returnHref?: string;
+};
+
+export function saveDirectCheckout(
+  item: CartItem,
+  returnHref?: string,
+) {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return;
+  }
+
+  const payload: DirectCheckoutPayload = {
+    items: [item],
+    returnHref,
+  };
+
+  window.sessionStorage.setItem(
+    DIRECT_CHECKOUT_KEY,
+    JSON.stringify(payload),
+  );
+}
+
+export function getDirectCheckout():
+  DirectCheckoutPayload | null {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return null;
+  }
+
+  try {
+    const raw =
+      window.sessionStorage.getItem(
+        DIRECT_CHECKOUT_KEY,
+      );
+
+    if (!raw) {
+      return null;
+    }
+
+    const parsed =
+      JSON.parse(raw) as
+        DirectCheckoutPayload;
+
+    if (
+      !parsed ||
+      !Array.isArray(
+        parsed.items,
+      ) ||
+      !parsed.items.length
+    ) {
+      return null;
+    }
+
+    return {
+      ...parsed,
+      items: parsed.items.map(
+        (item) => ({
+          ...item,
+          item_type:
+            item.item_type ===
+            "PACK"
+              ? "PACK"
+              : "ARTICLE",
+          quantity: Math.max(
+            1,
+            Number(
+              item.quantity || 1,
+            ),
+          ),
+          price: Number(
+            item.price || 0,
+          ),
+        }),
+      ),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function clearDirectCheckout() {
+  if (
+    typeof window ===
+    "undefined"
+  ) {
+    return;
+  }
+
+  window.sessionStorage.removeItem(
+    DIRECT_CHECKOUT_KEY,
+  );
+}
+

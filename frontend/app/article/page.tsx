@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  useRouter,
   useSearchParams,
 } from "next/navigation";
 
@@ -26,6 +27,7 @@ import {
   Plus,
   RotateCcw,
   ShieldCheck,
+  ShoppingBag,
   ShoppingCart,
   Sparkles,
   Truck,
@@ -42,6 +44,7 @@ import {
 
 import {
   addToCart,
+  saveDirectCheckout,
 } from "@/lib/cart";
 
 import type {
@@ -56,84 +59,20 @@ const ARTICLE_CACHE_PREFIX =
 const CATALOG_CACHE_KEY =
   "bricomenage-articles-cache-v1";
 
-const demoProducts: Product[] = [
-  {
-    id: 1,
-    slug:
-      "marteau-professionnel",
-    designation:
-      "Marteau professionnel",
-    price: 1200,
-    old_price: 1500,
-    category: "Outillage",
-    description:
-      "Marteau robuste avec manche ergonomique, conçu pour les travaux de bricolage, de construction et de rénovation.",
-    stock_quantity: 20,
-    reference: "MAR-001",
-    brand: "BricoPro",
-    rating: 4.8,
-    reviews: 124,
-    image:
-      "https://images.unsplash.com/photo-1607870411590-d5e9e06da09a?auto=format&fit=crop&w=1000&q=80",
-  },
-  {
-    id: 2,
-    slug:
-      "chaise-de-jardin",
-    designation:
-      "Chaise de jardin",
-    price: 4500,
-    old_price: 5200,
-    category: "Jardin",
-    description:
-      "Chaise confortable et résistante pour votre jardin, votre balcon ou votre terrasse.",
-    stock_quantity: 15,
-    reference: "CHA-002",
-    brand: "GardenHome",
-    rating: 4.6,
-    reviews: 89,
-    image:
-      "https://images.pexels.com/photos/17976470/pexels-photo-17976470/free-photo-of-wooden-chair-in-the-garden.jpeg?auto=compress&cs=tinysrgb&w=1000",
-  },
-  {
-    id: 3,
-    slug:
-      "parasol-deporte",
-    designation:
-      "Parasol déporté",
-    price: 18500,
-    category: "Jardin",
-    description:
-      "Parasol déporté élégant offrant une large zone d’ombre pour votre terrasse.",
-    stock_quantity: 8,
-    reference: "PAR-003",
-    brand: "GardenHome",
-    rating: 4.9,
-    reviews: 56,
-    image:
-      "https://images.pexels.com/photos/13872652/pexels-photo-13872652.jpeg?auto=compress&cs=tinysrgb&w=1000",
-  },
-  {
-    id: 4,
-    slug:
-      "perceuse-750-w",
-    designation:
-      "Perceuse 750 W",
-    price: 12900,
-    old_price: 14900,
-    category:
-      "Électroportatif",
-    description:
-      "Perceuse électrique puissante de 750 W, idéale pour le bois, le métal et les travaux de rénovation.",
-    stock_quantity: 12,
-    reference: "PER-004",
-    brand: "BricoPro",
-    rating: 4.7,
-    reviews: 203,
-    image:
-      "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=1000&q=80",
-  },
-];
+function createLoadingProduct(
+  slug: string,
+): Product {
+  return {
+    id: 0,
+    slug,
+    designation: "Chargement de l’article...",
+    price: 0,
+    category: "Article",
+    stock_quantity: 0,
+    inStock: false,
+    item_type: "ARTICLE",
+  };
+}
 
 function formatPrice(
   value: number,
@@ -209,65 +148,52 @@ function normalizeProduct(
 
 function findLocalProduct(
   slug: string,
-): Product {
-  const demo =
-    demoProducts.find(
-      (item) =>
-        item.slug === slug,
-    );
-
-  if (demo) {
-    return demo;
-  }
-
+): Product | null {
   if (
-    typeof window !==
+    typeof window ===
     "undefined"
   ) {
-    try {
-      const catalogValue =
-        window.sessionStorage.getItem(
-          CATALOG_CACHE_KEY,
-        );
-
-      if (catalogValue) {
-        const catalog =
-          JSON.parse(
-            catalogValue,
-          );
-
-        if (
-          Array.isArray(
-            catalog,
-          )
-        ) {
-          const cached =
-            catalog.find(
-              (
-                item: Product,
-              ) =>
-                item.slug ===
-                slug,
-            );
-
-          if (cached) {
-            return normalizeProduct(
-              cached,
-            );
-          }
-        }
-      }
-    } catch {
-      /*
-       * Le cache catalogue est optionnel.
-       */
-    }
+    return null;
   }
 
-  return {
-    ...demoProducts[0],
-    slug,
-  };
+  try {
+    const catalogValue =
+      window.sessionStorage.getItem(
+        CATALOG_CACHE_KEY,
+      );
+
+    if (catalogValue) {
+      const catalog =
+        JSON.parse(
+          catalogValue,
+        );
+
+      if (
+        Array.isArray(
+          catalog,
+        )
+      ) {
+        const cached =
+          catalog.find(
+            (
+              item: Product,
+            ) =>
+              item.slug ===
+              slug,
+          );
+
+        if (cached) {
+          return normalizeProduct(
+            cached,
+          );
+        }
+      }
+    }
+  } catch {
+    /* Cache catalogue optionnel. */
+  }
+
+  return null;
 }
 
 function readArticleCache(
@@ -316,28 +242,24 @@ function saveArticleCache(
 }
 
 function ArticleContent() {
+  const router =
+    useRouter();
+
   const searchParams =
     useSearchParams();
 
   const slug =
     searchParams.get(
       "slug",
-    ) ||
-    "marteau-professionnel";
+    )?.trim() ||
+    "";
 
-  /*
-   * Le produit de démonstration est affiché
-   * immédiatement, sans attendre le serveur.
-   */
   const initialProduct =
     useMemo(
       () =>
-        demoProducts.find(
-          (item) =>
-            item.slug ===
-            slug,
-        ) ||
-        demoProducts[0],
+        createLoadingProduct(
+          slug,
+        ),
       [slug],
     );
 
@@ -349,6 +271,21 @@ function ArticleContent() {
   );
 
   const [
+    articleReady,
+    setArticleReady,
+  ] = useState(false);
+
+  const [
+    articleLoading,
+    setArticleLoading,
+  ] = useState(true);
+
+  const [
+    articleError,
+    setArticleError,
+  ] = useState("");
+
+  const [
     quantity,
     setQuantity,
   ] = useState(1);
@@ -356,10 +293,7 @@ function ArticleContent() {
   const [
     selectedImage,
     setSelectedImage,
-  ] = useState(
-    initialProduct.image ||
-      "",
-  );
+  ] = useState("");
 
   const [
     addedToCart,
@@ -410,11 +344,28 @@ function ArticleContent() {
     const controller =
       new AbortController();
 
+    if (!slug) {
+      setProduct(
+        createLoadingProduct(""),
+      );
+      setSelectedImage("");
+      setArticleReady(false);
+      setArticleLoading(false);
+      setArticleError(
+        "Aucun article n’a été sélectionné.",
+      );
+      setRefreshing(false);
+
+      return () => {
+        active = false;
+        controller.abort();
+      };
+    }
+
     /*
-     * Priorité :
-     * 1. cache de cet article ;
-     * 2. cache du catalogue ;
-     * 3. produit de démonstration.
+     * On affiche uniquement une vraie donnée déjà mise en cache.
+     * Sans cache, un squelette reste visible jusqu'à la réponse API :
+     * aucune photo de démonstration n'est montrée.
      */
     const cached =
       readArticleCache(
@@ -427,19 +378,31 @@ function ArticleContent() {
         slug,
       );
 
-    setProduct(
-      localProduct,
-    );
-
-    setSelectedImage(
-      localProduct.image ||
-        localProduct.images?.[0] ||
-        "",
-    );
-
+    setArticleError("");
     setQuantity(1);
     setImageError(false);
-    setRefreshing(true);
+
+    if (localProduct) {
+      setProduct(localProduct);
+      setSelectedImage(
+        localProduct.image ||
+          localProduct.images?.find(Boolean) ||
+          "",
+      );
+      setArticleReady(true);
+      setArticleLoading(false);
+      setRefreshing(true);
+    } else {
+      setProduct(
+        createLoadingProduct(
+          slug,
+        ),
+      );
+      setSelectedImage("");
+      setArticleReady(false);
+      setArticleLoading(true);
+      setRefreshing(false);
+    }
 
     async function loadArticle() {
       try {
@@ -474,31 +437,37 @@ function ArticleContent() {
 
         setSelectedImage(
           normalized.image ||
-            normalized.images?.[0] ||
+            normalized.images?.find(Boolean) ||
             "",
         );
 
+        setArticleReady(true);
+        setArticleLoading(false);
         setImageError(false);
 
         saveArticleCache(
           normalized,
         );
-      } catch {
-        /*
-         * Le produit local reste affiché
-         * si l'API est lente ou indisponible.
-         */
+      } catch (loadError) {
+        if (
+          active &&
+          !localProduct
+        ) {
+          setArticleError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Impossible de charger cet article.",
+          );
+        }
       } finally {
         if (active) {
           setRefreshing(false);
+          setArticleLoading(false);
         }
       }
     }
 
-    /*
-     * Laisser React afficher le produit local
-     * avant de démarrer l'appel réseau.
-     */
+    /* Démarre l'appel réseau après l'initialisation de l'état local. */
     const timer =
       window.setTimeout(
         loadArticle,
@@ -757,6 +726,38 @@ function ArticleContent() {
     images,
   ]);
 
+  function handleBuyNow() {
+    if (!inStock) {
+      return;
+    }
+
+    saveDirectCheckout(
+      {
+        id: product.id,
+        item_type: "ARTICLE",
+        slug: product.slug,
+        designation:
+          product.designation,
+        price: Number(
+          product.price,
+        ),
+        quantity,
+        image:
+          product.image ||
+          product.images?.find(
+            Boolean,
+          ),
+      },
+      `/article/?slug=${encodeURIComponent(
+        product.slug,
+      )}`,
+    );
+
+    router.push(
+      "/commande/?direct=1",
+    );
+  }
+
   function handleAddToCart() {
     if (!inStock) {
       return;
@@ -798,6 +799,50 @@ function ArticleContent() {
           false,
         );
       }, 1800);
+  }
+
+  if (!articleReady) {
+    return (
+      <main className="min-h-screen bg-zinc-50">
+        <section className="border-b border-zinc-200 bg-white">
+          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+            <Link
+              href="/articles"
+              className="inline-flex items-center gap-2 text-sm font-bold text-zinc-500 transition hover:text-orange-500"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Retour au catalogue
+            </Link>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-14">
+          {articleLoading ? (
+            <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
+              <div className="aspect-square animate-pulse rounded-[28px] border border-zinc-200 bg-zinc-200/70 sm:rounded-[34px]" />
+              <div className="space-y-5 py-2">
+                <div className="h-5 w-28 animate-pulse rounded-full bg-zinc-200" />
+                <div className="h-10 w-4/5 animate-pulse rounded-xl bg-zinc-200" />
+                <div className="h-5 w-full animate-pulse rounded-lg bg-zinc-200" />
+                <div className="h-5 w-3/4 animate-pulse rounded-lg bg-zinc-200" />
+                <div className="h-16 w-44 animate-pulse rounded-2xl bg-zinc-200" />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[28px] border border-red-200 bg-red-50 p-6 text-center">
+              <PackageCheck className="mx-auto h-10 w-10 text-red-400" />
+              <p className="mt-3 font-black text-red-700">
+                Article indisponible
+              </p>
+              <p className="mt-2 text-sm font-semibold text-red-600">
+                {articleError ||
+                  "Impossible de charger les informations de cet article."}
+              </p>
+            </div>
+          )}
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -1104,48 +1149,6 @@ function ArticleContent() {
                 )}
               </div>
 
-              <p className="mt-7 leading-8 text-zinc-600">
-                {product.description ||
-                  "Découvrez cet article sélectionné pour sa qualité et sa fiabilité."}
-              </p>
-
-              <div
-                className={`mt-7 flex items-center gap-4 rounded-2xl border p-4 ${
-                  inStock
-                    ? "border-emerald-200 bg-emerald-50"
-                    : "border-red-200 bg-red-50"
-                }`}
-              >
-                <PackageCheck
-                  className={`h-6 w-6 ${
-                    inStock
-                      ? "text-emerald-600"
-                      : "text-red-600"
-                  }`}
-                />
-
-                <div>
-                  <strong
-                    className={`block ${
-                      inStock
-                        ? "text-emerald-800"
-                        : "text-red-800"
-                    }`}
-                  >
-                    {inStock
-                      ? "Article disponible"
-                      : "Rupture de stock"}
-                  </strong>
-
-                  <span className="text-sm text-zinc-500">
-                    {stock} unité
-                    {stock > 1
-                      ? "s"
-                      : ""}
-                  </span>
-                </div>
-              </div>
-
               <div className="mt-7 flex flex-col gap-4 sm:flex-row">
                 <div className="flex h-14 items-center justify-between rounded-2xl border border-zinc-200 bg-white p-1 sm:w-40">
                   <button
@@ -1190,59 +1193,116 @@ function ArticleContent() {
                   </button>
                 </div>
 
-                <motion.button
-                  type="button"
-                  whileTap={{
-                    scale: 0.98,
-                  }}
-                  onClick={
-                    handleAddToCart
-                  }
-                  disabled={
-                    !inStock
-                  }
-                  className={`flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl px-6 text-sm font-black text-white shadow-lg transition disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none ${
-                    addedToCart
-                      ? "bg-emerald-500 shadow-emerald-500/20"
-                      : "bg-orange-500 shadow-orange-500/20 hover:bg-orange-600"
-                  }`}
-                >
-                  <AnimatePresence
-                    mode="wait"
-                    initial={false}
+                <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                  <motion.button
+                    type="button"
+                    whileTap={{
+                      scale: 0.98,
+                    }}
+                    onClick={
+                      handleBuyNow
+                    }
+                    disabled={
+                      !inStock
+                    }
+                    className="flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-orange-500 px-5 text-sm font-black text-white shadow-lg shadow-orange-500/25 transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:shadow-none"
                   >
-                    <motion.span
-                      key={
-                        addedToCart
-                          ? "added"
-                          : "add"
-                      }
-                      initial={{
-                        opacity: 0,
-                        y: 5,
-                      }}
-                      animate={{
-                        opacity: 1,
-                        y: 0,
-                      }}
-                      exit={{
-                        opacity: 0,
-                        y: -5,
-                      }}
-                      className="flex items-center gap-2"
-                    >
-                      {addedToCart ? (
-                        <Check className="h-5 w-5" />
-                      ) : (
-                        <ShoppingCart className="h-5 w-5" />
-                      )}
+                    <ShoppingBag className="h-5 w-5" />
+                    Acheter / اشتر الآن
+                    <ArrowRight className="h-4 w-4" />
+                  </motion.button>
 
-                      {addedToCart
-                        ? "Ajouté au panier"
-                        : "Ajouter au panier"}
-                    </motion.span>
-                  </AnimatePresence>
-                </motion.button>
+                  <motion.button
+                    type="button"
+                    whileTap={{
+                      scale: 0.98,
+                    }}
+                    onClick={
+                      handleAddToCart
+                    }
+                    disabled={
+                      !inStock
+                    }
+                    className={`flex min-h-14 items-center justify-center gap-2 rounded-2xl border px-5 text-sm font-black transition disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400 ${
+                      addedToCart
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-zinc-200 bg-white text-zinc-800 hover:border-orange-200 hover:bg-orange-50 hover:text-orange-600"
+                    }`}
+                  >
+                    <AnimatePresence
+                      mode="wait"
+                      initial={false}
+                    >
+                      <motion.span
+                        key={
+                          addedToCart
+                            ? "added"
+                            : "add"
+                        }
+                        initial={{
+                          opacity: 0,
+                          y: 5,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: -5,
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        {addedToCart ? (
+                          <Check className="h-5 w-5" />
+                        ) : (
+                          <ShoppingCart className="h-5 w-5" />
+                        )}
+
+                        {addedToCart
+                          ? "Ajouté au panier"
+                          : "Ajouter au panier"}
+                      </motion.span>
+                    </AnimatePresence>
+                  </motion.button>
+                </div>
+              </div>
+
+              <div
+                className={`mt-5 flex items-center gap-4 rounded-2xl border p-4 ${
+                  inStock
+                    ? "border-emerald-200 bg-emerald-50"
+                    : "border-red-200 bg-red-50"
+                }`}
+              >
+                <PackageCheck
+                  className={`h-6 w-6 shrink-0 ${
+                    inStock
+                      ? "text-emerald-600"
+                      : "text-red-600"
+                  }`}
+                />
+
+                <div>
+                  <strong
+                    className={`block ${
+                      inStock
+                        ? "text-emerald-800"
+                        : "text-red-800"
+                    }`}
+                  >
+                    {inStock
+                      ? "Article disponible"
+                      : "Rupture de stock"}
+                  </strong>
+
+                  <span className="text-sm text-zinc-500">
+                    {stock} unité
+                    {stock > 1
+                      ? "s"
+                      : ""}
+                  </span>
+                </div>
               </div>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -1267,6 +1327,35 @@ function ArticleContent() {
                 />
               </div>
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-t border-zinc-200 bg-zinc-50 py-10 sm:py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm sm:rounded-[32px] sm:p-8 lg:p-10">
+            <div className="flex items-start gap-3">
+              <span className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500">
+                <Sparkles className="h-5 w-5" />
+              </span>
+
+              <div>
+                <span className="text-[11px] font-black uppercase tracking-[0.14em] text-orange-500">
+                  Détails de l’article
+                </span>
+
+                <h2 className="mt-1 text-2xl font-black tracking-tight text-zinc-950 sm:text-3xl">
+                  Description du produit
+                </h2>
+              </div>
+            </div>
+
+            <div className="mt-6 border-t border-zinc-100 pt-6">
+              <p className="whitespace-pre-line text-sm leading-7 text-zinc-600 sm:text-base sm:leading-8">
+                {product.description ||
+                  "Découvrez cet article sélectionné pour sa qualité et sa fiabilité."}
+              </p>
+            </div>
           </div>
         </div>
       </section>

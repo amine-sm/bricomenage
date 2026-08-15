@@ -82,6 +82,12 @@ export default function AdminNav({ admin }: { admin: AdminSession }) {
       return;
     }
 
+    // La page Commandes charge déjà la liste complète et transmet le compteur.
+    // On évite donc une deuxième requête identique au même moment.
+    if (pathname.startsWith("/admin/commandes")) {
+      return;
+    }
+
     try {
       const response = await apiFetch<{ orders: NavOrder[] }>("/admin/orders", {
         headers: adminHeaders(),
@@ -92,20 +98,28 @@ export default function AdminNav({ admin }: { admin: AdminSession }) {
     } catch {
       // Le compteur ne bloque jamais la navigation.
     }
-  }, [admin]);
+  }, [admin, pathname]);
 
   useEffect(() => {
     void refreshOrdersCount();
 
     const handleNewOrder = () => setNewOrdersCount((current) => current + 1);
     const handleRefresh = () => void refreshOrdersCount();
+    const handleSetCount = (event: Event) => {
+      const value = Number((event as CustomEvent<number>).detail);
+      if (Number.isFinite(value)) {
+        setNewOrdersCount(Math.max(0, value));
+      }
+    };
 
     window.addEventListener("bricomenage:new-order", handleNewOrder);
     window.addEventListener("bricomenage:orders-count-refresh", handleRefresh);
+    window.addEventListener("bricomenage:orders-count-set", handleSetCount);
 
     return () => {
       window.removeEventListener("bricomenage:new-order", handleNewOrder);
       window.removeEventListener("bricomenage:orders-count-refresh", handleRefresh);
+      window.removeEventListener("bricomenage:orders-count-set", handleSetCount);
     };
   }, [refreshOrdersCount]);
 
@@ -140,7 +154,7 @@ export default function AdminNav({ admin }: { admin: AdminSession }) {
       <aside className="fixed inset-y-0 left-0 z-50 hidden h-screen w-72 flex-col overflow-y-auto border-r border-zinc-800 bg-zinc-950 p-6 text-white lg:flex">
         <Link href={links[0]?.href || "/admin/connexion"} prefetch={false} className="flex shrink-0 items-center gap-3">
           <span className="relative flex h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white shadow-lg">
-            <Image src="/images/logo-bricomenage.jpeg" alt="Logo BricoMénage" fill priority sizes="56px" className="object-contain p-1" />
+            <Image src="/images/logo-bricomenage-320.webp" alt="Logo BricoMénage" fill priority sizes="56px" className="object-contain p-1" />
           </span>
           <span className="min-w-0">
             <strong className="block truncate text-lg font-black">BricoMénage</strong>
@@ -201,7 +215,7 @@ export default function AdminNav({ admin }: { admin: AdminSession }) {
       <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-zinc-200 bg-white/95 px-4 backdrop-blur-xl lg:hidden">
         <Link href={links[0]?.href || "/admin/connexion"} prefetch={false} className="flex min-w-0 items-center gap-2.5">
           <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-            <Image src="/images/logo-bricomenage.jpeg" alt="BricoMénage" fill priority sizes="40px" className="object-contain p-0.5" />
+            <Image src="/images/logo-bricomenage-320.webp" alt="BricoMénage" fill priority sizes="40px" className="object-contain p-0.5" />
           </span>
           <div className="min-w-0">
             <strong className="block truncate text-sm font-black text-zinc-950">{admin.name}</strong>
@@ -251,11 +265,11 @@ export default function AdminNav({ admin }: { admin: AdminSession }) {
       </nav>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[120] lg:hidden">
-          <button type="button" aria-label="Fermer" onClick={() => setMobileMenuOpen(false)} className="absolute inset-0 bg-zinc-950/45 backdrop-blur-sm" />
-          <section className="absolute inset-x-0 bottom-0 max-h-[78vh] overflow-y-auto rounded-t-[32px] border-t border-zinc-200 bg-white px-4 pb-[max(22px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-30px_80px_rgba(0,0,0,0.18)]">
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-zinc-300" />
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
+        <div className="fixed inset-0 z-[320] lg:hidden">
+          <button type="button" aria-label="Fermer" onClick={() => setMobileMenuOpen(false)} className="absolute inset-0 bg-zinc-950/45" />
+          <section className="absolute inset-y-0 right-0 h-[100dvh] w-[min(92vw,390px)] overflow-y-auto overscroll-contain border-l border-zinc-200 bg-white px-4 pb-[max(22px,env(safe-area-inset-bottom))] pt-3 shadow-[-24px_0_70px_rgba(0,0,0,0.20)]">
+            <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-orange-500"><Menu className="h-4 w-4" /> Navigation</div>
+            <div className="sticky top-0 z-20 -mx-4 flex items-center justify-between border-b border-zinc-100 bg-white/95 px-4 pb-4 pt-1">
               <div>
                 <h2 className="text-lg font-black text-zinc-950">Menu administration</h2>
                 <p className="mt-0.5 text-xs font-semibold text-zinc-400">Seulement vos rubriques autorisées</p>
