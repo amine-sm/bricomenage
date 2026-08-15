@@ -379,7 +379,46 @@ function ProductCarousel({
     setDirection,
   ] = useState<1 | -1>(1);
 
-  const visibleProducts = 4;
+  const [
+    visibleProducts,
+    setVisibleProducts,
+  ] = useState(4);
+
+  useEffect(() => {
+    function updateVisibleProducts() {
+      const width = window.innerWidth;
+
+      if (width < 640) {
+        setVisibleProducts(1);
+        return;
+      }
+
+      if (width < 1024) {
+        setVisibleProducts(2);
+        return;
+      }
+
+      if (width < 1280) {
+        setVisibleProducts(3);
+        return;
+      }
+
+      setVisibleProducts(4);
+    }
+
+    updateVisibleProducts();
+    window.addEventListener(
+      "resize",
+      updateVisibleProducts,
+    );
+
+    return () => {
+      window.removeEventListener(
+        "resize",
+        updateVisibleProducts,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -404,6 +443,7 @@ function ProductCarousel({
   }, [
     carouselPaused,
     products.length,
+    visibleProducts,
   ]);
 
   function showPreviousProduct() {
@@ -494,19 +534,20 @@ function ProductCarousel({
         setCarouselPaused(false)
       }
     >
-      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-       
-        
+      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 sm:text-sm">
+          <span className="rounded-full bg-white px-3 py-1 text-orange-600 shadow-sm">
+            Glissez pour découvrir
+          </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
           <CarouselButton
             direction="left"
             onClick={showPreviousProduct}
           />
 
-          <span className="min-w-20 text-center text-xs font-black text-zinc-500">
+          <span className="min-w-16 text-center text-[11px] font-black text-zinc-500 sm:min-w-20 sm:text-xs">
             {currentProductIndex + 1}
             {" / "}
             {products.length}
@@ -519,7 +560,7 @@ function ProductCarousel({
         </div>
       </div>
 
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden rounded-[28px] border border-zinc-200/80 bg-gradient-to-b from-white to-zinc-50/80 p-2 shadow-sm sm:p-3">
         <AnimatePresence
           mode="popLayout"
           initial={false}
@@ -570,7 +611,7 @@ function ProductCarousel({
                 showPreviousProduct();
               }
             }}
-            className="grid cursor-grab gap-6 active:cursor-grabbing sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            className="grid cursor-grab gap-4 active:cursor-grabbing sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4"
           >
             {orderedProducts.map(
               (product, index) => (
@@ -594,14 +635,7 @@ function ProductCarousel({
                       duration: 0.2,
                     },
                   }}
-                  className={
-                    index ===
-                    orderedProducts.length - 1
-                      ? "hidden xl:block"
-                      : index === 2
-                        ? "hidden lg:block"
-                        : ""
-                  }
+                  className="h-full"
                 >
                   <ProductCard p={product} />
                 </motion.div>
@@ -1170,22 +1204,22 @@ function SectionHeading({
   return (
     <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
       <div className="max-w-2xl">
-        <span className="text-sm font-black uppercase tracking-[0.18em] text-orange-500">
+        <span className="text-[11px] font-black uppercase tracking-[0.22em] text-orange-500 sm:text-sm">
           {eyebrow}
         </span>
 
-        <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl">
+        <h2 className="mt-3 text-[1.9rem] font-black leading-tight tracking-tight sm:mt-4 sm:text-4xl lg:text-5xl">
           {title}
         </h2>
 
-        <p className="mt-4 text-base leading-7 text-zinc-500">
+        <p className="mt-3 text-sm leading-6 text-zinc-500 sm:mt-4 sm:text-base sm:leading-7">
           {description}
         </p>
       </div>
 
       <Link
         href={href}
-        className="group inline-flex w-fit items-center gap-2 rounded-2xl border border-orange-500 bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600"
+        className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-orange-500 bg-orange-500 px-5 py-3 text-sm font-black text-white shadow-lg shadow-orange-500/20 transition hover:bg-orange-600 sm:min-h-0 sm:w-fit"
       >
         {label}
 
@@ -3171,7 +3205,7 @@ export default function Home() {
 
       {/* PRODUITS */}
       <SectionWrapper delay={0.12}>
-        <section className="border-y border-zinc-200 bg-white py-20 lg:py-24">
+        <section className="border-y border-zinc-200 bg-white py-12 sm:py-16 lg:py-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionHeading
               eyebrow="Notre sélection"
@@ -3181,7 +3215,7 @@ export default function Home() {
               label="Voir tout le catalogue"
             />
 
-            <div className="mt-10">
+            <div className="mt-7 sm:mt-10">
               {productsLoading ? (
                 <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-zinc-200 bg-zinc-50">
                   <div className="text-center">
