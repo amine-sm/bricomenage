@@ -27,7 +27,11 @@ import {
   isSuperAdmin,
 } from "@/lib/adminPermissions";
 
-type NavOrder = { id: number; status: string };
+type NavOrder = {
+  id: number;
+  status: string;
+  created_at?: string;
+};
 
 type NavItem = {
   label: string;
@@ -48,6 +52,30 @@ const allLinks: NavItem[] = [
   { label: "Commandes", href: "/admin/commandes", icon: ShoppingCart, permission: "orders.view" },
   { label: "Utilisateurs", href: "/admin/utilisateurs", icon: UsersRound, superOnly: true },
 ];
+
+function getOrdersSeenStorageKey(adminId: number) {
+  return `bricomenage:orders-last-seen:${adminId}`;
+}
+
+function readOrdersLastSeen(adminId: number) {
+  if (typeof window === "undefined") return 0;
+
+  const raw = window.localStorage.getItem(
+    getOrdersSeenStorageKey(adminId),
+  );
+  const value = Number(raw || 0);
+
+  return Number.isFinite(value) ? value : 0;
+}
+
+function saveOrdersLastSeen(adminId: number, timestamp = Date.now()) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    getOrdersSeenStorageKey(adminId),
+    String(timestamp),
+  );
+}
 
 function OrderBadge({ count }: { count: number }) {
   if (count <= 0) return null;
@@ -76,15 +104,22 @@ export default function AdminNav({ admin }: { admin: AdminSession }) {
   const primaryLinks = links.slice(0, 4);
   const moreLinks = links.slice(4);
 
+  const markOrdersAsSeen = useCallback(() => {
+    saveOrdersLastSeen(admin.id);
+    setNewOrdersCount(0);
+  }, [admin.id]);
+
   const refreshOrdersCount = useCallback(async () => {
     if (!hasAdminPermission(admin, "orders.view")) {
       setNewOrdersCount(0);
       return;
     }
 
-    // La page Commandes charge déjà la liste complète et transmet le compteur.
-    // On évite donc une deuxième requête identique au même moment.
+    // Ouvrir la rubrique Commandes signifie que les notifications ont été vues.
+    // Le badge ne représente donc plus le statut métier "NOUVELLE",
+    // mais uniquement les commandes arrivées depuis la dernière consultation.
     if (pathname.startsWith("/admin/commandes")) {
+      markOrdersAsSeen();
       return;
     }
 
@@ -92,36 +127,78 @@ export default function AdminNav({ admin }: { admin: AdminSession }) {
       const response = await apiFetch<{ orders: NavOrder[] }>("/admin/orders", {
         headers: adminHeaders(),
       });
+
+      const lastSeen = readOrdersLastSeen(admin.id);
+      const orders = response.orders || [];
+
       setNewOrdersCount(
-        (response.orders || []).filter((order) => String(order.status) === "NOUVELLE").length,
+        orders.filter((order) => {
+          if (String(order.status) !== "NOUVELLE") return false;
+
+          // Première utilisation : on garde le comportement historique
+          // et on affiche les commandes actuellement nouvelles.
+          if (!lastSeen) return true;
+
+          const createdAt = new Date(order.created_at || "").getTime();
+          return Number.isFinite(createdAt) && createdAt > lastSeen;
+        }).length,
       );
     } catch {
       // Le compteur ne bloque jamais la navigation.
     }
-  }, [admin, pathname]);
+  }, [admin, pathname, markOrdersAsSeen]);
 
   useEffect(() => {
+    // Dès que l'administrateur ouvre la page Commandes,
+    // le badge de notification doit disparaître immédiatement.
+    if (pathname.startsWith("/admin/commandes")) {
+      markOrdersAsSeen();
+    }
+
     void refreshOrdersCount();
 
-    const handleNewOrder = () => setNewOrdersCount((current) => current + 1);
+    const handleNewOrder = () => {
+      // Si l'admin est déjà sur la page Commandes, la nouvelle commande
+      // est considérée comme vue immédiatement : aucun badge rouge.
+      if (pathname.startsWith("/admin/commandes")) {
+        markOrdersAsSeen();
+        return;
+      }
+
+      setNewOrdersCount((current) => current + 1);
+    };
+
     const handleRefresh = () => void refreshOrdersCount();
+
+    const handleMarkSeen = () => {
+      markOrdersAsSeen();
+    };
+
     const handleSetCount = (event: Event) => {
       const value = Number((event as CustomEvent<number>).detail);
-      if (Number.isFinite(value)) {
-        setNewOrdersCount(Math.max(0, value));
+
+      if (!Number.isFinite(value)) return;
+
+      if (pathname.startsWith("/admin/commandes")) {
+        markOrdersAsSeen();
+        return;
       }
+
+      setNewOrdersCount(Math.max(0, value));
     };
 
     window.addEventListener("bricomenage:new-order", handleNewOrder);
     window.addEventListener("bricomenage:orders-count-refresh", handleRefresh);
+    window.addEventListener("bricomenage:orders-mark-seen", handleMarkSeen);
     window.addEventListener("bricomenage:orders-count-set", handleSetCount);
 
     return () => {
       window.removeEventListener("bricomenage:new-order", handleNewOrder);
       window.removeEventListener("bricomenage:orders-count-refresh", handleRefresh);
+      window.removeEventListener("bricomenage:orders-mark-seen", handleMarkSeen);
       window.removeEventListener("bricomenage:orders-count-set", handleSetCount);
     };
-  }, [refreshOrdersCount]);
+  }, [markOrdersAsSeen, pathname, refreshOrdersCount]);
 
   useEffect(() => {
     setMobileMenuOpen(false);

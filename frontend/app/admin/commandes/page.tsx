@@ -558,13 +558,6 @@ export default function OrdersPage() {
 
         setItems(loadedOrders);
 
-        window.dispatchEvent(
-          new CustomEvent("bricomenage:orders-count-set", {
-            detail: loadedOrders.filter(
-              (order) => String(order.status) === "NOUVELLE",
-            ).length,
-          }),
-        );
       } catch (requestError) {
         setError(
           requestError instanceof
@@ -597,6 +590,15 @@ export default function OrdersPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    // Ouvrir cette page signifie que les notifications de commandes
+    // ont été consultées. Le badge rouge du menu doit donc revenir à 0,
+    // même si des commandes existent encore dans la base.
+    window.dispatchEvent(
+      new Event("bricomenage:orders-mark-seen"),
+    );
+  }, []);
 
   useEffect(() => {
     function handleNewOrder(

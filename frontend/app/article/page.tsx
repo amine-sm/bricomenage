@@ -329,6 +329,29 @@ function ArticleContent() {
     > | null>(null);
 
   useEffect(() => {
+    if (!slug) {
+      return;
+    }
+
+    /*
+     * Une navigation vers un autre slug peut conserver la position de scroll
+     * avec l'App Router. On force donc chaque fiche produit à commencer en haut,
+     * sur desktop comme sur mobile.
+     */
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: "auto",
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [slug]);
+
+  useEffect(() => {
     return () => {
       if (
         addedTimer.current

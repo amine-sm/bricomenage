@@ -885,6 +885,18 @@ export default function ArticlesPage() {
           event.currentTarget,
         );
 
+      // Les prix sont des champs texte pour éviter les changements
+      // accidentels avec les flèches du clavier. On normalise ici
+      // la virgule décimale avant l'envoi au backend.
+      for (const priceField of ["purchase_price", "price"]) {
+        const rawPrice = String(form.get(priceField) || "")
+          .trim()
+          .replace(/\s+/g, "")
+          .replace(",", ".");
+
+        form.set(priceField, rawPrice);
+      }
+
       const designation =
         String(
           form.get(
@@ -2565,10 +2577,11 @@ function ArticleModal({
                 editing?.purchase_price ??
                 ""
               }
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]+([.,][0-9]{1,2})?"
               placeholder="Ex. 8500"
+              helper="Saisie libre : les flèches du clavier ne modifient plus le prix."
               required
             />
 
@@ -2578,9 +2591,11 @@ function ArticleModal({
               value={
                 editing?.price
               }
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]+([.,][0-9]{1,2})?"
+              placeholder="Ex. 12500"
+              helper="Saisie libre : les flèches du clavier ne modifient plus le prix."
               required
             />
 
@@ -2858,6 +2873,16 @@ interface FieldProps {
   placeholder?: string;
   min?: string;
   step?: string;
+  inputMode?:
+    | "none"
+    | "text"
+    | "tel"
+    | "url"
+    | "email"
+    | "numeric"
+    | "decimal"
+    | "search";
+  pattern?: string;
   controlled?: boolean;
   readOnly?: boolean;
   helper?: string;
@@ -2876,6 +2901,8 @@ function Field({
   placeholder,
   min,
   step,
+  inputMode,
+  pattern,
   controlled = false,
   readOnly = false,
   helper,
@@ -2911,6 +2938,8 @@ function Field({
         }
         min={min}
         step={step}
+        inputMode={inputMode}
+        pattern={pattern}
         className={`mt-2 h-12 w-full rounded-xl border px-4 text-sm outline-none transition focus:ring-4 ${
           readOnly
             ? "cursor-default border-orange-100 bg-orange-50/60 font-bold text-orange-700 focus:border-orange-300 focus:ring-orange-500/10"

@@ -140,8 +140,10 @@ function normalizeTerritory(row) {
     ),
     nameAr: clean(
       row?.nameAr ||
+        row?.nameArabic ||
         row?.arabicName ||
         raw.nameAr ||
+        raw.nameArabic ||
         raw.arabicName,
     ),
     parentId: clean(
@@ -155,10 +157,22 @@ function normalizeTerritory(row) {
         raw.level ||
         raw.territoryLevel,
     ).toLowerCase(),
+    hasHomeDelivery:
+      row?.hasHomeDelivery ??
+      raw.hasHomeDelivery ??
+      raw.delivery?.hasHomeDelivery ??
+      null,
+    hasPickupPoint:
+      row?.hasPickupPoint ??
+      raw.hasPickupPoint ??
+      raw.delivery?.hasPickupPoint ??
+      null,
     isDeliverable:
       row?.isDeliverable ??
       raw.isDeliverable ??
       raw.deliverable ??
+      row?.hasHomeDelivery ??
+      raw.hasHomeDelivery ??
       true,
     raw,
   };
@@ -189,21 +203,35 @@ function normalizeHub(row) {
         raw.fullAddress,
     ),
     cityId: clean(
-      row?.cityId ||
+      row?.cityTerritoryId ||
+        row?.cityId ||
         row?.wilayaId ||
+        raw.cityTerritoryId ||
         raw.cityId ||
-        raw.wilayaId ||
-        raw.cityTerritoryId,
+        raw.wilayaId,
     ) || null,
     districtId: clean(
-      row?.districtId ||
+      row?.districtTerritoryId ||
+        row?.districtId ||
         row?.communeId ||
+        raw.districtTerritoryId ||
         raw.districtId ||
-        raw.communeId ||
-        raw.districtTerritoryId,
+        raw.communeId,
     ) || null,
+    cityName: clean(
+      row?.cityName ||
+        raw.cityName ||
+        raw.city,
+    ),
+    communeName: clean(
+      row?.communeName ||
+        raw.communeName ||
+        raw.district,
+    ),
     pickupOnly:
+      row?.isPickupPoint ??
       row?.pickupOnly ??
+      raw.isPickupPoint ??
       raw.pickupOnly ??
       raw.isPickupHub ??
       false,
@@ -332,14 +360,68 @@ async function getWilayas(options = {}) {
 }
 
 async function getCommunes(cityId, options = {}) {
-  if (!clean(cityId)) {
+  const normalizedCityId = clean(cityId);
+
+  if (!normalizedCityId) {
     throw new HttpError(400, "La wilaya ZR est obligatoire.");
   }
 
-  return getTerritories({
+  const communes = await getTerritories({
     level: "commune",
-    parentId: clean(cityId),
+    parentId: normalizedCityId,
     refresh: options.refresh,
+  });
+
+  if (!options.stopDeskOnly) {
+    return communes;
+  }
+
+  /*
+   * STOP DESK = bureau physique réel.
+   * On filtre donc STRICTEMENT avec la liste des hubs ZR Express.
+   * Le flag hasPickupPoint d'un territoire n'est pas suffisant : chez ZR il
+   * peut indiquer que le service pickup est disponible dans la zone, sans
+   * garantir qu'un bureau physique existe dans cette commune.
+   */
+  const hubs = await getDestinationHubs({
+    cityId: normalizedCityId,
+  });
+
+  const hubDistrictIds = new Set(
+    hubs
+      .map((hub) => clean(hub.districtId))
+      .filter(Boolean),
+  );
+
+  const normalizeName = (value) =>
+    clean(value)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+
+  // Secours uniquement pour d'anciens payloads ZR dépourvus d'UUID commune.
+  // On compare alors le NOM de commune porté par le bureau, jamais le flag
+  // hasPickupPoint du territoire.
+  const hubCommuneNames = new Set(
+    hubs
+      .filter((hub) => !clean(hub.districtId))
+      .map((hub) => normalizeName(hub.communeName))
+      .filter(Boolean),
+  );
+
+  return communes.filter((commune) => {
+    const communeId = clean(commune.id);
+
+    if (communeId && hubDistrictIds.has(communeId)) {
+      return true;
+    }
+
+    const communeName = normalizeName(commune.name);
+    return Boolean(
+      communeName && hubCommuneNames.has(communeName),
+    );
   });
 }
 
@@ -380,16 +462,30 @@ async function getDestinationHubs({
   const district = clean(districtId);
 
   return hubs.filter((hub) => {
-    if (district && hub.districtId) {
-      return hub.districtId === district;
+    const hubCity = clean(hub.cityId);
+    const hubDistrict = clean(hub.districtId);
+
+    // Si une commune est demandée, le bureau doit appartenir exactement à
+    // cette commune. On ne retombe jamais sur "tous les bureaux de la wilaya".
+    if (district) {
+      if (!hubDistrict || hubDistrict !== district) {
+        return false;
+      }
+
+      if (city && hubCity && hubCity !== city) {
+        return false;
+      }
+
+      return true;
     }
 
-    if (city && hub.cityId) {
-      return hub.cityId === city;
+    // Pour construire la liste des communes Stop Desk, on récupère seulement
+    // les bureaux réellement rattachés à la wilaya choisie.
+    if (city) {
+      return Boolean(hubCity && hubCity === city);
     }
 
-    const searchable = JSON.stringify(hub.raw || hub).toLowerCase();
-    return !city && !district ? true : searchable.includes(city.toLowerCase());
+    return true;
   });
 }
 

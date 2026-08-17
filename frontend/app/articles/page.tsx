@@ -6,6 +6,7 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -543,6 +544,37 @@ function ArticlesPageContent() {
     currentPage,
     setCurrentPage,
   ] = useState(1);
+
+  const catalogGridRef =
+    useRef<HTMLDivElement | null>(null);
+
+  function scrollToFirstCatalogItem() {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        const grid =
+          catalogGridRef.current;
+
+        if (!grid) {
+          return;
+        }
+
+        const headerOffset =
+          window.innerWidth < 640
+            ? 76
+            : 92;
+
+        const top =
+          grid.getBoundingClientRect().top +
+          window.scrollY -
+          headerOffset;
+
+        window.scrollTo({
+          top: Math.max(0, top),
+          behavior: "smooth",
+        });
+      });
+    });
+  }
 
   useEffect(() => {
     setQuery(headerSearch);
@@ -1298,7 +1330,10 @@ function ArticlesPageContent() {
         ) : mode === "packs" ? (
           filteredPacks.length >
           0 ? (
-            <div className="mt-6 grid grid-cols-1 gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+            <div
+              ref={catalogGridRef}
+              className="mt-6 grid grid-cols-1 gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4"
+            >
               {paginatedPacks.map(
                 (pack) => (
                   <PackCard
@@ -1315,7 +1350,10 @@ function ArticlesPageContent() {
           )
         ) : filteredArticles.length >
           0 ? (
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+          <div
+            ref={catalogGridRef}
+            className="mt-6 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4"
+          >
             {paginatedArticles.map(
               (article) => (
                 <ProductCard
@@ -1344,10 +1382,7 @@ function ArticlesPageContent() {
               totalPages={totalPages}
               onPageChange={(page) => {
                 setCurrentPage(page);
-                window.scrollTo({
-                  top: 0,
-                  behavior: "smooth",
-                });
+                scrollToFirstCatalogItem();
               }}
             />
           )}

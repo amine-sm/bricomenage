@@ -364,115 +364,278 @@ function ProductCarousel({
 }: {
   products: Product[];
 }) {
-  const [
-    currentProductIndex,
-    setCurrentProductIndex,
-  ] = useState(0);
+  const carouselRef =
+    useRef<HTMLDivElement>(null);
 
-  const [
-    carouselPaused,
-    setCarouselPaused,
-  ] = useState(false);
+  const [activeIndex, setActiveIndex] =
+    useState(0);
 
-  const [
-    direction,
-    setDirection,
-  ] = useState<1 | -1>(1);
+  const [paused, setPaused] =
+    useState(false);
 
-  const [
-    visibleProducts,
-    setVisibleProducts,
-  ] = useState(4);
+  /*
+   * Retourne la position horizontale exacte
+   * d'une carte dans la liste.
+   */
+  function getCardLeft(index: number) {
+    const container = carouselRef.current;
 
-  useEffect(() => {
-    function updateVisibleProducts() {
-      const width = window.innerWidth;
-
-      if (width < 640) {
-        setVisibleProducts(1);
-        return;
-      }
-
-      if (width < 1024) {
-        setVisibleProducts(2);
-        return;
-      }
-
-      if (width < 1280) {
-        setVisibleProducts(3);
-        return;
-      }
-
-      setVisibleProducts(4);
+    if (!container) {
+      return 0;
     }
 
-    updateVisibleProducts();
-    window.addEventListener(
-      "resize",
-      updateVisibleProducts,
-    );
-
-    return () => {
-      window.removeEventListener(
-        "resize",
-        updateVisibleProducts,
+    const cards =
+      container.querySelectorAll<HTMLElement>(
+        "[data-product-card]",
       );
-    };
-  }, []);
 
-  useEffect(() => {
+    const card = cards[index];
+
+    return card?.offsetLeft || 0;
+  }
+
+  /*
+   * Scroll vers UNE seule carte.
+   * C'est un vrai scroll horizontal :
+   * les cartes restent dans une seule liste
+   * et glissent naturellement.
+   */
+  function scrollToProduct(
+    index: number,
+    behavior: ScrollBehavior = "smooth",
+  ) {
+    const container = carouselRef.current;
+
     if (
-      carouselPaused ||
-      products.length <= visibleProducts
+      !container ||
+      products.length === 0
     ) {
       return;
     }
 
-    const intervalId = window.setInterval(() => {
-      setDirection(1);
+    const normalizedIndex =
+      ((index % products.length) +
+        products.length) %
+      products.length;
 
-      setCurrentProductIndex(
-        (current) =>
-          (current + 1) % products.length,
-      );
-    }, 6000);
+    container.scrollTo({
+      left: getCardLeft(
+        normalizedIndex,
+      ),
+      behavior,
+    });
 
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [
-    carouselPaused,
-    products.length,
-    visibleProducts,
-  ]);
+    setActiveIndex(
+      normalizedIndex,
+    );
+  }
 
   function showPreviousProduct() {
-    if (products.length === 0) {
+    if (products.length <= 1) {
       return;
     }
 
-    setDirection(-1);
-
-    setCurrentProductIndex(
-      (current) =>
-        current === 0
-          ? products.length - 1
-          : current - 1,
+    scrollToProduct(
+      activeIndex - 1,
     );
   }
 
   function showNextProduct() {
-    if (products.length === 0) {
+    if (products.length <= 1) {
       return;
     }
 
-    setDirection(1);
+    /*
+     * À la fin, on revient au premier produit.
+     */
+    if (
+      activeIndex >=
+      products.length - 1
+    ) {
+      scrollToProduct(0);
+      return;
+    }
 
-    setCurrentProductIndex(
-      (current) =>
-        (current + 1) % products.length,
+    scrollToProduct(
+      activeIndex + 1,
     );
   }
+
+  /*
+   * AUTOPLAY :
+   * toutes les 4 secondes,
+   * la liste avance d'UNE carte.
+   */
+  useEffect(() => {
+    if (
+      paused ||
+      products.length <= 1
+    ) {
+      return;
+    }
+
+    const intervalId =
+      window.setInterval(() => {
+        const container =
+          carouselRef.current;
+
+        if (!container) {
+          return;
+        }
+
+        setActiveIndex(
+          (current) => {
+            const next =
+              current >=
+              products.length - 1
+                ? 0
+                : current + 1;
+
+            const cards =
+              container.querySelectorAll<HTMLElement>(
+                "[data-product-card]",
+              );
+
+            const target =
+              cards[next];
+
+            container.scrollTo({
+              left:
+                target?.offsetLeft ||
+                0,
+              behavior: "smooth",
+            });
+
+            return next;
+          },
+        );
+      }, 4000);
+
+    return () => {
+      window.clearInterval(
+        intervalId,
+      );
+    };
+  }, [
+    paused,
+    products.length,
+  ]);
+
+  /*
+   * Quand l'utilisateur fait un vrai scroll
+   * avec le doigt, la souris ou le trackpad,
+   * on détecte automatiquement la carte
+   * la plus proche.
+   */
+  useEffect(() => {
+    const container =
+      carouselRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    let timeoutId:
+      | number
+      | undefined;
+
+    function updateActiveIndex() {
+      const currentContainer =
+        carouselRef.current;
+
+      if (!currentContainer) {
+        return;
+      }
+
+      const cards =
+        currentContainer.querySelectorAll<HTMLElement>(
+          "[data-product-card]",
+        );
+
+      if (!cards.length) {
+        return;
+      }
+
+      const scrollLeft =
+        currentContainer.scrollLeft;
+
+      let closestIndex = 0;
+      let closestDistance =
+        Number.POSITIVE_INFINITY;
+
+      cards.forEach(
+        (card, index) => {
+          const distance =
+            Math.abs(
+              card.offsetLeft -
+                scrollLeft,
+            );
+
+          if (
+            distance <
+            closestDistance
+          ) {
+            closestDistance =
+              distance;
+            closestIndex = index;
+          }
+        },
+      );
+
+      setActiveIndex(
+        closestIndex,
+      );
+    }
+
+    function handleScroll() {
+      window.clearTimeout(
+        timeoutId,
+      );
+
+      timeoutId =
+        window.setTimeout(
+          updateActiveIndex,
+          80,
+        );
+    }
+
+    container.addEventListener(
+      "scroll",
+      handleScroll,
+      {
+        passive: true,
+      },
+    );
+
+    return () => {
+      container.removeEventListener(
+        "scroll",
+        handleScroll,
+      );
+
+      window.clearTimeout(
+        timeoutId,
+      );
+    };
+  }, [products.length]);
+
+  /*
+   * Si la liste des produits change,
+   * on revient proprement au début.
+   */
+  useEffect(() => {
+    setActiveIndex(0);
+
+    const container =
+      carouselRef.current;
+
+    if (container) {
+      container.scrollTo({
+        left: 0,
+        behavior: "auto",
+      });
+    }
+  }, [products.length]);
 
   if (products.length === 0) {
     return (
@@ -482,204 +645,193 @@ function ProductCarousel({
     );
   }
 
-  const orderedProducts = Array.from(
-    {
-      length: Math.min(
-        visibleProducts,
-        products.length,
-      ),
-    },
-    (_, offset) =>
-      products[
-        (currentProductIndex + offset) %
-          products.length
-      ],
-  );
-
-  const slideVariants: Variants = {
-    enter: (
-      customDirection: number,
-    ) => ({
-      x:
-        customDirection > 0
-          ? 120
-          : -120,
-      opacity: 0,
-      scale: 0.96,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-      scale: 1,
-    },
-    exit: (
-      customDirection: number,
-    ) => ({
-      x:
-        customDirection > 0
-          ? -120
-          : 120,
-      opacity: 0,
-      scale: 0.96,
-    }),
-  };
-
   return (
     <div
       className="relative"
       onMouseEnter={() =>
-        setCarouselPaused(true)
+        setPaused(true)
       }
       onMouseLeave={() =>
-        setCarouselPaused(false)
+        setPaused(false)
       }
     >
+      {/* =====================================
+          BARRE SUPÉRIEURE
+      ====================================== */}
+
       <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4">
-        <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 sm:text-sm">
-          <span className="rounded-full bg-white px-3 py-1 text-orange-600 shadow-sm">
-            Glissez pour découvrir
-          </span>
+        <div className="flex min-w-0 items-center gap-2 text-xs font-bold text-zinc-500 sm:text-sm">
+
+
+
         </div>
 
         <div className="flex items-center justify-between gap-2 sm:justify-end">
           <CarouselButton
             direction="left"
-            onClick={showPreviousProduct}
+            onClick={
+              showPreviousProduct
+            }
           />
 
           <span className="min-w-16 text-center text-[11px] font-black text-zinc-500 sm:min-w-20 sm:text-xs">
-            {currentProductIndex + 1}
+            {activeIndex + 1}
             {" / "}
             {products.length}
           </span>
 
           <CarouselButton
             direction="right"
-            onClick={showNextProduct}
+            onClick={
+              showNextProduct
+            }
           />
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-[28px] border border-zinc-200/80 bg-gradient-to-b from-white to-zinc-50/80 p-2 shadow-sm sm:p-3">
-        <AnimatePresence
-          mode="popLayout"
-          initial={false}
-          custom={direction}
+      {/* =====================================
+          VRAIE LISTE HORIZONTALE
+      ====================================== */}
+
+      <div className="relative overflow-hidden rounded-[28px] border border-zinc-200/80 bg-gradient-to-b from-white to-zinc-50/80 shadow-sm">
+        {/*
+         * IMPORTANT :
+         * - overflow-x-auto = vrai scroll horizontal
+         * - flex-nowrap = toutes les cartes sur une ligne
+         * - snap-x = arrêt propre sur chaque carte
+         * - scroll-smooth = glissement fluide
+         *
+         * MOBILE :
+         * la carte fait environ 86% de la largeur,
+         * donc on aperçoit la carte suivante.
+         *
+         * TABLETTE :
+         * environ 2 cartes visibles.
+         *
+         * WEB :
+         * 3 puis 4 cartes visibles.
+         */}
+        <div
+          ref={carouselRef}
+          onTouchStart={() =>
+            setPaused(true)
+          }
+          onTouchEnd={() =>
+            setPaused(false)
+          }
+          onPointerDown={() =>
+            setPaused(true)
+          }
+          onPointerUp={() =>
+            setPaused(false)
+          }
+          onPointerCancel={() =>
+            setPaused(false)
+          }
+          className="
+            flex
+            w-full
+            snap-x
+            snap-mandatory
+            flex-nowrap
+            gap-4
+            overflow-x-auto
+            scroll-smooth
+            p-2
+            pr-2
+            touch-pan-x
+            overscroll-x-contain
+            [scrollbar-width:none]
+            [&::-webkit-scrollbar]:hidden
+
+            sm:gap-5
+            sm:p-3
+            sm:pr-8
+
+            lg:gap-6
+          "
         >
-          <motion.div
-            key={currentProductIndex}
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: {
-                type: "spring",
-                stiffness: 150,
-                damping: 26,
-              },
-              opacity: {
-                duration: 0.55,
-              },
-              scale: {
-                duration: 0.6,
-              },
-            }}
-            drag="x"
-            dragConstraints={{
-              left: 0,
-              right: 0,
-            }}
-            dragElastic={0.18}
-            onDragEnd={(
-              _event,
-              info,
-            ) => {
-              if (
-                info.offset.x < -60 ||
-                info.velocity.x < -450
-              ) {
-                showNextProduct();
-                return;
-              }
-
-              if (
-                info.offset.x > 60 ||
-                info.velocity.x > 450
-              ) {
-                showPreviousProduct();
-              }
-            }}
-            className="grid cursor-grab gap-4 active:cursor-grabbing sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4"
-          >
-            {orderedProducts.map(
-              (product, index) => (
-                <motion.div
-                  key={`${currentProductIndex}-${product.id}`}
-                  initial={{
-                    opacity: 0,
-                    y: 24,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                  transition={{
-                    duration: 0.65,
-                    delay: index * 0.07,
-                  }}
-                  whileHover={{
-                    y: -7,
-                    transition: {
-                      duration: 0.2,
-                    },
-                  }}
-                  className="h-full"
-                >
-                  <ProductCard p={product} />
-                </motion.div>
-              ),
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      <div className="mt-7 flex items-center justify-center gap-2">
-        {products.map(
-          (product, index) => {
-            const active =
-              currentProductIndex === index;
-
-            return (
-              <button
+          {products.map(
+            (product) => (
+              <div
                 key={product.id}
-                type="button"
-                onClick={() => {
-                  setDirection(
-                    index >
-                      currentProductIndex
-                      ? 1
-                      : -1,
-                  );
+                data-product-card
+                className="
+                  h-auto
+                  min-w-0
+                  shrink-0
+                  snap-start
 
-                  setCurrentProductIndex(
-                    index,
-                  );
-                }}
-                aria-label={`Afficher l’article ${
-                  index + 1
-                }`}
-                className={`h-2.5 rounded-full transition-all duration-300 ${
-                  active
-                    ? "w-9 bg-orange-500"
-                    : "w-2.5 bg-zinc-300 hover:bg-orange-300"
-                }`}
-              />
-            );
-          },
+                  basis-full
+
+                  sm:basis-[calc((100%-20px)/2)]
+
+                  lg:basis-[calc((100%-48px)/3)]
+
+                  xl:basis-[calc((100%-72px)/4)]
+                "
+              >
+                <div className="h-full">
+                  <ProductCard
+                    p={product}
+                  />
+                </div>
+              </div>
+            ),
+          )}
+        </div>
+
+        {/* petit dégradé à droite pour montrer
+            qu'il y a encore des produits */}
+        {products.length > 1 && (
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white/90 to-transparent sm:w-12" />
         )}
       </div>
+
+      {/* =====================================
+          PAGINATION
+      ====================================== */}
+
+      {products.length > 1 && (
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:mt-7">
+          {products.map(
+            (product, index) => {
+              const active =
+                activeIndex === index;
+
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  onClick={() =>
+                    scrollToProduct(
+                      index,
+                    )
+                  }
+                  aria-label={`Afficher l’article ${
+                    index + 1
+                  }`}
+                  className={`h-2.5 rounded-full transition-[width,background-color] duration-300 ${
+                    active
+                      ? "w-9 bg-orange-500"
+                      : "w-2.5 bg-zinc-300 hover:bg-orange-300"
+                  }`}
+                />
+              );
+            },
+          )}
+        </div>
+      )}
+
+      {/* =====================================
+          AIDE MOBILE
+      ====================================== */}
+
+      {products.length > 1 && (
+        <p className="mt-4 text-center text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-400 sm:hidden">
+          Glissez la liste vers la gauche ou la droite
+        </p>
+      )}
     </div>
   );
 }

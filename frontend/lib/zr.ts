@@ -11,6 +11,8 @@ export type ZrTerritory = {
   parentId?: string | null;
   level?: string;
   isDeliverable?: boolean;
+  hasHomeDelivery?: boolean | null;
+  hasPickupPoint?: boolean | null;
 };
 
 export type ZrHub = {
@@ -55,15 +57,26 @@ export const zrApi = {
 
   communes: (
     cityId: string,
-  ) =>
-    apiFetch<{
+    options: {
+      stopDeskOnly?: boolean;
+    } = {},
+  ) => {
+    const query = new URLSearchParams({
+      cityId,
+    });
+
+    if (options.stopDeskOnly) {
+      query.set(
+        "stopDeskOnly",
+        "1",
+      );
+    }
+
+    return apiFetch<{
       success: boolean;
       communes: ZrTerritory[];
-    }>(
-      `/zr/communes?cityId=${encodeURIComponent(
-        cityId,
-      )}`,
-    ),
+    }>(`/zr/communes?${query.toString()}`);
+  },
 
   hubs: (
     params: {

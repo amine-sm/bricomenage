@@ -23,7 +23,14 @@ async function wilayas(req, res) {
 
 async function communes(req, res) {
   const cityId = required(req.query.cityId, "La wilaya ZR");
-  const items = await zrExpressService.getCommunes(cityId);
+  const stopDeskOnly = ["1", "true", "yes"].includes(
+    String(req.query.stopDeskOnly || "").trim().toLowerCase(),
+  );
+
+  const items = await zrExpressService.getCommunes(cityId, {
+    stopDeskOnly,
+  });
+
   return res.json({ success: true, communes: items });
 }
 
