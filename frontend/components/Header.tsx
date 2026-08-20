@@ -18,6 +18,7 @@ import {
   Hammer,
   Home,
   Leaf,
+  LoaderCircle,
   MapPin,
   Menu,
   Package,
@@ -40,6 +41,7 @@ import { getCart } from "@/lib/cart";
 
 import {
   catalogApi,
+  type CatalogArticle,
   type CatalogCategory,
 } from "@/lib/catalog";
 
@@ -223,6 +225,131 @@ function getHeaderCategoryVisual(
   };
 }
 
+
+function formatSearchPrice(
+  value: number,
+) {
+  return new Intl.NumberFormat(
+    "fr-DZ",
+  ).format(Number(value || 0));
+}
+
+function normalizeSearchValue(
+  value?: string | null,
+) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(
+      /[\u0300-\u036f]/g,
+      "",
+    )
+    .toLocaleLowerCase("fr")
+    .trim();
+}
+
+function rankSearchSuggestions(
+  articles: CatalogArticle[],
+  query: string,
+) {
+  const term =
+    normalizeSearchValue(query);
+
+  if (!term) {
+    return [];
+  }
+
+  function score(
+    article: CatalogArticle,
+  ) {
+    const designation =
+      normalizeSearchValue(
+        article.designation,
+      );
+
+    const category =
+      normalizeSearchValue(
+        article.category,
+      );
+
+    const brand =
+      normalizeSearchValue(
+        article.brand,
+      );
+
+    const reference =
+      normalizeSearchValue(
+        article.reference,
+      );
+
+    let total = 0;
+
+    if (
+      designation === term
+    ) {
+      total += 150;
+    }
+
+    if (
+      designation.startsWith(
+        term,
+      )
+    ) {
+      total += 100;
+    }
+
+    if (
+      designation
+        .split(/\s+/)
+        .some((word) =>
+          word.startsWith(term),
+        )
+    ) {
+      total += 75;
+    }
+
+    if (
+      designation.includes(term)
+    ) {
+      total += 55;
+    }
+
+    if (
+      brand.startsWith(term)
+    ) {
+      total += 35;
+    } else if (
+      brand.includes(term)
+    ) {
+      total += 24;
+    }
+
+    if (
+      category.startsWith(term)
+    ) {
+      total += 28;
+    } else if (
+      category.includes(term)
+    ) {
+      total += 18;
+    }
+
+    if (
+      reference.includes(term)
+    ) {
+      total += 15;
+    }
+
+    return total;
+  }
+
+  return [...articles]
+    .sort(
+      (a, b) =>
+        score(b) - score(a),
+    )
+    .slice(0, 8);
+}
+
 export default function Header() {
   const [
     categories,
@@ -234,6 +361,11 @@ export default function Header() {
   const pathname =
     usePathname();
 
+  const currentPath =
+    pathname === "/"
+      ? "/"
+      : pathname.replace(/\/+$/, "");
+
   const searchParams =
     useSearchParams();
 
@@ -241,6 +373,51 @@ export default function Header() {
     useRef<HTMLDivElement>(
       null,
     );
+
+  const mobileSearchInputReference =
+    useRef<HTMLInputElement>(
+      null,
+    );
+
+  const desktopSearchReference =
+    useRef<HTMLDivElement>(
+      null,
+    );
+
+  const [
+    desktopSearchOpen,
+    setDesktopSearchOpen,
+  ] = useState(false);
+
+  const [
+    mobileSearchOpen,
+    setMobileSearchOpen,
+  ] = useState(false);
+
+  const [
+    mobileSearchQuery,
+    setMobileSearchQuery,
+  ] = useState(
+    searchParams.get("search") ||
+      "",
+  );
+
+  const [
+    searchSuggestions,
+    setSearchSuggestions,
+  ] = useState<CatalogArticle[]>(
+    [],
+  );
+
+  const [
+    searchSuggestionsLoading,
+    setSearchSuggestionsLoading,
+  ] = useState(false);
+
+  const [
+    searchSuggestionsError,
+    setSearchSuggestionsError,
+  ] = useState("");
 
   const [
     cartCount,
@@ -346,6 +523,127 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
+    setMobileSearchQuery(
+      searchParams.get("search") ||
+        "",
+    );
+  }, [currentPath, searchParams]);
+
+  useEffect(() => {
+    if (!mobileSearchOpen) {
+      return;
+    }
+
+    const frame =
+      window.requestAnimationFrame(
+        () => {
+          mobileSearchInputReference.current?.focus();
+        },
+      );
+
+    return () => {
+      window.cancelAnimationFrame(
+        frame,
+      );
+    };
+  }, [mobileSearchOpen]);
+
+  useEffect(() => {
+    let active = true;
+
+    const query =
+      mobileSearchQuery.trim();
+
+    if (
+      !mobileSearchOpen &&
+      !desktopSearchOpen
+    ) {
+      setSearchSuggestions([]);
+      setSearchSuggestionsLoading(
+        false,
+      );
+      return;
+    }
+
+    if (!query) {
+      setSearchSuggestions([]);
+      setSearchSuggestionsLoading(
+        false,
+      );
+      setSearchSuggestionsError("");
+      return;
+    }
+
+    setSearchSuggestionsLoading(
+      true,
+    );
+    setSearchSuggestionsError("");
+
+    const timerId =
+      window.setTimeout(
+        async () => {
+          try {
+            const response =
+              await catalogApi.articles({
+                search: query,
+                limit: "12",
+              });
+
+            if (!active) {
+              return;
+            }
+
+            const articles =
+              Array.isArray(
+                response.articles,
+              )
+                ? response.articles
+                : [];
+
+            setSearchSuggestions(
+              rankSearchSuggestions(
+                articles,
+                query,
+              ),
+            );
+          } catch (error) {
+            if (!active) {
+              return;
+            }
+
+            setSearchSuggestions(
+              [],
+            );
+
+            setSearchSuggestionsError(
+              error instanceof Error
+                ? error.message
+                : "Impossible de charger les suggestions.",
+            );
+          } finally {
+            if (active) {
+              setSearchSuggestionsLoading(
+                false,
+              );
+            }
+          }
+        },
+        230,
+      );
+
+    return () => {
+      active = false;
+      window.clearTimeout(
+        timerId,
+      );
+    };
+  }, [
+    desktopSearchOpen,
+    mobileSearchOpen,
+    mobileSearchQuery,
+  ]);
+
+  useEffect(() => {
     function refreshCart() {
       try {
         const total =
@@ -434,7 +732,8 @@ export default function Header() {
     setMobileCategoriesOpen(
       false,
     );
-  }, [pathname, searchParams]);
+    setMobileSearchOpen(false);
+  }, [currentPath, searchParams]);
 
   useEffect(() => {
     function handleOutsideClick(
@@ -462,6 +761,33 @@ export default function Header() {
         "mousedown",
         handleOutsideClick,
       );
+  }, []);
+
+  useEffect(() => {
+    function handleDesktopSearchOutside(
+      event: MouseEvent,
+    ) {
+      if (
+        desktopSearchReference.current &&
+        !desktopSearchReference.current.contains(
+          event.target as Node,
+        )
+      ) {
+        setDesktopSearchOpen(false);
+      }
+    }
+
+    document.addEventListener(
+      "mousedown",
+      handleDesktopSearchOutside,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleDesktopSearchOutside,
+      );
+    };
   }, []);
 
   useEffect(() => {
@@ -545,7 +871,7 @@ export default function Header() {
   }
 
   const categoryActive =
-    pathname === "/articles" &&
+    currentPath === "/articles" &&
     searchParams.has(
       "categorie",
     );
@@ -621,31 +947,337 @@ export default function Header() {
             </Link>
 
             <div className="hidden flex-1 justify-center px-6 lg:flex">
-              <form
-                action="/articles"
-                method="get"
-                className="relative w-full max-w-md"
+              <div
+                ref={desktopSearchReference}
+                className="relative w-full max-w-xl"
               >
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+                <form
+                  action="/articles"
+                  method="get"
+                  onSubmit={() =>
+                    setDesktopSearchOpen(
+                      false,
+                    )
+                  }
+                  className="relative"
+                >
+                  <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-400" />
 
-                <input
-                  type="search"
-                  name="search"
-                  placeholder="Rechercher un marteau, une chaise, un parasol..."
-                  autoComplete="off"
-                  className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-4 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 hover:border-orange-300 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
-                />
-              </form>
+                  <input
+                    type="search"
+                    name="search"
+                    value={mobileSearchQuery}
+                    onFocus={() =>
+                      setDesktopSearchOpen(
+                        true,
+                      )
+                    }
+                    onChange={(event) => {
+                      setMobileSearchQuery(
+                        event.target.value,
+                      );
+                      setDesktopSearchOpen(
+                        true,
+                      );
+                    }}
+                    placeholder="Rechercher un marteau, une chaise, un parasol..."
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-12 text-sm font-medium text-zinc-900 outline-none transition placeholder:font-normal placeholder:text-zinc-400 hover:border-orange-300 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
+                  />
+
+                  {mobileSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileSearchQuery(
+                          "",
+                        );
+                        setSearchSuggestions(
+                          [],
+                        );
+                      }}
+                      aria-label="Effacer la recherche"
+                      className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-200/80 text-zinc-500 transition hover:bg-zinc-300 active:scale-95"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </form>
+
+                <AnimatePresence>
+                  {desktopSearchOpen &&
+                    mobileSearchQuery
+                      .trim() && (
+                      <motion.div
+                        initial={{
+                          opacity: 0,
+                          y: 8,
+                          scale: 0.985,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          scale: 1,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: 6,
+                          scale: 0.985,
+                        }}
+                        transition={{
+                          duration: 0.17,
+                        }}
+                        className="absolute left-0 right-0 top-[calc(100%+10px)] z-[120] max-h-[min(70vh,620px)] overflow-y-auto overscroll-contain rounded-3xl border border-zinc-200 bg-white shadow-[0_28px_80px_rgba(24,24,27,0.20)]"
+                      >
+                        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-100 bg-white/95 px-5 py-4 backdrop-blur">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-500">
+                              Suggestions produits
+                            </p>
+                            <p className="mt-0.5 text-xs text-zinc-400">
+                              Résultats proches de «{" "}
+                              <span className="font-bold text-zinc-600">
+                                {mobileSearchQuery.trim()}
+                              </span>
+                              {" "}»
+                            </p>
+                          </div>
+
+                          {searchSuggestionsLoading && (
+                            <LoaderCircle className="h-5 w-5 animate-spin text-orange-500" />
+                          )}
+                        </div>
+
+                        {searchSuggestionsLoading &&
+                        searchSuggestions.length ===
+                          0 ? (
+                          <div className="space-y-1.5 p-3">
+                            {Array.from({
+                              length: 5,
+                            }).map(
+                              (
+                                _,
+                                index,
+                              ) => (
+                                <div
+                                  key={index}
+                                  className="flex animate-pulse items-center gap-4 rounded-2xl p-2.5"
+                                >
+                                  <div className="h-16 w-24 shrink-0 rounded-2xl bg-zinc-200" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="h-4 w-3/4 rounded bg-zinc-200" />
+                                    <div className="mt-2 h-3 w-2/5 rounded bg-zinc-100" />
+                                    <div className="mt-2 h-3.5 w-1/4 rounded bg-zinc-200" />
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        ) : searchSuggestionsError ? (
+                          <div className="px-6 py-10 text-center">
+                            <p className="text-sm font-black text-zinc-800">
+                              Recherche momentanément indisponible
+                            </p>
+                            <p className="mt-1 text-xs text-zinc-400">
+                              Réessayez dans quelques instants.
+                            </p>
+                          </div>
+                        ) : searchSuggestions.length >
+                          0 ? (
+                          <div className="p-2.5">
+                            {searchSuggestions.map(
+                              (
+                                article,
+                              ) => {
+                                const image =
+                                  article.image ||
+                                  article.images?.find(
+                                    Boolean,
+                                  ) ||
+                                  "";
+
+                                return (
+                                  <Link
+                                    key={
+                                      article.id
+                                    }
+                                    href={`/article?slug=${encodeURIComponent(
+                                      article.slug,
+                                    )}`}
+                                    onClick={() =>
+                                      setDesktopSearchOpen(
+                                        false,
+                                      )
+                                    }
+                                    className="group flex items-center gap-4 rounded-2xl p-2.5 transition hover:bg-orange-50/70"
+                                  >
+                                    <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-2xl bg-zinc-100">
+                                      {image ? (
+                                        <img
+                                          src={image}
+                                          alt={
+                                            article.designation
+                                          }
+                                          loading="lazy"
+                                          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                                        />
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center">
+                                          <Package className="h-7 w-7 text-zinc-300" />
+                                        </div>
+                                      )}
+
+                                      {article.old_price &&
+                                        Number(
+                                          article.old_price,
+                                        ) >
+                                          Number(
+                                            article.price,
+                                          ) && (
+                                          <span className="absolute left-1.5 top-1.5 rounded-md bg-orange-500 px-1.5 py-0.5 text-[8px] font-black uppercase text-white">
+                                            Promo
+                                          </span>
+                                        )}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                      <strong className="line-clamp-2 text-sm font-black leading-5 text-zinc-900 transition group-hover:text-orange-600">
+                                        {
+                                          article.designation
+                                        }
+                                      </strong>
+
+                                      <div className="mt-1 flex min-w-0 items-center gap-2">
+                                        <span className="truncate text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+                                          {
+                                            article.category
+                                          }
+                                        </span>
+
+                                        {article.brand && (
+                                          <>
+                                            <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+                                            <span className="truncate text-[10px] text-zinc-400">
+                                              {
+                                                article.brand
+                                              }
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+
+                                      <div className="mt-1.5 flex items-baseline gap-2">
+                                        <span className="text-base font-black text-zinc-950">
+                                          {formatSearchPrice(
+                                            Number(
+                                              article.price,
+                                            ),
+                                          )}{" "}
+                                          DA
+                                        </span>
+
+                                        {article.old_price &&
+                                          Number(
+                                            article.old_price,
+                                          ) >
+                                            Number(
+                                              article.price,
+                                            ) && (
+                                            <span className="text-[11px] text-zinc-400 line-through">
+                                              {formatSearchPrice(
+                                                Number(
+                                                  article.old_price,
+                                                ),
+                                              )}{" "}
+                                              DA
+                                            </span>
+                                          )}
+                                      </div>
+                                    </div>
+
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-400 transition group-hover:bg-orange-500 group-hover:text-white">
+                                      <ChevronRight className="h-4 w-4" />
+                                    </span>
+                                  </Link>
+                                );
+                              },
+                            )}
+
+                            <Link
+                              href={`/articles?search=${encodeURIComponent(
+                                mobileSearchQuery.trim(),
+                              )}`}
+                              onClick={() =>
+                                setDesktopSearchOpen(
+                                  false,
+                                )
+                              }
+                              className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-orange-50 px-5 text-sm font-black text-orange-600 transition hover:bg-orange-100"
+                            >
+                              <Search className="h-4 w-4" />
+                              Voir tous les résultats pour «{" "}
+                              <span className="max-w-[220px] truncate">
+                                {mobileSearchQuery.trim()}
+                              </span>
+                              {" "}»
+                            </Link>
+                          </div>
+                        ) : (
+                          <div className="px-6 py-10 text-center">
+                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400">
+                              <Search className="h-5 w-5" />
+                            </div>
+
+                            <p className="mt-3 text-sm font-black text-zinc-800">
+                              Aucun produit trouvé
+                            </p>
+
+                            <p className="mt-1 text-xs text-zinc-400">
+                              Essayez un autre nom, une marque ou une catégorie.
+                            </p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                </AnimatePresence>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <Link
-                href="/articles"
-                aria-label="Rechercher"
-                className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 lg:hidden"
+              <motion.button
+                type="button"
+                whileTap={{
+                  scale: 0.92,
+                }}
+                aria-label={
+                  mobileSearchOpen
+                    ? "Fermer la recherche"
+                    : "Rechercher un produit"
+                }
+                aria-expanded={
+                  mobileSearchOpen
+                }
+                onClick={() => {
+                  setMobileOpen(false);
+                  setDesktopSearchOpen(false);
+                  setMobileSearchOpen(
+                    (open) => !open,
+                  );
+                }}
+                className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition lg:hidden ${
+                  mobileSearchOpen
+                    ? "border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:border-orange-300 hover:text-orange-500"
+                }`}
               >
-                <Search className="h-5 w-5" />
-              </Link>
+                {mobileSearchOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Search className="h-5 w-5" />
+                )}
+              </motion.button>
 
               <Link
                 href="/panier"
@@ -697,12 +1329,18 @@ export default function Header() {
                     ? "Fermer le menu"
                     : "Ouvrir le menu"
                 }
-                onClick={() =>
+                onClick={() => {
+                  setMobileSearchOpen(
+                    false,
+                  );
+                  setDesktopSearchOpen(
+                    false,
+                  );
                   setMobileOpen(
                     (open) =>
                       !open,
-                  )
-                }
+                  );
+                }}
                 className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 lg:hidden"
               >
                 {mobileOpen ? (
@@ -713,6 +1351,322 @@ export default function Header() {
               </button>
             </div>
           </div>
+
+          <AnimatePresence initial={false}>
+            {mobileSearchOpen && (
+                <motion.div
+                  initial={{
+                    opacity: 0,
+                    y: -10,
+                    height: 0,
+                  }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    height: "auto",
+                  }}
+                  exit={{
+                    opacity: 0,
+                    y: -8,
+                    height: 0,
+                  }}
+                  transition={{
+                    duration: 0.22,
+                    ease: "easeOut",
+                  }}
+                  className="relative z-[80] pb-3 lg:hidden"
+                >
+                  <form
+                    action="/articles"
+                    method="get"
+                    onSubmit={() =>
+                      setMobileSearchOpen(
+                        false,
+                      )
+                    }
+                    className="relative"
+                  >
+                    <Search className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-400" />
+
+                    <input
+                      ref={
+                        mobileSearchInputReference
+                      }
+                      type="search"
+                      name="search"
+                      value={
+                        mobileSearchQuery
+                      }
+                      onChange={(
+                        event,
+                      ) =>
+                        setMobileSearchQuery(
+                          event.target
+                            .value,
+                        )
+                      }
+                      placeholder="Rechercher un produit..."
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      className="h-12 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-12 text-[15px] font-medium text-zinc-950 outline-none transition placeholder:font-normal placeholder:text-zinc-400 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
+                    />
+
+                    {mobileSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileSearchQuery(
+                            "",
+                          );
+                          setSearchSuggestions(
+                            [],
+                          );
+                          mobileSearchInputReference.current?.focus();
+                        }}
+                        aria-label="Effacer la recherche"
+                        className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-zinc-200/80 text-zinc-500 transition active:scale-95"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </form>
+
+                  <AnimatePresence>
+                    {mobileSearchQuery
+                      .trim() && (
+                      <motion.div
+                        initial={{
+                          opacity: 0,
+                          y: 8,
+                          scale: 0.985,
+                        }}
+                        animate={{
+                          opacity: 1,
+                          y: 0,
+                          scale: 1,
+                        }}
+                        exit={{
+                          opacity: 0,
+                          y: 6,
+                          scale: 0.985,
+                        }}
+                        transition={{
+                          duration: 0.18,
+                        }}
+                        className="absolute inset-x-0 top-[calc(100%-5px)] z-[100] max-h-[min(68vh,540px)] overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200 bg-white shadow-[0_24px_70px_rgba(24,24,27,0.20)]"
+                      >
+                        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-100 bg-white/95 px-4 py-3 backdrop-blur">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-orange-500">
+                              Suggestions
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-zinc-400">
+                              Produits correspondant à votre recherche
+                            </p>
+                          </div>
+
+                          {searchSuggestionsLoading && (
+                            <LoaderCircle className="h-5 w-5 animate-spin text-orange-500" />
+                          )}
+                        </div>
+
+                        {searchSuggestionsLoading &&
+                        searchSuggestions.length ===
+                          0 ? (
+                          <div className="space-y-2 p-3">
+                            {Array.from({
+                              length: 4,
+                            }).map(
+                              (
+                                _,
+                                index,
+                              ) => (
+                                <div
+                                  key={
+                                    index
+                                  }
+                                  className="flex animate-pulse items-center gap-3 rounded-xl p-2"
+                                >
+                                  <div className="h-14 w-20 shrink-0 rounded-xl bg-zinc-200" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="h-3.5 w-4/5 rounded bg-zinc-200" />
+                                    <div className="mt-2 h-3 w-2/5 rounded bg-zinc-100" />
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        ) : searchSuggestionsError ? (
+                          <div className="px-5 py-7 text-center">
+                            <p className="text-sm font-bold text-zinc-700">
+                              Recherche momentanément indisponible
+                            </p>
+                            <p className="mt-1 text-xs leading-5 text-zinc-400">
+                              Réessayez dans quelques instants.
+                            </p>
+                          </div>
+                        ) : searchSuggestions.length >
+                          0 ? (
+                          <div className="p-2">
+                            {searchSuggestions.map(
+                              (
+                                article,
+                              ) => {
+                                const image =
+                                  article.image ||
+                                  article.images?.find(
+                                    Boolean,
+                                  ) ||
+                                  "";
+
+                                return (
+                                  <Link
+                                    key={
+                                      article.id
+                                    }
+                                    href={`/article?slug=${encodeURIComponent(
+                                      article.slug,
+                                    )}`}
+                                    onClick={() =>
+                                      setMobileSearchOpen(
+                                        false,
+                                      )
+                                    }
+                                    className="group flex items-center gap-3 rounded-xl p-2.5 transition active:bg-orange-50"
+                                  >
+                                    <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-100">
+                                      {image ? (
+                                        <img
+                                          src={
+                                            image
+                                          }
+                                          alt={
+                                            article.designation
+                                          }
+                                          loading="lazy"
+                                          className="h-full w-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center">
+                                          <Package className="h-6 w-6 text-zinc-300" />
+                                        </div>
+                                      )}
+
+                                      {article.old_price &&
+                                        Number(
+                                          article.old_price,
+                                        ) >
+                                          Number(
+                                            article.price,
+                                          ) && (
+                                          <span className="absolute left-1 top-1 rounded-md bg-orange-500 px-1.5 py-0.5 text-[8px] font-black text-white">
+                                            Promo
+                                          </span>
+                                        )}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                      <strong className="line-clamp-2 text-[13px] font-black leading-4.5 text-zinc-900 group-active:text-orange-600">
+                                        {
+                                          article.designation
+                                        }
+                                      </strong>
+
+                                      <div className="mt-1 flex min-w-0 items-center gap-2">
+                                        <span className="truncate text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                                          {
+                                            article.category
+                                          }
+                                        </span>
+
+                                        {article.brand && (
+                                          <>
+                                            <span className="h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
+                                            <span className="truncate text-[10px] text-zinc-400">
+                                              {
+                                                article.brand
+                                              }
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+
+                                      <div className="mt-1.5 flex items-baseline gap-1.5">
+                                        <span className="text-sm font-black text-zinc-950">
+                                          {formatSearchPrice(
+                                            Number(
+                                              article.price,
+                                            ),
+                                          )}{" "}
+                                          DA
+                                        </span>
+
+                                        {article.old_price &&
+                                          Number(
+                                            article.old_price,
+                                          ) >
+                                            Number(
+                                              article.price,
+                                            ) && (
+                                            <span className="text-[10px] text-zinc-400 line-through">
+                                              {formatSearchPrice(
+                                                Number(
+                                                  article.old_price,
+                                                ),
+                                              )}{" "}
+                                              DA
+                                            </span>
+                                          )}
+                                      </div>
+                                    </div>
+
+                                    <ChevronRight className="h-4 w-4 shrink-0 text-zinc-300" />
+                                  </Link>
+                                );
+                              },
+                            )}
+
+                            <Link
+                              href={`/articles?search=${encodeURIComponent(
+                                mobileSearchQuery.trim(),
+                              )}`}
+                              onClick={() =>
+                                setMobileSearchOpen(
+                                  false,
+                                )
+                              }
+                              className="mt-1 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-orange-50 px-4 text-xs font-black text-orange-600 transition active:bg-orange-100"
+                            >
+                              <Search className="h-4 w-4" />
+                              Voir tous les résultats pour «{" "}
+                              <span className="max-w-[120px] truncate">
+                                {mobileSearchQuery.trim()}
+                              </span>
+                              {" "}»
+                            </Link>
+                          </div>
+                        ) : (
+                          <div className="px-5 py-8 text-center">
+                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400">
+                              <Search className="h-5 w-5" />
+                            </div>
+
+                            <p className="mt-3 text-sm font-black text-zinc-800">
+                              Aucun produit trouvé
+                            </p>
+
+                            <p className="mt-1 text-xs leading-5 text-zinc-400">
+                              Essayez un autre mot ou une marque.
+                            </p>
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+          </AnimatePresence>
 
           <div className="hidden items-center justify-between border-t border-zinc-100 py-2 lg:flex">
             <div

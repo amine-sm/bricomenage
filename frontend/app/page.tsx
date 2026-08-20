@@ -396,9 +396,8 @@ function ProductCarousel({
 
   /*
    * Scroll vers UNE seule carte.
-   * C'est un vrai scroll horizontal :
-   * les cartes restent dans une seule liste
-   * et glissent naturellement.
+   * Les cartes restent dans une seule liste
+   * et glissent horizontalement.
    */
   function scrollToProduct(
     index: number,
@@ -445,9 +444,6 @@ function ProductCarousel({
       return;
     }
 
-    /*
-     * À la fin, on revient au premier produit.
-     */
     if (
       activeIndex >=
       products.length - 1
@@ -522,10 +518,8 @@ function ProductCarousel({
   ]);
 
   /*
-   * Quand l'utilisateur fait un vrai scroll
-   * avec le doigt, la souris ou le trackpad,
-   * on détecte automatiquement la carte
-   * la plus proche.
+   * Détecte la carte la plus proche pendant
+   * le scroll manuel horizontal.
    */
   useEffect(() => {
     const container =
@@ -621,7 +615,7 @@ function ProductCarousel({
 
   /*
    * Si la liste des produits change,
-   * on revient proprement au début.
+   * on revient au premier article.
    */
   useEffect(() => {
     setActiveIndex(0);
@@ -656,135 +650,118 @@ function ProductCarousel({
       }
     >
       {/* =====================================
-          BARRE SUPÉRIEURE
+          CARROUSEL + FLÈCHES À GAUCHE / DROITE
       ====================================== */}
 
-      <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4">
-        <div className="flex min-w-0 items-center gap-2 text-xs font-bold text-zinc-500 sm:text-sm">
-
-
-
-        </div>
-
-        <div className="flex items-center justify-between gap-2 sm:justify-end">
-          <CarouselButton
-            direction="left"
-            onClick={
-              showPreviousProduct
+      <div className="relative">
+        <div className="relative overflow-hidden rounded-[28px] border border-zinc-200/80 bg-gradient-to-b from-white to-zinc-50/80 shadow-sm">
+          <div
+            ref={carouselRef}
+            onTouchStart={() =>
+              setPaused(true)
             }
-          />
-
-          <span className="min-w-16 text-center text-[11px] font-black text-zinc-500 sm:min-w-20 sm:text-xs">
-            {activeIndex + 1}
-            {" / "}
-            {products.length}
-          </span>
-
-          <CarouselButton
-            direction="right"
-            onClick={
-              showNextProduct
+            onTouchEnd={() =>
+              setPaused(false)
             }
-          />
-        </div>
-      </div>
+            onTouchCancel={() =>
+              setPaused(false)
+            }
+            className="
+              flex
+              w-full
+              snap-x
+              snap-mandatory
+              flex-nowrap
+              gap-4
+              overflow-x-auto
+              scroll-smooth
+              p-2
+              pr-2
 
-      {/* =====================================
-          VRAIE LISTE HORIZONTALE
-      ====================================== */}
+              touch-auto
+              overscroll-x-contain
+              overscroll-y-auto
 
-      <div className="relative overflow-hidden rounded-[28px] border border-zinc-200/80 bg-gradient-to-b from-white to-zinc-50/80 shadow-sm">
-        {/*
-         * IMPORTANT :
-         * - overflow-x-auto = vrai scroll horizontal
-         * - flex-nowrap = toutes les cartes sur une ligne
-         * - snap-x = arrêt propre sur chaque carte
-         * - scroll-smooth = glissement fluide
-         *
-         * MOBILE :
-         * la carte fait environ 86% de la largeur,
-         * donc on aperçoit la carte suivante.
-         *
-         * TABLETTE :
-         * environ 2 cartes visibles.
-         *
-         * WEB :
-         * 3 puis 4 cartes visibles.
-         */}
-        <div
-          ref={carouselRef}
-          onTouchStart={() =>
-            setPaused(true)
-          }
-          onTouchEnd={() =>
-            setPaused(false)
-          }
-          onPointerDown={() =>
-            setPaused(true)
-          }
-          onPointerUp={() =>
-            setPaused(false)
-          }
-          onPointerCancel={() =>
-            setPaused(false)
-          }
-          className="
-            flex
-            w-full
-            snap-x
-            snap-mandatory
-            flex-nowrap
-            gap-4
-            overflow-x-auto
-            scroll-smooth
-            p-2
-            pr-2
-            touch-pan-x
-            overscroll-x-contain
-            [scrollbar-width:none]
-            [&::-webkit-scrollbar]:hidden
+              [scrollbar-width:none]
+              [&::-webkit-scrollbar]:hidden
 
-            sm:gap-5
-            sm:p-3
-            sm:pr-8
+              sm:gap-5
+              sm:p-3
+              sm:pr-8
 
-            lg:gap-6
-          "
-        >
-          {products.map(
-            (product) => (
-              <div
-                key={product.id}
-                data-product-card
-                className="
-                  h-auto
-                  min-w-0
-                  shrink-0
-                  snap-start
+              lg:gap-6
+            "
+          >
+            {products.map(
+              (product) => (
+                <div
+                  key={product.id}
+                  data-product-card
+                  className="
+                    h-auto
+                    min-w-0
+                    shrink-0
+                    snap-start
 
-                  basis-full
+                    basis-full
 
-                  sm:basis-[calc((100%-20px)/2)]
+                    sm:basis-[calc((100%-20px)/2)]
 
-                  lg:basis-[calc((100%-48px)/3)]
+                    lg:basis-[calc((100%-48px)/3)]
 
-                  xl:basis-[calc((100%-72px)/4)]
-                "
-              >
-                <div className="h-full">
-                  <ProductCard
-                    p={product}
-                  />
+                    xl:basis-[calc((100%-72px)/4)]
+                  "
+                >
+                  <div
+                    data-home-product-card
+                    className="h-full"
+                  >
+                    <ProductCard
+                      p={product}
+                    />
+                  </div>
                 </div>
-              </div>
-            ),
+              ),
+            )}
+          </div>
+
+          {/* Petit dégradé à droite */}
+          {products.length > 1 && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white/90 to-transparent sm:w-12" />
+          )}
+
+          {/* Compteur discret */}
+          {products.length > 1 && (
+            <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-zinc-200 bg-white/95 px-3 py-1.5 text-[10px] font-black text-zinc-600 shadow-sm backdrop-blur sm:top-4 sm:text-xs">
+              {activeIndex + 1}
+              {" / "}
+              {products.length}
+            </div>
           )}
         </div>
 
-        {/* petit dégradé à droite pour montrer
-            qu'il y a encore des produits */}
+        {/* Flèche GAUCHE */}
         {products.length > 1 && (
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white/90 to-transparent sm:w-12" />
+          <div className="absolute left-2 top-1/2 z-30 -translate-y-1/2 sm:-left-5">
+            <CarouselButton
+              direction="left"
+              onClick={
+                showPreviousProduct
+              }
+            />
+          </div>
+        )}
+
+        {/* Flèche DROITE */}
+        {products.length > 1 && (
+          <div className="absolute right-2 top-1/2 z-30 -translate-y-1/2 sm:-right-5">
+            <CarouselButton
+              direction="right"
+              onClick={
+                showNextProduct
+              }
+            />
+          </div>
         )}
       </div>
 
@@ -829,13 +806,12 @@ function ProductCarousel({
 
       {products.length > 1 && (
         <p className="mt-4 text-center text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-400 sm:hidden">
-          Glissez la liste vers la gauche ou la droite
+          Glissez horizontalement — le scroll vertical reste actif
         </p>
       )}
     </div>
   );
 }
-
 
 function CategoryCarousel({
   categories,
@@ -2440,7 +2416,7 @@ export default function Home() {
 
       try {
         const response =
-          await catalogApi.latestArticles(24);
+          await catalogApi.latestArticles(40);
 
         if (
           !active ||
@@ -2522,7 +2498,7 @@ export default function Home() {
           );
 
         setLatestProducts(
-          regularProducts.slice(0, 8),
+          regularProducts.slice(0, 10),
         );
       } catch (requestError) {
         if (active) {
@@ -2763,6 +2739,7 @@ export default function Home() {
   return (
     <>
       <HomeSeoJsonLd />
+
       <main className="overflow-hidden bg-white text-zinc-950">
       {/* HERO CAROUSEL */}
       <section className="relative min-h-[650px] overflow-hidden border-b border-zinc-200 bg-zinc-950 lg:min-h-[700px]">

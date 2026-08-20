@@ -3,10 +3,4 @@ node_modules
 out
 .env.local
 npm-debug.log*
-backend1.zip
-backend2.zip
-backend.zip
-frontend1.zip
-frontend2.zip
-frontend3.zip
-frontend.zip
+*.zip
