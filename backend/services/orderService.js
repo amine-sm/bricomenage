@@ -7,6 +7,101 @@ function money(value) {
   return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 }
 
+function normalizeHexColor(value) {
+  const raw = String(value || "").trim().toUpperCase();
+
+  if (/^#[0-9A-F]{6}$/.test(raw)) return raw;
+
+  if (/^#[0-9A-F]{3}$/.test(raw)) {
+    return `#${raw
+      .slice(1)
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")}`;
+  }
+
+  return null;
+}
+
+function normalizeArticleColors(value) {
+  if (!value) return [];
+
+  let parsed = value;
+
+  if (!Array.isArray(parsed)) {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(parsed)) return [];
+
+  const colors = [];
+  const used = new Set();
+
+  for (const item of parsed) {
+    const source =
+      item && typeof item === "object"
+        ? item
+        : { hex: item };
+
+    const hex = normalizeHexColor(source.hex);
+
+    if (!hex || used.has(hex)) continue;
+
+    used.add(hex);
+
+    const red = parseInt(hex.slice(1, 3), 16);
+    const green = parseInt(hex.slice(3, 5), 16);
+    const blue = parseInt(hex.slice(5, 7), 16);
+
+    colors.push({
+      name: String(source.name || "").trim() || null,
+      hex,
+      rgb: `rgb(${red}, ${green}, ${blue})`,
+    });
+  }
+
+  return colors.slice(0, 20);
+}
+
+function resolveRequestedColor(articleColors, rawColor) {
+  const available = normalizeArticleColors(articleColors);
+
+  if (!available.length) {
+    return null;
+  }
+
+  const requestedHex = normalizeHexColor(
+    rawColor && typeof rawColor === "object"
+      ? rawColor.hex
+      : rawColor,
+  );
+
+  /*
+   * Compatibilité avec les anciens paniers : si aucune couleur n'a
+   * été envoyée alors que l'article en possède, on prend la première.
+   */
+  if (!requestedHex) {
+    return available[0];
+  }
+
+  const selected = available.find(
+    (color) => color.hex === requestedHex,
+  );
+
+  if (!selected) {
+    throw new HttpError(
+      400,
+      `La couleur ${requestedHex} n'est pas disponible pour cet article.`,
+    );
+  }
+
+  return selected;
+}
+
 function promotionPriceSql(alias = 'a') {
   return `
     COALESCE((
@@ -125,7 +220,7 @@ async function createOrder(payload) {
 
       if (articleId) {
         const [[article]] = await cn.query(
-          `SELECT a.id,a.designation,a.price,a.purchase_price,a.stock_quantity,a.stock_managed,a.is_active,
+          `SELECT a.id,a.designation,a.price,a.purchase_price,a.stock_quantity,a.stock_managed,a.is_active,a.colors,
                   ${promotionPriceSql('a')} AS effective_price
            FROM articles a
            WHERE a.id=?
@@ -143,8 +238,13 @@ async function createOrder(payload) {
         }
 
         const unitPrice = money(article.effective_price);
+        const color = resolveRequestedColor(
+          article.colors,
+          raw.color || raw.selected_color || null,
+        );
+
         subtotal = money(subtotal + unitPrice * quantity);
-        resolved.push({ type: 'ARTICLE', article, quantity, unitPrice });
+        resolved.push({ type: 'ARTICLE', article, quantity, unitPrice, color });
         continue;
       }
 
@@ -231,16 +331,22 @@ async function createOrder(payload) {
             pack_id,
             item_type,
             designation,
+            color_name,
+            color_hex,
+            color_rgb,
             unit_price,
             unit_cost,
             quantity,
             line_total,
             cost_total
-          ) VALUES(?,?,NULL,'ARTICLE',?,?,?,?,?,?)`,
+          ) VALUES(?,?,NULL,'ARTICLE',?,?,?,?,?,?,?,?,?)`,
           [
             or.insertId,
             item.article.id,
             item.article.designation,
+            item.color?.name || null,
+            item.color?.hex || null,
+            item.color?.rgb || null,
             item.unitPrice,
             Number(
               item.article.purchase_price ||
@@ -416,7 +522,7 @@ async function trackOrder({ trackingNumber, phone }) {
   );
 
   const [items] = await pool.query(
-    `SELECT id,article_id,pack_id,item_type,designation,unit_price,quantity,line_total FROM order_items WHERE order_id=? ORDER BY id`,
+    `SELECT id,article_id,pack_id,item_type,designation,color_name,color_hex,color_rgb,unit_price,quantity,line_total FROM order_items WHERE order_id=? ORDER BY id`,
     [order.id],
   );
 
@@ -460,6 +566,9 @@ async function getOrderNotificationData(id) {
       pack_id,
       item_type,
       designation,
+      color_name,
+      color_hex,
+      color_rgb,
       unit_price,
       quantity,
       line_total

@@ -16,9 +16,15 @@ function formatDa(value) {
 
 function itemsText(items = []) {
   return items
-    .map((item) =>
-      `• ${item.designation} × ${Number(item.quantity || 0)}`,
-    )
+    .map((item) => {
+      const color =
+        item.color_name ||
+        item.color_hex;
+
+      return `• ${item.designation}${
+        color ? ` — Couleur: ${color}` : ""
+      } × ${Number(item.quantity || 0)}`;
+    })
     .join("\n");
 }
 

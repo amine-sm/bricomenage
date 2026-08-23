@@ -104,6 +104,9 @@ type OrderItem = {
   item_type?: "ARTICLE" | "PACK";
   designation: string;
   image?: string | null;
+  color_name?: string | null;
+  color_hex?: string | null;
+  color_rgb?: string | null;
   quantity: number;
   unit_price: number;
   line_total: number;
@@ -3107,6 +3110,28 @@ function OrderDetailModal({
                                 item.designation
                               }
                             </h4>
+
+                            {item.item_type !==
+                              "PACK" &&
+                              item.color_hex && (
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <span
+                                    className="h-5 w-5 shrink-0 rounded-full border border-black/10 shadow-sm ring-1 ring-zinc-200 ring-offset-1"
+                                    style={{
+                                      backgroundColor:
+                                        item.color_hex,
+                                    }}
+                                  />
+
+                                  <span className="text-xs font-black text-zinc-700">
+                                    Couleur : {
+                                      item.color_name ||
+                                      "Sélectionnée"
+                                    }
+                                  </span>
+
+                                </div>
+                              )}
 
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <span className="rounded-lg bg-zinc-100 px-2.5 py-1.5 text-xs font-bold text-zinc-600">

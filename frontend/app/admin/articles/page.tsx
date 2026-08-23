@@ -36,6 +36,12 @@ import {
   apiFetch,
 } from "@/lib/api";
 
+type ArticleColor = {
+  name?: string | null;
+  hex: string;
+  rgb: string;
+};
+
 type Article = {
   id: number;
   designation: string;
@@ -53,6 +59,7 @@ type Article = {
   description?: string;
   image?: string;
   images?: string[];
+  colors?: ArticleColor[];
   supplier_id?: number;
   supplier?: string;
   rating?: number;
@@ -99,6 +106,89 @@ function formatPrice(
   return new Intl.NumberFormat(
     "fr-DZ",
   ).format(Number(value || 0));
+}
+
+function normalizeColorHex(
+  value: string,
+) {
+  const raw = value
+    .trim()
+    .toUpperCase();
+
+  if (/^#[0-9A-F]{6}$/.test(raw)) {
+    return raw;
+  }
+
+  if (/^#[0-9A-F]{3}$/.test(raw)) {
+    return `#${raw
+      .slice(1)
+      .split("")
+      .map(
+        (char) => `${char}${char}`,
+      )
+      .join("")}`;
+  }
+
+  return "#F97316";
+}
+
+function colorHexToRgb(
+  value: string,
+) {
+  const hex = normalizeColorHex(
+    value,
+  );
+  const red = parseInt(
+    hex.slice(1, 3),
+    16,
+  );
+  const green = parseInt(
+    hex.slice(3, 5),
+    16,
+  );
+  const blue = parseInt(
+    hex.slice(5, 7),
+    16,
+  );
+
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function colorHexToChannels(
+  value: string,
+) {
+  const hex = normalizeColorHex(
+    value,
+  );
+
+  return {
+    r: parseInt(
+      hex.slice(1, 3),
+      16,
+    ),
+    g: parseInt(
+      hex.slice(3, 5),
+      16,
+    ),
+    b: parseInt(
+      hex.slice(5, 7),
+      16,
+    ),
+  };
+}
+
+function rgbChannelsToHex(
+  r: number,
+  g: number,
+  b: number,
+) {
+  const toHex = (value: number) =>
+    Math.min(255, Math.max(0, value))
+      .toString(16)
+      .padStart(2, "0")
+      .toUpperCase();
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
 function createSlug(
@@ -2447,6 +2537,23 @@ function ArticleModal({
       ),
   );
 
+  const [
+    colors,
+    setColors,
+  ] = useState<ArticleColor[]>(
+    editing?.colors || [],
+  );
+
+  const [
+    colorName,
+    setColorName,
+  ] = useState("");
+
+  const [
+    colorHex,
+    setColorHex,
+  ] = useState("#F97316");
+
   useEffect(() => {
     const designation =
       editing?.designation ||
@@ -2462,10 +2569,18 @@ function ArticleModal({
           designation,
         ),
     );
+
+    setColors(
+      editing?.colors || [],
+    );
+
+    setColorName("");
+    setColorHex("#F97316");
   }, [
     editing?.id,
     editing?.designation,
     editing?.slug,
+    editing?.colors,
   ]);
 
   function handleDesignationChange(
@@ -2481,6 +2596,78 @@ function ArticleModal({
 
     setSlugValue(
       createSlug(value),
+    );
+  }
+
+  function addColor() {
+    const hex = normalizeColorHex(
+      colorHex,
+    );
+
+    if (
+      colors.some(
+        (color) =>
+          color.hex === hex,
+      )
+    ) {
+      return;
+    }
+
+    setColors((current) => [
+      ...current,
+      {
+        name:
+          colorName.trim() ||
+          null,
+        hex,
+        rgb: colorHexToRgb(
+          hex,
+        ),
+      },
+    ]);
+
+    setColorName("");
+  }
+
+  function removeColor(
+    hex: string,
+  ) {
+    setColors((current) =>
+      current.filter(
+        (color) =>
+          color.hex !== hex,
+      ),
+    );
+  }
+
+  function updateColorChannel(
+    channel: "r" | "g" | "b",
+    rawValue: string,
+  ) {
+    const current =
+      colorHexToChannels(
+        colorHex,
+      );
+    const next = Math.min(
+      255,
+      Math.max(
+        0,
+        Number(rawValue || 0),
+      ),
+    );
+
+    setColorHex(
+      rgbChannelsToHex(
+        channel === "r"
+          ? next
+          : current.r,
+        channel === "g"
+          ? next
+          : current.g,
+        channel === "b"
+          ? next
+          : current.b,
+      ),
     );
   }
 
@@ -2690,6 +2877,124 @@ function ArticleModal({
                 )}
               </select>
             </label>
+
+            <div className="sm:col-span-2 rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+              <input
+                type="hidden"
+                name="colors"
+                value={JSON.stringify(
+                  colors,
+                )}
+                readOnly
+              />
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <span className="text-sm font-black text-zinc-700">
+                    Couleurs du produit
+                  </span>
+                  <p className="mt-1 text-xs font-medium text-zinc-400">
+                    Facultatif. Choisissez une couleur dans la palette, donnez-lui un nom, puis ajoutez-la.
+                  </p>
+                </div>
+
+                <span className="w-fit rounded-full bg-white px-3 py-1 text-[11px] font-black text-zinc-500 ring-1 ring-zinc-200">
+                  {colors.length} couleur{
+                    colors.length > 1
+                      ? "s"
+                      : ""
+                  }
+                </span>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+                <label className="text-xs font-black text-zinc-600">
+                  Nom de la couleur
+                  <input
+                    type="text"
+                    value={colorName}
+                    onChange={(event) =>
+                      setColorName(
+                        event.target.value,
+                      )
+                    }
+                    placeholder="Ex. Noir, Rouge, Bleu..."
+                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                  />
+                </label>
+
+                <label className="text-xs font-black text-zinc-600">
+                  Couleur
+                  <input
+                    type="color"
+                    value={colorHex}
+                    onChange={(event) =>
+                      setColorHex(
+                        event.target.value.toUpperCase(),
+                      )
+                    }
+                    className="mt-1.5 h-12 w-16 cursor-pointer rounded-xl border border-zinc-200 bg-white p-1.5"
+                    title="Choisir une couleur"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={addColor}
+                  disabled={
+                    colors.length >= 20
+                  }
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 text-xs font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus className="h-4 w-4" />
+                  Ajouter
+                </button>
+              </div>
+
+              {colors.length > 0 && (
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  {colors.map(
+                    (color) => (
+                      <div
+                        key={color.hex}
+                        className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3"
+                      >
+                        <span
+                          className="h-9 w-9 shrink-0 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(24,24,27,0.18)]"
+                          style={{
+                            backgroundColor:
+                              color.hex,
+                          }}
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <strong className="block truncate text-xs text-zinc-800">
+                            {color.name ||
+                              "Sans nom"}
+                          </strong>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeColor(
+                              color.hex,
+                            )
+                          }
+                          aria-label={`Supprimer la couleur ${
+                            color.name ||
+                            "sélectionnée"
+                          }`}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500 transition hover:bg-red-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ),
+                  )}
+                </div>
+              )}
+            </div>
 
             <label className="sm:col-span-2 text-sm font-black text-zinc-700">
               Télécharger des images
@@ -3059,6 +3364,36 @@ function ArticlePreviewModal({
                 article.slug}
             </span>
           </div>
+
+          {article.colors &&
+            article.colors.length > 0 && (
+              <div className="mt-5">
+                <span className="text-xs font-black uppercase tracking-wide text-zinc-400">
+                  Couleurs disponibles
+                </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {article.colors.map(
+                    (color) => (
+                      <span
+                        key={color.hex}
+                        className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-black text-zinc-600"
+                        title={color.name || "Couleur"}
+                      >
+                        <span
+                          className="h-4 w-4 rounded-full border border-black/10"
+                          style={{
+                            backgroundColor:
+                              color.hex,
+                          }}
+                        />
+                        {color.name ||
+                          "Couleur"}
+                      </span>
+                    ),
+                  )}
+                </div>
+              </div>
+            )}
 
           <p className="mt-6 text-sm leading-7 text-zinc-600">
             {article.description ||

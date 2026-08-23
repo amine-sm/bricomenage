@@ -18,6 +18,12 @@ import {
 
 import { addToCart } from "@/lib/cart";
 
+export type ProductColor = {
+  name?: string | null;
+  hex: string;
+  rgb: string;
+};
+
 export interface Product {
   id: number;
   slug: string;
@@ -28,6 +34,7 @@ export interface Product {
   description?: string;
   image?: string;
   images?: string[];
+  colors?: ProductColor[];
   stock_quantity?: number;
   stock_managed?: boolean;
   rating?: number;
@@ -113,6 +120,20 @@ export default function ProductCard({
       price: Number(p.price),
       quantity: 1,
       image: primaryImage || undefined,
+      selected_color:
+        p.item_type !== "PACK" &&
+        p.colors?.[0]?.hex
+          ? {
+              name:
+                p.colors[0].name ||
+                null,
+              hex:
+                p.colors[0].hex,
+              rgb:
+                p.colors[0].rgb ||
+                null,
+            }
+          : undefined,
     });
 
     window.dispatchEvent(
@@ -127,6 +148,14 @@ export default function ProductCard({
     event.stopPropagation();
 
     if (!inStock) {
+      return;
+    }
+
+    if (
+      p.item_type !== "PACK" &&
+      (p.colors?.length || 0) > 0
+    ) {
+      router.push(detailHref);
       return;
     }
 
@@ -145,6 +174,14 @@ export default function ProductCard({
 
   function handleBuyNow() {
     if (!inStock) {
+      return;
+    }
+
+    if (
+      p.item_type !== "PACK" &&
+      (p.colors?.length || 0) > 0
+    ) {
+      router.push(detailHref);
       return;
     }
 

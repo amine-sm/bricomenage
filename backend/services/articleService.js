@@ -11,6 +11,64 @@ function normalizeImages(value) {
   }
 }
 
+function normalizeHexColor(value) {
+  const raw = String(value || "").trim().toUpperCase();
+
+  if (/^#[0-9A-F]{6}$/.test(raw)) return raw;
+
+  if (/^#[0-9A-F]{3}$/.test(raw)) {
+    return `#${raw
+      .slice(1)
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")}`;
+  }
+
+  return null;
+}
+
+function normalizeColors(value) {
+  if (!value) return [];
+
+  let parsed = value;
+
+  if (!Array.isArray(parsed)) {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(parsed)) return [];
+
+  const colors = [];
+  const used = new Set();
+
+  for (const item of parsed) {
+    const source =
+      item && typeof item === "object"
+        ? item
+        : { hex: item };
+    const hex = normalizeHexColor(source.hex);
+
+    if (!hex || used.has(hex)) continue;
+
+    used.add(hex);
+    const red = parseInt(hex.slice(1, 3), 16);
+    const green = parseInt(hex.slice(3, 5), 16);
+    const blue = parseInt(hex.slice(5, 7), 16);
+
+    colors.push({
+      name: String(source.name || "").trim() || null,
+      hex,
+      rgb: `rgb(${red}, ${green}, ${blue})`,
+    });
+  }
+
+  return colors.slice(0, 20);
+}
+
 const ACTIVE_PROMO_JOIN = `
   LEFT JOIN (
     SELECT ranked.*
@@ -97,6 +155,7 @@ async function listArticles({
         a.description,
         a.image,
         a.images,
+        a.colors,
         a.stock_quantity,
         a.stock_managed,
         a.rating,
@@ -144,6 +203,7 @@ async function listArticles({
       rating: Number(article.rating || 0),
       reviews: Number(article.reviews || 0),
       images: normalizeImages(article.images),
+      colors: normalizeColors(article.colors),
       inStock: Boolean(article.inStock),
       promotion_id: article.promotion_id == null ? undefined : Number(article.promotion_id),
       discount_value: article.discount_value == null ? undefined : Number(article.discount_value),
@@ -168,6 +228,7 @@ async function findBySlug(slug) {
         a.description,
         a.image,
         a.images,
+        a.colors,
         a.stock_quantity,
         a.stock_managed,
         a.rating,
@@ -204,6 +265,7 @@ async function findBySlug(slug) {
     rating: Number(row.rating || 0),
     reviews: Number(row.reviews || 0),
     images: normalizeImages(row.images),
+    colors: normalizeColors(row.colors),
     inStock: Boolean(row.inStock),
     promotion_id: row.promotion_id == null ? undefined : Number(row.promotion_id),
     discount_value: row.discount_value == null ? undefined : Number(row.discount_value),

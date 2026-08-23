@@ -7,6 +7,9 @@ export type OrderProductItem = {
   item_type?: "ARTICLE" | "PACK";
   designation: string;
   image?: string | null;
+  color_name?: string | null;
+  color_hex?: string | null;
+  color_rgb?: string | null;
   quantity: number;
   unit_price: number;
   line_total: number;
@@ -24,7 +27,18 @@ export type CreateOrderPayload = {
   zrDistrictId?: string;
   zrDeliveryType?: "HOME" | "STOP_DESK";
   zrDestinationHubId?: string;
-  items: Array<{ articleId?: number; packId?: number; id?: number; type?: "article" | "pack"; quantity: number }>;
+  items: Array<{
+    articleId?: number;
+    packId?: number;
+    id?: number;
+    type?: "article" | "pack";
+    quantity: number;
+    color?: {
+      name?: string | null;
+      hex: string;
+      rgb?: string | null;
+    };
+  }>;
 };
 
 export const ordersApi = {

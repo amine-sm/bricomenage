@@ -22,6 +22,11 @@ export type CatalogArticle = {
   description?: string | null;
   image?: string | null;
   images?: string[];
+  colors?: {
+    name?: string | null;
+    hex: string;
+    rgb: string;
+  }[];
   stock_quantity?: number;
   stock_managed?: boolean;
   rating?: number;

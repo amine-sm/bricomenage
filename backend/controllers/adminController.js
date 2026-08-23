@@ -82,6 +82,89 @@ function parseArray(value) {
   }
 }
 
+function normalizeHexColor(value) {
+  const raw = clean(value).toUpperCase();
+
+  if (/^#[0-9A-F]{6}$/.test(raw)) {
+    return raw;
+  }
+
+  if (/^#[0-9A-F]{3}$/.test(raw)) {
+    return `#${raw
+      .slice(1)
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")}`;
+  }
+
+  return null;
+}
+
+function hexToRgbText(hex) {
+  const normalized = normalizeHexColor(hex);
+
+  if (!normalized) {
+    return "";
+  }
+
+  const red = parseInt(normalized.slice(1, 3), 16);
+  const green = parseInt(normalized.slice(3, 5), 16);
+  const blue = parseInt(normalized.slice(5, 7), 16);
+
+  return `rgb(${red}, ${green}, ${blue})`;
+}
+
+function parseColors(value) {
+  if (!value) {
+    return [];
+  }
+
+  let parsed = value;
+
+  if (!Array.isArray(parsed)) {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      parsed = String(value)
+        .split(",")
+        .map((item) => ({ hex: item.trim() }));
+    }
+  }
+
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+
+  const colors = [];
+  const used = new Set();
+
+  for (const item of parsed) {
+    const source =
+      item && typeof item === "object"
+        ? item
+        : { hex: item };
+
+    const hex = normalizeHexColor(source.hex);
+
+    if (!hex || used.has(hex)) {
+      continue;
+    }
+
+    used.add(hex);
+    colors.push({
+      name: clean(source.name) || null,
+      hex,
+      rgb: hexToRgbText(hex),
+    });
+
+    if (colors.length >= 20) {
+      break;
+    }
+  }
+
+  return colors;
+}
+
 function safeArticle(row) {
   if (!row) {
     return null;
@@ -145,6 +228,9 @@ function safeArticle(row) {
         : image
           ? [image]
           : [],
+    colors: parseColors(
+      row.colors,
+    ),
   };
 }
 
@@ -840,6 +926,10 @@ async function createArticle(
     images[0] ||
     null;
 
+  const colors = parseColors(
+    req.body.colors,
+  );
+
   const stockManaged =
     clean(req.body.stock_quantity) !== ""
       ? 1
@@ -871,6 +961,7 @@ async function createArticle(
           min_stock,
           image,
           images,
+          colors,
           rating,
           reviews,
           is_active
@@ -878,7 +969,7 @@ async function createArticle(
         VALUES (
           ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?
+          ?, ?, ?, ?, ?
         )
       `,
       [
@@ -920,6 +1011,9 @@ async function createArticle(
         mainImage,
         JSON.stringify(
           images,
+        ),
+        JSON.stringify(
+          colors,
         ),
         Math.min(
           5,
@@ -1101,6 +1195,13 @@ async function updateArticle(
     );
   }
 
+  const colors =
+    req.body.colors !== undefined
+      ? parseColors(
+          req.body.colors,
+        )
+      : existing.colors;
+
   const stockFieldProvided =
     req.body.stock_quantity !== undefined;
 
@@ -1137,6 +1238,7 @@ async function updateArticle(
         min_stock = ?,
         image = ?,
         images = ?,
+        colors = ?,
         rating = ?,
         reviews = ?,
         is_active = ?
@@ -1202,6 +1304,9 @@ async function updateArticle(
       mainImage,
       JSON.stringify(
         images,
+      ),
+      JSON.stringify(
+        colors,
       ),
       req.body.rating !==
       undefined
@@ -1624,6 +1729,9 @@ async function getOrder(
           oi.pack_id,
           oi.item_type,
           oi.designation,
+          oi.color_name,
+          oi.color_hex,
+          oi.color_rgb,
           oi.unit_price,
           oi.quantity,
           oi.line_total,
@@ -2278,7 +2386,7 @@ async function createPromotion(
           is_active
         )
         VALUES (
-          ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?, ?
         )
       `,
       [

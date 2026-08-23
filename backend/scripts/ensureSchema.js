@@ -199,6 +199,55 @@ async function ensureSchema() {
   );
 
   /*
+   * Couleurs disponibles pour un article.
+   * Format JSON : [{ name, hex, rgb }, ...]
+   */
+  await ensureColumn(
+    "articles",
+    "colors",
+    `
+      ALTER TABLE articles
+      ADD COLUMN colors JSON NULL
+      AFTER images
+    `,
+  );
+
+  /*
+   * Couleur choisie par le client au moment de la commande.
+   * On la fige dans order_items pour conserver l'historique,
+   * même si les couleurs de l'article sont modifiées plus tard.
+   */
+  await ensureColumn(
+    "order_items",
+    "color_name",
+    `
+      ALTER TABLE order_items
+      ADD COLUMN color_name VARCHAR(100) NULL
+      AFTER designation
+    `,
+  );
+
+  await ensureColumn(
+    "order_items",
+    "color_hex",
+    `
+      ALTER TABLE order_items
+      ADD COLUMN color_hex VARCHAR(20) NULL
+      AFTER color_name
+    `,
+  );
+
+  await ensureColumn(
+    "order_items",
+    "color_rgb",
+    `
+      ALTER TABLE order_items
+      ADD COLUMN color_rgb VARCHAR(40) NULL
+      AFTER color_hex
+    `,
+  );
+
+  /*
    * Coût d'achat figé au moment de la vente.
    * Cela évite de modifier l'historique des bénéfices
    * si le prix d'achat d'un article change plus tard.

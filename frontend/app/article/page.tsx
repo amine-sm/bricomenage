@@ -145,6 +145,14 @@ function normalizeProduct(
             product.reviews,
           )
         : undefined,
+    colors: Array.isArray(
+      product.colors,
+    )
+      ? product.colors.filter(
+          (color) =>
+            Boolean(color?.hex),
+        )
+      : [],
   };
 }
 
@@ -291,6 +299,11 @@ function ArticleContent() {
     quantity,
     setQuantity,
   ] = useState(1);
+
+  const [
+    selectedColorHex,
+    setSelectedColorHex,
+  ] = useState("");
 
   const [
     selectedImage,
@@ -691,6 +704,22 @@ function ArticleContent() {
     setImageError(false);
   }
 
+  useEffect(() => {
+    const firstColor =
+      product.colors?.[0];
+
+    setSelectedColorHex(
+      firstColor?.hex || "",
+    );
+  }, [product.id]);
+
+  const selectedColor =
+    product.colors?.find(
+      (color) =>
+        color.hex ===
+        selectedColorHex,
+    ) || product.colors?.[0];
+
   const stock =
     Number(
       product.stock_quantity ??
@@ -775,6 +804,19 @@ function ArticleContent() {
           product.images?.find(
             Boolean,
           ),
+        selected_color:
+          selectedColor
+            ? {
+                name:
+                  selectedColor.name ||
+                  null,
+                hex:
+                  selectedColor.hex,
+                rgb:
+                  selectedColor.rgb ||
+                  null,
+              }
+            : undefined,
       },
       `/article/?slug=${encodeURIComponent(
         product.slug,
@@ -803,6 +845,19 @@ function ArticleContent() {
       quantity,
       image:
         product.image,
+      selected_color:
+        selectedColor
+          ? {
+              name:
+                selectedColor.name ||
+                null,
+              hex:
+                selectedColor.hex,
+              rgb:
+                selectedColor.rgb ||
+                null,
+            }
+          : undefined,
     });
 
     window.dispatchEvent(
@@ -1176,6 +1231,68 @@ function ArticleContent() {
                   </span>
                 )}
               </div>
+
+              {product.colors &&
+                product.colors.length > 0 && (
+                  <div className="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-black text-zinc-800">
+                        Couleur : {" "}
+                        <span className="text-orange-600">
+                          {selectedColor?.name ||
+                            "Sélectionnée"}
+                        </span>
+                      </span>
+
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {product.colors.map(
+                        (color) => {
+                          const selected =
+                            color.hex ===
+                            selectedColor?.hex;
+
+                          return (
+                            <button
+                              key={color.hex}
+                              type="button"
+                              onClick={() =>
+                                setSelectedColorHex(
+                                  color.hex,
+                                )
+                              }
+                              aria-label={`Choisir la couleur ${
+                                color.name ||
+                                "disponible"
+                              }`}
+                              title={color.name || "Couleur disponible"}
+                              className={`relative flex h-11 w-11 items-center justify-center rounded-full transition hover:scale-105 focus:outline-none ${
+                                selected
+                                  ? "ring-2 ring-orange-500 ring-offset-2"
+                                  : "ring-1 ring-zinc-300 ring-offset-2"
+                              }`}
+                            >
+                              <span
+                                className="h-9 w-9 rounded-full border border-black/10 shadow-sm"
+                                style={{
+                                  backgroundColor:
+                                    color.hex,
+                                }}
+                              />
+
+                              {selected && (
+                                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white shadow">
+                                  <Check className="h-3 w-3" />
+                                </span>
+                              )}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </div>
+                )}
 
               <div className="mt-7 flex flex-col gap-4 sm:flex-row">
                 <div className="flex h-14 items-center justify-between rounded-2xl border border-zinc-200 bg-white p-1 sm:w-40">

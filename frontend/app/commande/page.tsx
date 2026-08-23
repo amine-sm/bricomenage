@@ -30,6 +30,7 @@ import {
 import { apiFetch } from "@/lib/api";
 import {
   clearDirectCheckout,
+  cartItemKey,
   type CartItem,
   getCart,
   getDirectCheckout,
@@ -810,6 +811,20 @@ export default function Checkout() {
 
                       quantity:
                         item.quantity,
+
+                      color:
+                        item.selected_color
+                          ? {
+                              name:
+                                item.selected_color.name ||
+                                null,
+                              hex:
+                                item.selected_color.hex,
+                              rgb:
+                                item.selected_color.rgb ||
+                                null,
+                            }
+                          : undefined,
                     },
             ),
           }),
@@ -1736,7 +1751,7 @@ export default function Checkout() {
                   {items.map(
                     (item) => (
                       <OrderItem
-                        key={`${item.item_type}-${item.id}`}
+                        key={cartItemKey(item)}
                         item={item}
                       />
                     ),
@@ -2859,6 +2874,25 @@ function OrderItem({
         <h3 className="line-clamp-2 text-xs font-black leading-5 text-zinc-900 sm:text-sm">
           {item.designation}
         </h3>
+
+        {item.item_type !== "PACK" &&
+          item.selected_color && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span
+                className="h-4 w-4 shrink-0 rounded-full border border-black/10 ring-1 ring-zinc-200 ring-offset-1"
+                style={{
+                  backgroundColor:
+                    item.selected_color.hex,
+                }}
+              />
+
+              <span className="text-[9px] font-black text-zinc-600 sm:text-[10px]">
+                {item.selected_color.name ||
+                  "Sélectionnée"}
+              </span>
+
+            </div>
+          )}
 
         <p className="mt-1 text-[10px] text-zinc-500 sm:text-xs">
           {formatPrice(

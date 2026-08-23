@@ -25,6 +25,7 @@ import {
 
 import {
   type CartItem,
+  cartItemKey,
   getCart,
   saveCart,
 } from "@/lib/cart";
@@ -318,7 +319,7 @@ export default function Cart() {
   }
 
   function updateQuantity(
-    id: number,
+    target: CartItem,
     quantity: number,
   ) {
     const safeQuantity = Math.max(
@@ -330,21 +331,14 @@ export default function Cart() {
       ),
     );
 
-    const target =
-      items.find(
-        (item) =>
-          item.id === id,
-      );
+    const targetKey =
+      cartItemKey(target);
 
     const nextItems =
       items.map(
         (item) =>
-          item.id === id &&
-          (
-            !target ||
-            item.item_type ===
-              target.item_type
-          )
+          cartItemKey(item) ===
+          targetKey
             ? {
                 ...item,
                 quantity:
@@ -360,7 +354,7 @@ export default function Cart() {
     item: CartItem,
   ) {
     updateQuantity(
-      item.id,
+      item,
       item.quantity + 1,
     );
   }
@@ -369,7 +363,7 @@ export default function Cart() {
     item: CartItem,
   ) {
     updateQuantity(
-      item.id,
+      item,
       item.quantity - 1,
     );
   }
@@ -377,15 +371,14 @@ export default function Cart() {
   function removeItem(
     target: CartItem,
   ) {
+    const targetKey =
+      cartItemKey(target);
+
     const nextItems =
       items.filter(
         (item) =>
-          !(
-            item.id ===
-              target.id &&
-            item.item_type ===
-              target.item_type
-          ),
+          cartItemKey(item) !==
+          targetKey,
       );
 
     persistCart(nextItems);
@@ -518,7 +511,7 @@ export default function Cart() {
               <div className="space-y-4">
                 {items.map((item) => (
                   <CartProduct
-                    key={item.id}
+                    key={cartItemKey(item)}
                     item={item}
                     onIncrement={() =>
                       incrementQuantity(
@@ -534,7 +527,7 @@ export default function Cart() {
                       quantity,
                     ) =>
                       updateQuantity(
-                        item.id,
+                        item,
                         quantity,
                       )
                     }
@@ -783,6 +776,27 @@ function CartProduct({
               {item.designation}
             </h3>
           </Link>
+
+          {!isPack &&
+            item.selected_color && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span
+                  className="h-5 w-5 shrink-0 rounded-full border border-black/10 shadow-sm ring-1 ring-zinc-200 ring-offset-1"
+                  style={{
+                    backgroundColor:
+                      item.selected_color.hex,
+                  }}
+                />
+
+                <span className="text-[10px] font-black text-zinc-700 sm:text-xs">
+                  Couleur : {
+                    item.selected_color.name ||
+                    "Sélectionnée"
+                  }
+                </span>
+
+              </div>
+            )}
 
           <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
             <strong className="text-base font-black text-zinc-950 sm:text-lg">
