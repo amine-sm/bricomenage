@@ -1,0 +1,20 @@
+BRICOMENAGE - VARIANTES PRODUITS (24/08/2026)
+================================================
+
+NOUVEAU DANS ADMIN > ARTICLES
+- Type de variante : Aucune / Couleur / Taille / Pointure / Parfum.
+- Taille : XS, S, M, L, XL, XXL, XXXL + valeur personnalisée.
+- Pointure : 35 à 48 + valeur personnalisée (ex. 42.5).
+- Parfum : Mangue, Fraise, Fleur, Vanille, Citron, Coco, Menthe, Rose + valeur personnalisée.
+- Couleur : conserve le sélecteur de couleurs, les photos par couleur, la couleur par défaut et la photo principale.
+
+COTE CLIENT
+- La première variante est sélectionnée par défaut.
+- Couleur : cercles + changement automatique de la galerie selon la couleur.
+- Taille / Pointure / Parfum : boutons de sélection lisibles.
+- La variante choisie est conservée dans le panier, l'achat direct et la commande.
+- Deux variantes différentes du même article donnent deux lignes différentes dans le panier.
+
+COMPATIBILITE
+- Les anciens produits qui utilisent "colors" restent compatibles.
+- Le frontend envoie aussi selected_color pour les couleurs afin de garder la compatibilité avec les anciennes données.

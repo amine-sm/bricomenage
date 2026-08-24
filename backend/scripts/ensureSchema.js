@@ -212,11 +212,52 @@ async function ensureSchema() {
     `,
   );
 
+  /* Variantes produit : COULEUR, TAILLE, POINTURE ou PARFUM. */
+  await ensureColumn(
+    "articles",
+    "variant_type",
+    `
+      ALTER TABLE articles
+      ADD COLUMN variant_type VARCHAR(20) NULL
+      AFTER colors
+    `,
+  );
+
+  await ensureColumn(
+    "articles",
+    "variants",
+    `
+      ALTER TABLE articles
+      ADD COLUMN variants JSON NULL
+      AFTER variant_type
+    `,
+  );
+
   /*
    * Couleur choisie par le client au moment de la commande.
    * On la fige dans order_items pour conserver l'historique,
    * même si les couleurs de l'article sont modifiées plus tard.
    */
+  await ensureColumn(
+    "order_items",
+    "variant_type",
+    `
+      ALTER TABLE order_items
+      ADD COLUMN variant_type VARCHAR(20) NULL
+      AFTER designation
+    `,
+  );
+
+  await ensureColumn(
+    "order_items",
+    "variant_value",
+    `
+      ALTER TABLE order_items
+      ADD COLUMN variant_value VARCHAR(100) NULL
+      AFTER variant_type
+    `,
+  );
+
   await ensureColumn(
     "order_items",
     "color_name",

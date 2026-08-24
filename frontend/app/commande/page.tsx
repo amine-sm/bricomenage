@@ -812,17 +812,24 @@ export default function Checkout() {
                       quantity:
                         item.quantity,
 
+                      variant:
+                        item.selected_variant
+                          ? {
+                              type: item.selected_variant.type,
+                              value: item.selected_variant.value,
+                              label: item.selected_variant.label || item.selected_variant.value,
+                              name: item.selected_variant.name || null,
+                              hex: item.selected_variant.hex || null,
+                              rgb: item.selected_variant.rgb || null,
+                            }
+                          : undefined,
+
                       color:
                         item.selected_color
                           ? {
-                              name:
-                                item.selected_color.name ||
-                                null,
-                              hex:
-                                item.selected_color.hex,
-                              rgb:
-                                item.selected_color.rgb ||
-                                null,
+                              name: item.selected_color.name || null,
+                              hex: item.selected_color.hex,
+                              rgb: item.selected_color.rgb || null,
                             }
                           : undefined,
                     },
@@ -2876,21 +2883,25 @@ function OrderItem({
         </h3>
 
         {item.item_type !== "PACK" &&
-          item.selected_color && (
+          item.selected_variant && (
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <span
-                className="h-4 w-4 shrink-0 rounded-full border border-black/10 ring-1 ring-zinc-200 ring-offset-1"
-                style={{
-                  backgroundColor:
-                    item.selected_color.hex,
-                }}
-              />
+              {item.selected_variant.type === "COLOR" && item.selected_variant.hex && (
+                <span
+                  className="h-4 w-4 shrink-0 rounded-full border border-black/10 ring-1 ring-zinc-200 ring-offset-1"
+                  style={{ backgroundColor: item.selected_variant.hex }}
+                />
+              )}
 
               <span className="text-[9px] font-black text-zinc-600 sm:text-[10px]">
-                {item.selected_color.name ||
-                  "Sélectionnée"}
+                {item.selected_variant.type === "SIZE"
+                  ? "Taille"
+                  : item.selected_variant.type === "SHOE_SIZE"
+                    ? "Pointure"
+                    : item.selected_variant.type === "SCENT"
+                      ? "Parfum"
+                      : "Couleur"}
+                {" : "}{item.selected_variant.label || item.selected_variant.value}
               </span>
-
             </div>
           )}
 

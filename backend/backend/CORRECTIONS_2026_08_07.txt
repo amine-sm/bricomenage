@@ -1,0 +1,30 @@
+BRICOMENAGE - CORRECTIONS 07/08/2026
+
+1. COMMANDES / STOCK
+- Prix promotionnel actif appliqué au moment de la commande.
+- Prix recalculé côté serveur: le frontend ne peut pas imposer un faux prix.
+- Vérification cumulée du stock pour les doublons, articles seuls et articles inclus dans des packs.
+- Décrément atomique du stock.
+- Annulation admin: restauration du stock une seule fois.
+- Réactivation d'une commande annulée: vérification puis nouvelle déduction du stock.
+- Statuts de commande validés côté serveur.
+
+2. PROMOTIONS
+- Catalogue normal affiche tous les articles actifs.
+- Une promotion active modifie automatiquement le prix affiché.
+- La page promotions retourne uniquement les articles réellement en promotion.
+- Si plusieurs promotions actives ciblent le même article, le meilleur prix est retenu.
+- Le même meilleur prix est utilisé dans le catalogue, la fiche article et la création de commande.
+
+3. PACKS
+- Stock pack calculé à partir du stock réel des composants.
+- Commande pack déduit les quantités exactes de chaque composant.
+- Panier mixte pack + article vérifié globalement pour éviter les stocks négatifs.
+
+4. DASHBOARD
+- /api/admin/dashboard utilise maintenant dashboardService.
+- Compteurs commandes, CA, commandes en attente/livrées, stock faible et graphiques respectent la période sélectionnée.
+- CA exclut les commandes annulées.
+
+5. BASE SQL
+Exécuter sql/migration_bricomenage_fix_2026_08_07.sql sur la base existante avant de relancer le backend.

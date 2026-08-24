@@ -1,0 +1,19 @@
+BRICOMENAGE - FRONTEND MOBILE FINAL
+
+Ameliorations incluses :
+- Accueil mobile optimise.
+- Carrousel "Les derniers articles" : 1 produit visible sur mobile, 2 sur tablette, 3 sur desktop moyen, 4 sur grand ecran.
+- Navigation precedente/suivante plus propre sur mobile.
+- Indication "Glissez pour decouvrir".
+- Espacements de la section produits reduits sur mobile.
+- Bouton "Voir tout le catalogue" pleine largeur sur mobile.
+- Cartes produits conservees avec Acheter / Ajouter au panier.
+- Stock facultatif conserve : un article sans stock gere reste achetable.
+- Fiche article : boutons en haut, description en bas.
+- Achat direct vers commande conserve.
+- Filtres catalogue mobile et pagination 20 articles conserves.
+
+Apres extraction :
+1. npm install
+2. npm run dev (local)
+3. npm run build (production)

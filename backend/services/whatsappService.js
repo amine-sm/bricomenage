@@ -17,12 +17,18 @@ function formatDa(value) {
 function itemsText(items = []) {
   return items
     .map((item) => {
-      const color =
-        item.color_name ||
-        item.color_hex;
+      const variant = item.variant_value || item.color_name || item.color_hex;
+      const variantLabel =
+        item.variant_type === "SIZE"
+          ? "Taille"
+          : item.variant_type === "SHOE_SIZE"
+            ? "Pointure"
+            : item.variant_type === "SCENT"
+              ? "Parfum"
+              : "Couleur";
 
       return `• ${item.designation}${
-        color ? ` — Couleur: ${color}` : ""
+        variant ? ` — ${variantLabel}: ${variant}` : ""
       } × ${Number(item.quantity || 0)}`;
     })
     .join("\n");

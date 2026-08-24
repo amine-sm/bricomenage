@@ -704,7 +704,7 @@ async function getOrderWithItems(orderId) {
   }
 
   const [items] = await pool.query(
-    `SELECT designation,quantity,item_type,color_name,color_hex FROM order_items WHERE order_id=? ORDER BY id`,
+    `SELECT designation,quantity,item_type,variant_type,variant_value,color_name,color_hex FROM order_items WHERE order_id=? ORDER BY id`,
     [orderId],
   );
 
@@ -747,12 +747,10 @@ async function createParcelForOrder(orderId) {
 
   const productDescription = items
     .map((item) => {
-      const color =
-        item.color_name ||
-        item.color_hex;
+      const variant = item.variant_value || item.color_name || item.color_hex;
 
       return `${item.designation}${
-        color ? ` (${color})` : ""
+        variant ? ` (${variant})` : ""
       } x${Number(item.quantity || 1)}`;
     })
     .join(" + ")

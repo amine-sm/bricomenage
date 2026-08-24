@@ -1,0 +1,20 @@
+BRICOMENAGE - OPTIMISATION MOBILE V2 - 14/08/2026
+
+Corrections principales :
+- Menu public mobile converti en vue plein écran 100dvh avec bouton de fermeture toujours visible.
+- Menu administration mobile converti en tiroir latéral plein écran, au-dessus des modals.
+- Modal Détail de commande en vrai plein écran mobile avec scroll interne et header compact.
+- Informations commande en grille 2x2 au lieu d'un carrousel horizontal difficile à lire.
+- Produits de la commande rendus plus compacts sur téléphone.
+- Images des produits dans la modal chargées en lazy + decoding async.
+- Grandes modals avec role=dialog adaptées globalement à 100dvh sur petits écrans.
+- Suppression des backdrop-blur et gros halos floutés coûteux sur mobile.
+- Transitions CSS raccourcies sur mobile.
+- Sections lointaines sous l'écran autorisées à utiliser content-visibility:auto.
+- Hero : préchargement des slides secondaires retardé sur mobile.
+- Accueil : requêtes catégories/articles légèrement différées, requête pack différée davantage.
+- Header : chargement catégories secondaire différé sur mobile et scroll sticky limité à requestAnimationFrame.
+- Commandes admin : le mobile ne construit plus le tableau desktop caché; le desktop ne construit plus les cartes mobiles cachées.
+- Commandes admin : suppression d'une requête /admin/orders en double utilisée uniquement pour le badge de navigation.
+
+Vérification statique : 56 fichiers TS/TSX analysés, aucune erreur de syntaxe TypeScript (TS1xxx).

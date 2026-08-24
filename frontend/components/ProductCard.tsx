@@ -22,6 +22,22 @@ export type ProductColor = {
   name?: string | null;
   hex: string;
   rgb: string;
+  images?: string[];
+};
+
+export type ProductVariantType =
+  | "COLOR"
+  | "SIZE"
+  | "SHOE_SIZE"
+  | "SCENT";
+
+export type ProductVariant = {
+  value: string;
+  label?: string | null;
+  name?: string | null;
+  hex?: string;
+  rgb?: string | null;
+  images?: string[];
 };
 
 export interface Product {
@@ -35,6 +51,8 @@ export interface Product {
   image?: string;
   images?: string[];
   colors?: ProductColor[];
+  variant_type?: ProductVariantType | null;
+  variants?: ProductVariant[];
   stock_quantity?: number;
   stock_managed?: boolean;
   rating?: number;
@@ -94,6 +112,7 @@ export default function ProductCard({
       : null;
 
   const primaryImage =
+    p.colors?.[0]?.images?.find(Boolean) ||
     p.image ||
     p.images?.find(Boolean) ||
     "";
@@ -153,7 +172,7 @@ export default function ProductCard({
 
     if (
       p.item_type !== "PACK" &&
-      (p.colors?.length || 0) > 0
+      ((p.variants?.length || 0) > 0 || (p.colors?.length || 0) > 0)
     ) {
       router.push(detailHref);
       return;
@@ -179,7 +198,7 @@ export default function ProductCard({
 
     if (
       p.item_type !== "PACK" &&
-      (p.colors?.length || 0) > 0
+      ((p.variants?.length || 0) > 0 || (p.colors?.length || 0) > 0)
     ) {
       router.push(detailHref);
       return;

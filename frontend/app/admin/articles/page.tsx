@@ -27,6 +27,7 @@ import {
   RefreshCcw,
   Search,
   SlidersHorizontal,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -40,6 +41,23 @@ type ArticleColor = {
   name?: string | null;
   hex: string;
   rgb: string;
+  images?: string[];
+};
+
+type ArticleVariantType =
+  | ""
+  | "COLOR"
+  | "SIZE"
+  | "SHOE_SIZE"
+  | "SCENT";
+
+type ArticleVariant = {
+  value: string;
+  label?: string | null;
+  name?: string | null;
+  hex?: string;
+  rgb?: string | null;
+  images?: string[];
 };
 
 type Article = {
@@ -60,6 +78,8 @@ type Article = {
   image?: string;
   images?: string[];
   colors?: ArticleColor[];
+  variant_type?: ArticleVariantType | null;
+  variants?: ArticleVariant[];
   supplier_id?: number;
   supplier?: string;
   rating?: number;
@@ -99,6 +119,33 @@ const PAGE_SIZE_OPTIONS = [
   20,
   50,
 ];
+
+const PRESET_COLORS = [
+  { name: "Noir", hex: "#18181B" },
+  { name: "Blanc", hex: "#FFFFFF" },
+  { name: "Gris", hex: "#71717A" },
+  { name: "Rouge", hex: "#EF4444" },
+  { name: "Orange", hex: "#F97316" },
+  { name: "Jaune", hex: "#EAB308" },
+  { name: "Vert", hex: "#22C55E" },
+  { name: "Turquoise", hex: "#14B8A6" },
+  { name: "Bleu ciel", hex: "#38BDF8" },
+  { name: "Bleu", hex: "#3B82F6" },
+  { name: "Bleu marine", hex: "#1E3A8A" },
+  { name: "Violet", hex: "#8B5CF6" },
+  { name: "Rose", hex: "#EC4899" },
+  { name: "Marron", hex: "#92400E" },
+  { name: "Beige", hex: "#D6C7A1" },
+  { name: "Doré", hex: "#D4AF37" },
+] as const;
+
+const SIZE_PRESETS = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"] as const;
+const SHOE_SIZE_PRESETS = [
+  "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48",
+] as const;
+const SCENT_PRESETS = [
+  "Mangue", "Fraise", "Fleur", "Vanille", "Citron", "Coco", "Menthe", "Rose",
+] as const;
 
 function formatPrice(
   value: number,
@@ -152,43 +199,6 @@ function colorHexToRgb(
   );
 
   return `rgb(${red}, ${green}, ${blue})`;
-}
-
-function colorHexToChannels(
-  value: string,
-) {
-  const hex = normalizeColorHex(
-    value,
-  );
-
-  return {
-    r: parseInt(
-      hex.slice(1, 3),
-      16,
-    ),
-    g: parseInt(
-      hex.slice(3, 5),
-      16,
-    ),
-    b: parseInt(
-      hex.slice(5, 7),
-      16,
-    ),
-  };
-}
-
-function rgbChannelsToHex(
-  r: number,
-  g: number,
-  b: number,
-) {
-  const toHex = (value: number) =>
-    Math.min(255, Math.max(0, value))
-      .toString(16)
-      .padStart(2, "0")
-      .toUpperCase();
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
 function createSlug(
@@ -2545,14 +2555,33 @@ function ArticleModal({
   );
 
   const [
-    colorName,
-    setColorName,
-  ] = useState("");
+    variantType,
+    setVariantType,
+  ] = useState<ArticleVariantType>(
+    (editing?.variant_type as ArticleVariantType) ||
+      ((editing?.colors || []).length > 0 ? "COLOR" : ""),
+  );
 
   const [
-    colorHex,
-    setColorHex,
+    simpleVariants,
+    setSimpleVariants,
+  ] = useState<string[]>(
+    (editing?.variants || [])
+      .map((variant) => String(variant.value || variant.label || variant.name || "").trim())
+      .filter(Boolean),
+  );
+
+  const [customVariantValue, setCustomVariantValue] = useState("");
+
+  const [
+    customColorHex,
+    setCustomColorHex,
   ] = useState("#F97316");
+
+  const [
+    pendingColorFiles,
+    setPendingColorFiles,
+  ] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     const designation =
@@ -2574,13 +2603,28 @@ function ArticleModal({
       editing?.colors || [],
     );
 
-    setColorName("");
-    setColorHex("#F97316");
+    const nextVariantType =
+      (editing?.variant_type as ArticleVariantType) ||
+      ((editing?.colors || []).length > 0 ? "COLOR" : "");
+    setVariantType(nextVariantType);
+    setSimpleVariants(
+      nextVariantType === "COLOR"
+        ? []
+        : (editing?.variants || [])
+            .map((variant) => String(variant.value || variant.label || variant.name || "").trim())
+            .filter(Boolean),
+    );
+    setCustomVariantValue("");
+
+    setPendingColorFiles({});
+    setCustomColorHex("#F97316");
   }, [
     editing?.id,
     editing?.designation,
     editing?.slug,
     editing?.colors,
+    editing?.variant_type,
+    editing?.variants,
   ]);
 
   function handleDesignationChange(
@@ -2599,77 +2643,214 @@ function ArticleModal({
     );
   }
 
-  function addColor() {
+  function addColor(
+    name: string,
+    rawHex: string,
+  ) {
     const hex = normalizeColorHex(
-      colorHex,
+      rawHex,
     );
 
     if (
       colors.some(
         (color) =>
-          color.hex === hex,
+          normalizeColorHex(
+            color.hex,
+          ) === hex,
       )
     ) {
+      return;
+    }
+
+    if (colors.length >= 20) {
       return;
     }
 
     setColors((current) => [
       ...current,
       {
-        name:
-          colorName.trim() ||
-          null,
+        name,
         hex,
         rgb: colorHexToRgb(
           hex,
         ),
       },
     ]);
-
-    setColorName("");
   }
 
   function removeColor(
     hex: string,
   ) {
+    const normalized =
+      normalizeColorHex(hex);
+
     setColors((current) =>
       current.filter(
         (color) =>
-          color.hex !== hex,
+          normalizeColorHex(
+            color.hex,
+          ) !== normalized,
       ),
     );
   }
 
-  function updateColorChannel(
-    channel: "r" | "g" | "b",
-    rawValue: string,
+  function togglePresetColor(
+    name: string,
+    hex: string,
   ) {
-    const current =
-      colorHexToChannels(
-        colorHex,
-      );
-    const next = Math.min(
-      255,
-      Math.max(
-        0,
-        Number(rawValue || 0),
-      ),
+    const normalized =
+      normalizeColorHex(hex);
+
+    const exists = colors.some(
+      (color) =>
+        normalizeColorHex(
+          color.hex,
+        ) === normalized,
     );
 
-    setColorHex(
-      rgbChannelsToHex(
-        channel === "r"
-          ? next
-          : current.r,
-        channel === "g"
-          ? next
-          : current.g,
-        channel === "b"
-          ? next
-          : current.b,
+    if (exists) {
+      removeColor(normalized);
+      return;
+    }
+
+    addColor(name, normalized);
+  }
+
+  function colorUploadFieldName(
+    hex: string,
+  ) {
+    return `color_images_${normalizeColorHex(hex).slice(1)}`;
+  }
+
+  function removeColorImage(
+    hex: string,
+    image: string,
+  ) {
+    const normalized = normalizeColorHex(hex);
+
+    setColors((current) =>
+      current.map((color) =>
+        normalizeColorHex(color.hex) === normalized
+          ? {
+              ...color,
+              images: (color.images || []).filter(
+                (value) => value !== image,
+              ),
+            }
+          : color,
       ),
     );
   }
+
+  function setDefaultColor(
+    hex: string,
+  ) {
+    const normalized = normalizeColorHex(hex);
+
+    setColors((current) => {
+      const selected = current.find(
+        (color) =>
+          normalizeColorHex(color.hex) === normalized,
+      );
+
+      if (!selected) {
+        return current;
+      }
+
+      return [
+        selected,
+        ...current.filter(
+          (color) =>
+            normalizeColorHex(color.hex) !== normalized,
+        ),
+      ];
+    });
+  }
+
+  function setColorMainImage(
+    hex: string,
+    image: string,
+  ) {
+    const normalized = normalizeColorHex(hex);
+
+    setColors((current) =>
+      current.map((color) => {
+        if (normalizeColorHex(color.hex) !== normalized) {
+          return color;
+        }
+
+        const images = (color.images || []).filter(Boolean);
+
+        if (!images.includes(image)) {
+          return color;
+        }
+
+        return {
+          ...color,
+          images: [
+            image,
+            ...images.filter((value) => value !== image),
+          ],
+        };
+      }),
+    );
+  }
+
+  function handleColorFilesChange(
+    hex: string,
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    const names = Array.from(
+      event.target.files || [],
+    )
+      .slice(0, 6)
+      .map((file) => file.name);
+
+    setPendingColorFiles((current) => ({
+      ...current,
+      [normalizeColorHex(hex)]: names,
+    }));
+  }
+
+  function addCustomColor() {
+    addColor(
+      "Personnalisée",
+      customColorHex,
+    );
+  }
+
+  function addSimpleVariant(rawValue: string) {
+    const value = rawValue.trim();
+    if (!value || simpleVariants.length >= 30) return;
+    if (simpleVariants.some((item) => item.toLocaleLowerCase("fr") === value.toLocaleLowerCase("fr"))) return;
+    setSimpleVariants((current) => [...current, value]);
+    setCustomVariantValue("");
+  }
+
+  function removeSimpleVariant(value: string) {
+    setSimpleVariants((current) => current.filter((item) => item !== value));
+  }
+
+  const simplePresets =
+    variantType === "SIZE"
+      ? SIZE_PRESETS
+      : variantType === "SHOE_SIZE"
+        ? SHOE_SIZE_PRESETS
+        : variantType === "SCENT"
+          ? SCENT_PRESETS
+          : [];
+
+  const variantsPayload: ArticleVariant[] =
+    variantType === "COLOR"
+      ? colors.map((color) => ({
+          value: color.name || color.hex,
+          label: color.name || color.hex,
+          name: color.name || null,
+          hex: color.hex,
+          rgb: color.rgb,
+          images: color.images || [],
+        }))
+      : simpleVariants.map((value) => ({ value, label: value }));
 
   return (
     <div className="fixed inset-0 z-[130] overflow-y-auto bg-zinc-950/65 p-3 backdrop-blur-md sm:p-5">
@@ -2878,126 +3059,454 @@ function ArticleModal({
               </select>
             </label>
 
-            <div className="sm:col-span-2 rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4">
+            <div className="sm:col-span-2 rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 sm:p-5">
               <input
                 type="hidden"
                 name="colors"
-                value={JSON.stringify(
-                  colors,
-                )}
+                value={JSON.stringify(variantType === "COLOR" ? colors : [])}
+                readOnly
+              />
+              <input
+                type="hidden"
+                name="variant_type"
+                value={variantType}
+                readOnly
+              />
+              <input
+                type="hidden"
+                name="variants"
+                value={JSON.stringify(variantsPayload)}
                 readOnly
               />
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div className="rounded-2xl border border-orange-100 bg-white p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <span className="text-sm font-black text-zinc-800">Variante du produit</span>
+                    <p className="mt-1 text-xs font-medium text-zinc-400">
+                      Choisissez une seule famille : couleur, taille, pointure ou parfum.
+                    </p>
+                  </div>
+
+                  <select
+                    value={variantType}
+                    onChange={(event) => setVariantType(event.target.value as ArticleVariantType)}
+                    className="h-12 min-w-56 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-black text-zinc-700 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                  >
+                    <option value="">Aucune variante</option>
+                    <option value="COLOR">Couleur</option>
+                    <option value="SIZE">Taille (S, M, L, XL...)</option>
+                    <option value="SHOE_SIZE">Pointure (38, 39, 40...)</option>
+                    <option value="SCENT">Parfum / senteur</option>
+                  </select>
+                </div>
+              </div>
+
+              {variantType === "COLOR" && (
+                <>
+
+              <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="text-sm font-black text-zinc-700">
                     Couleurs du produit
                   </span>
-                  <p className="mt-1 text-xs font-medium text-zinc-400">
-                    Facultatif. Choisissez une couleur dans la palette, donnez-lui un nom, puis ajoutez-la.
+                  <p className="mt-1 text-xs font-medium leading-5 text-zinc-400">
+                    Cliquez simplement sur les couleurs disponibles. Aucun code HEX ou RGB à saisir.
                   </p>
                 </div>
 
-                <span className="w-fit rounded-full bg-white px-3 py-1 text-[11px] font-black text-zinc-500 ring-1 ring-zinc-200">
-                  {colors.length} couleur{
-                    colors.length > 1
-                      ? "s"
-                      : ""
-                  }
+                <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[11px] font-black text-zinc-500 ring-1 ring-zinc-200">
+                  {colors.length}/20
                 </span>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-                <label className="text-xs font-black text-zinc-600">
-                  Nom de la couleur
-                  <input
-                    type="text"
-                    value={colorName}
-                    onChange={(event) =>
-                      setColorName(
-                        event.target.value,
-                      )
-                    }
-                    placeholder="Ex. Noir, Rouge, Bleu..."
-                    className="mt-1.5 h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
-                  />
-                </label>
+              <div className="mt-5 flex flex-wrap gap-3">
+                {PRESET_COLORS.map(
+                  (preset) => {
+                    const selected =
+                      colors.some(
+                        (color) =>
+                          normalizeColorHex(
+                            color.hex,
+                          ) ===
+                          normalizeColorHex(
+                            preset.hex,
+                          ),
+                      );
 
-                <label className="text-xs font-black text-zinc-600">
-                  Couleur
+                    return (
+                      <button
+                        key={preset.hex}
+                        type="button"
+                        onClick={() =>
+                          togglePresetColor(
+                            preset.name,
+                            preset.hex,
+                          )
+                        }
+                        title={
+                          selected
+                            ? `Retirer ${preset.name}`
+                            : `Ajouter ${preset.name}`
+                        }
+                        aria-pressed={selected}
+                        className={`group flex w-[62px] flex-col items-center gap-2 rounded-2xl p-2 text-center transition ${
+                          selected
+                            ? "bg-orange-50 ring-2 ring-orange-400"
+                            : "hover:bg-white hover:shadow-sm"
+                        }`}
+                      >
+                        <span
+                          className={`relative h-10 w-10 rounded-full border shadow-sm transition group-hover:scale-105 ${
+                            preset.hex ===
+                            "#FFFFFF"
+                              ? "border-zinc-300"
+                              : "border-black/10"
+                          }`}
+                          style={{
+                            backgroundColor:
+                              preset.hex,
+                          }}
+                        >
+                          {selected && (
+                            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[11px] font-black text-white shadow">
+                              ✓
+                            </span>
+                          )}
+                        </span>
+
+                        <span className="w-full truncate text-[10px] font-black text-zinc-600">
+                          {preset.name}
+                        </span>
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <strong className="block text-xs font-black text-zinc-700">
+                    Autre couleur
+                  </strong>
+                  <span className="mt-0.5 block text-[11px] text-zinc-400">
+                    Pour une teinte qui n’est pas dans la liste.
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={colorHex}
+                    value={
+                      customColorHex
+                    }
                     onChange={(event) =>
-                      setColorHex(
+                      setCustomColorHex(
                         event.target.value.toUpperCase(),
                       )
                     }
-                    className="mt-1.5 h-12 w-16 cursor-pointer rounded-xl border border-zinc-200 bg-white p-1.5"
-                    title="Choisir une couleur"
+                    className="h-11 w-14 cursor-pointer rounded-xl border border-zinc-200 bg-white p-1"
+                    title="Choisir une autre couleur"
                   />
-                </label>
 
-                <button
-                  type="button"
-                  onClick={addColor}
-                  disabled={
-                    colors.length >= 20
-                  }
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 text-xs font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Plus className="h-4 w-4" />
-                  Ajouter
-                </button>
+                  <button
+                    type="button"
+                    onClick={
+                      addCustomColor
+                    }
+                    disabled={
+                      colors.length >= 20
+                    }
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 text-xs font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Ajouter
+                  </button>
+                </div>
               </div>
 
               {colors.length > 0 && (
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {colors.map(
-                    (color) => (
-                      <div
-                        key={color.hex}
-                        className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3"
-                      >
-                        <span
-                          className="h-9 w-9 shrink-0 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(24,24,27,0.18)]"
-                          style={{
-                            backgroundColor:
-                              color.hex,
-                          }}
-                        />
+                <div className="mt-5">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-zinc-400">
+                    Couleurs et photos associées
+                  </span>
 
-                        <div className="min-w-0 flex-1">
-                          <strong className="block truncate text-xs text-zinc-800">
-                            {color.name ||
-                              "Sans nom"}
-                          </strong>
+                  <p className="mt-1 text-xs font-medium leading-5 text-zinc-400">
+                    Pour chaque couleur, ajoutez les photos qui doivent apparaître quand le client la sélectionne.
+                  </p>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {colors.map((color, colorIndex) => {
+                      const normalizedHex = normalizeColorHex(color.hex);
+                      const pendingNames = pendingColorFiles[normalizedHex] || [];
+                      const isDefaultColor = colorIndex === 0;
+
+                      return (
+                        <div
+                          key={color.hex}
+                          className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span
+                              className="h-9 w-9 shrink-0 rounded-full border border-black/10 shadow-sm"
+                              style={{ backgroundColor: color.hex }}
+                            />
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <strong className="block truncate text-sm font-black text-zinc-800">
+                                  {color.name || "Couleur"}
+                                </strong>
+
+                                {isDefaultColor && (
+                                  <span className="rounded-full bg-orange-100 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-orange-700">
+                                    Couleur par défaut
+                                  </span>
+                                )}
+                              </div>
+
+                              <span className="text-[11px] font-semibold text-zinc-400">
+                                Photos affichées pour cette couleur
+                              </span>
+                            </div>
+
+                            {!isDefaultColor && (
+                              <button
+                                type="button"
+                                onClick={() => setDefaultColor(color.hex)}
+                                className="hidden shrink-0 rounded-lg border border-orange-200 bg-orange-50 px-2.5 py-1.5 text-[10px] font-black text-orange-700 transition hover:bg-orange-100 sm:inline-flex"
+                                title="Afficher cette couleur par défaut côté client"
+                              >
+                                Par défaut
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => removeColor(color.hex)}
+                              aria-label={`Supprimer ${color.name || "la couleur"}`}
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {(color.images || []).length > 0 && (
+                            <div className="mt-3">
+                              <p className="mb-2 text-[10px] font-bold text-zinc-400">
+                                La première photo est la photo principale affichée au client.
+                              </p>
+
+                              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                {(color.images || []).map((image, imageIndex) => (
+                                  <div
+                                    key={`${image}-${imageIndex}`}
+                                    className={`group relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-100 ${
+                                      imageIndex === 0
+                                        ? "border-2 border-orange-500 ring-2 ring-orange-100"
+                                        : "border border-zinc-200"
+                                    }`}
+                                  >
+                                    <img
+                                      src={image}
+                                      alt={`${color.name || "Couleur"} ${imageIndex + 1}`}
+                                      className="h-full w-full object-cover"
+                                    />
+
+                                    {imageIndex === 0 ? (
+                                      <span className="absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-full bg-orange-500 px-1.5 py-1 text-[8px] font-black uppercase text-white shadow">
+                                        <Star className="h-2.5 w-2.5 fill-current" />
+                                        Principale
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setColorMainImage(color.hex, image)}
+                                        aria-label="Définir comme photo principale"
+                                        title="Définir comme photo principale"
+                                        className="absolute bottom-1 left-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-orange-600 shadow transition hover:bg-orange-500 hover:text-white"
+                                      >
+                                        <Star className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => removeColorImage(color.hex, image)}
+                                      aria-label="Dissocier cette photo de la couleur"
+                                      className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-zinc-950/75 text-white opacity-100 transition hover:bg-red-500 sm:opacity-0 sm:group-hover:opacity-100"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {!isDefaultColor && (
+                            <button
+                              type="button"
+                              onClick={() => setDefaultColor(color.hex)}
+                              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-3 py-2.5 text-xs font-black text-orange-700 transition hover:bg-orange-100 sm:hidden"
+                            >
+                              <Star className="h-4 w-4" />
+                              Utiliser cette couleur par défaut
+                            </button>
+                          )}
+
+                          <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-orange-300 bg-orange-50/60 px-3 py-3 text-xs font-black text-orange-600 transition hover:bg-orange-100/70">
+                            <ImagePlus className="h-4 w-4" />
+                            Ajouter les photos de cette couleur (max. 6)
+                            <input
+                              type="file"
+                              name={colorUploadFieldName(color.hex)}
+                              multiple
+                              accept="image/jpeg,image/png,image/webp"
+                              onChange={(event) => handleColorFilesChange(color.hex, event)}
+                              className="hidden"
+                            />
+                          </label>
+
+                          {pendingNames.length > 0 && (
+                            <div className="mt-2 rounded-xl bg-zinc-50 px-3 py-2">
+                              <span className="text-[10px] font-black uppercase tracking-wide text-zinc-400">
+                                À envoyer ({pendingNames.length})
+                              </span>
+                              <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-4 text-zinc-600">
+                                {pendingNames.join(", ")}
+                              </p>
+                            </div>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
+                </>
+              )}
+
+              {variantType !== "" && variantType !== "COLOR" && (
+                <div className="mt-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-sm font-black text-zinc-700">
+                        {variantType === "SIZE"
+                          ? "Tailles disponibles"
+                          : variantType === "SHOE_SIZE"
+                            ? "Pointures disponibles"
+                            : "Parfums disponibles"}
+                      </span>
+                      <p className="mt-1 text-xs font-medium text-zinc-400">
+                        Cliquez sur les valeurs proposées ou ajoutez votre propre valeur.
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-zinc-500 ring-1 ring-zinc-200">
+                      {simpleVariants.length}/30
+                    </span>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {simplePresets.map((preset) => {
+                      const selected = simpleVariants.some(
+                        (value) => value.toLocaleLowerCase("fr") === String(preset).toLocaleLowerCase("fr"),
+                      );
+
+                      return (
                         <button
+                          key={preset}
                           type="button"
                           onClick={() =>
-                            removeColor(
-                              color.hex,
-                            )
+                            selected
+                              ? removeSimpleVariant(String(preset))
+                              : addSimpleVariant(String(preset))
                           }
-                          aria-label={`Supprimer la couleur ${
-                            color.name ||
-                            "sélectionnée"
+                          className={`min-h-11 rounded-xl border px-4 py-2.5 text-sm font-black transition ${
+                            selected
+                              ? "border-orange-500 bg-orange-500 text-white shadow-md shadow-orange-500/20"
+                              : "border-zinc-200 bg-white text-zinc-700 hover:border-orange-300 hover:bg-orange-50"
                           }`}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-500 transition hover:bg-red-100"
                         >
-                          <X className="h-4 w-4" />
+                          {preset}
                         </button>
-                      </div>
-                    ),
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={customVariantValue}
+                      onChange={(event) => setCustomVariantValue(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          addSimpleVariant(customVariantValue);
+                        }
+                      }}
+                      placeholder={
+                        variantType === "SIZE"
+                          ? "Ex. 4XL"
+                          : variantType === "SHOE_SIZE"
+                            ? "Ex. 42.5"
+                            : "Ex. Caramel"
+                      }
+                      className="h-11 flex-1 rounded-xl border border-zinc-200 bg-white px-4 text-sm font-semibold outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addSimpleVariant(customVariantValue)}
+                      disabled={!customVariantValue.trim() || simpleVariants.length >= 30}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-5 text-xs font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Ajouter
+                    </button>
+                  </div>
+
+                  {simpleVariants.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2 rounded-2xl border border-zinc-200 bg-white p-3">
+                      {simpleVariants.map((value, index) => (
+                        <div
+                          key={`${value}-${index}`}
+                          className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black ${
+                            index === 0
+                              ? "border-orange-300 bg-orange-50 text-orange-700"
+                              : "border-zinc-200 bg-zinc-50 text-zinc-700"
+                          }`}
+                        >
+                          {index === 0 && <Star className="h-3.5 w-3.5 fill-current" />}
+                          <span>{value}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeSimpleVariant(value)}
+                            className="rounded-full p-0.5 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
+                            aria-label={`Supprimer ${value}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   )}
+
+                  <p className="mt-2 text-[11px] font-semibold text-zinc-400">
+                    La première valeur est sélectionnée par défaut côté client.
+                  </p>
                 </div>
               )}
             </div>
 
             <label className="sm:col-span-2 text-sm font-black text-zinc-700">
-              Télécharger des images
+              Photos générales du produit
+
+              <span className="mt-1 block text-xs font-medium text-zinc-400">
+                {variantType === "COLOR"
+                  ? "Utilisées quand aucune photo spécifique n’est liée à la couleur choisie."
+                  : "Photos générales affichées pour cet article."}
+              </span>
 
               <span className="mt-2 flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 px-4 text-center transition hover:border-orange-300 hover:bg-orange-50/40">
                 <ImagePlus className="h-8 w-8 text-orange-500" />
@@ -3391,6 +3900,30 @@ function ArticlePreviewModal({
                       </span>
                     ),
                   )}
+                </div>
+              </div>
+            )}
+
+          {article.variant_type !== "COLOR" &&
+            article.variants &&
+            article.variants.length > 0 && (
+              <div className="mt-5">
+                <span className="text-xs font-black uppercase tracking-wide text-zinc-400">
+                  {article.variant_type === "SIZE"
+                    ? "Tailles disponibles"
+                    : article.variant_type === "SHOE_SIZE"
+                      ? "Pointures disponibles"
+                      : "Parfums disponibles"}
+                </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {article.variants.map((variant, index) => (
+                    <span
+                      key={`${variant.value}-${index}`}
+                      className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-black text-zinc-600"
+                    >
+                      {variant.label || variant.value}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}

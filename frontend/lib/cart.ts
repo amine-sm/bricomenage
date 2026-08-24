@@ -8,6 +8,15 @@ export type CartItemColor = {
   rgb?: string | null;
 };
 
+export type CartItemVariant = {
+  type: "COLOR" | "SIZE" | "SHOE_SIZE" | "SCENT";
+  value: string;
+  label?: string | null;
+  name?: string | null;
+  hex?: string | null;
+  rgb?: string | null;
+};
+
 export type CartPackComponent = {
   article_id: number;
   slug?: string;
@@ -31,6 +40,9 @@ export type CartItem = {
    * Un même article rouge et bleu constitue donc deux lignes distinctes.
    */
   selected_color?: CartItemColor;
+
+  /* Variante choisie : couleur, taille, pointure ou parfum. */
+  selected_variant?: CartItemVariant;
 
   /*
    * Pour un PACK, on mémorise
@@ -112,20 +124,63 @@ function normalizeSelectedColor(
   };
 }
 
+function normalizeSelectedVariant(
+  value: unknown,
+): CartItemVariant | undefined {
+  if (!value || typeof value !== "object") return undefined;
+
+  const variant = value as Record<string, unknown>;
+  const rawType = String(variant.type || "").trim().toUpperCase();
+  const typeAliases: Record<string, CartItemVariant["type"]> = {
+    COLOR: "COLOR", COULEUR: "COLOR",
+    SIZE: "SIZE", TAILLE: "SIZE",
+    SHOE_SIZE: "SHOE_SIZE", POINTURE: "SHOE_SIZE",
+    SCENT: "SCENT", PARFUM: "SCENT",
+  };
+  const type = typeAliases[rawType];
+  const valueText = String(variant.value || variant.label || variant.name || "").trim();
+  if (!type || !valueText) return undefined;
+
+  const hex = type === "COLOR" ? normalizeHex(variant.hex) : "";
+
+  return {
+    type,
+    value: valueText,
+    label: String(variant.label || valueText).trim() || valueText,
+    name: variant.name == null ? null : String(variant.name).trim() || null,
+    hex: hex || null,
+    rgb: variant.rgb == null ? null : String(variant.rgb).trim() || null,
+  };
+}
+
+function colorAsVariant(color: CartItemColor | undefined): CartItemVariant | undefined {
+  if (!color) return undefined;
+  return {
+    type: "COLOR",
+    value: color.name || color.hex,
+    label: color.name || color.hex,
+    name: color.name || null,
+    hex: color.hex,
+    rgb: color.rgb || null,
+  };
+}
+
 export function cartItemKey(
   item: Pick<
     CartItem,
     | "id"
     | "item_type"
     | "selected_color"
+    | "selected_variant"
   >,
 ) {
+  const variant = normalizeSelectedVariant(item.selected_variant);
+  const legacyColor = normalizeHex(item.selected_color?.hex);
+
   return [
     item.item_type,
     Number(item.id),
-    normalizeHex(
-      item.selected_color?.hex,
-    ) || "NO_COLOR",
+    variant ? `${variant.type}:${variant.value.toLocaleLowerCase("fr")}` : legacyColor ? `COLOR:${legacyColor}` : "NO_VARIANT",
   ].join(":");
 }
 
@@ -163,6 +218,9 @@ export function getCart():
             item.selected_color ||
               item.color,
           ),
+        selected_variant:
+          normalizeSelectedVariant(item.selected_variant || item.variant) ||
+          colorAsVariant(normalizeSelectedColor(item.selected_color || item.color)),
       }),
     );
   } catch {
@@ -200,6 +258,8 @@ export function addToCart(
       normalizeSelectedColor(
         item.selected_color,
       ),
+    selected_variant:
+      normalizeSelectedVariant(item.selected_variant),
   };
 
   const quantity =
@@ -217,6 +277,8 @@ export function addToCart(
         normalizedItem.item_type,
       selected_color:
         normalizedItem.selected_color,
+      selected_variant:
+        normalizedItem.selected_variant,
     });
 
   const found =
@@ -265,6 +327,8 @@ export function saveDirectCheckout(
           normalizeSelectedColor(
             item.selected_color,
           ),
+        selected_variant:
+          normalizeSelectedVariant(item.selected_variant),
       },
     ],
     returnHref,
@@ -332,6 +396,9 @@ export function getDirectCheckout():
             normalizeSelectedColor(
               item.selected_color,
             ),
+          selected_variant:
+            normalizeSelectedVariant(item.selected_variant) ||
+            colorAsVariant(normalizeSelectedColor(item.selected_color)),
         }),
       ),
     };

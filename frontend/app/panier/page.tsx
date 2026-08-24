@@ -778,23 +778,25 @@ function CartProduct({
           </Link>
 
           {!isPack &&
-            item.selected_color && (
+            item.selected_variant && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span
-                  className="h-5 w-5 shrink-0 rounded-full border border-black/10 shadow-sm ring-1 ring-zinc-200 ring-offset-1"
-                  style={{
-                    backgroundColor:
-                      item.selected_color.hex,
-                  }}
-                />
+                {item.selected_variant.type === "COLOR" && item.selected_variant.hex && (
+                  <span
+                    className="h-5 w-5 shrink-0 rounded-full border border-black/10 shadow-sm ring-1 ring-zinc-200 ring-offset-1"
+                    style={{ backgroundColor: item.selected_variant.hex }}
+                  />
+                )}
 
                 <span className="text-[10px] font-black text-zinc-700 sm:text-xs">
-                  Couleur : {
-                    item.selected_color.name ||
-                    "Sélectionnée"
-                  }
+                  {item.selected_variant.type === "SIZE"
+                    ? "Taille"
+                    : item.selected_variant.type === "SHOE_SIZE"
+                      ? "Pointure"
+                      : item.selected_variant.type === "SCENT"
+                        ? "Parfum"
+                        : "Couleur"}
+                  {" : "}{item.selected_variant.label || item.selected_variant.value}
                 </span>
-
               </div>
             )}
 

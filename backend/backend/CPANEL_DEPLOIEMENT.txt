@@ -1,0 +1,27 @@
+BRICOMENAGE - DEPLOIEMENT CPANEL / SOCKET.IO
+
+Node.js App :
+- Application root : backend
+- Application URL : bricomenage.com/api
+- Startup file : server.js
+- Mode : Production
+- Ne pas forcer PORT=5000 dans cPanel si Passenger fournit PORT.
+- Variable backend : SOCKET_IO_PATH=/api/socket.io
+
+Après upload :
+1. npm install --omit=dev
+2. SAVE / RESTART APPLICATION
+
+Tests HTTP :
+https://bricomenage.com/api/health
+https://bricomenage.com/api/categories
+
+Test Socket.IO polling :
+https://bricomenage.com/api/socket.io/?EIO=4&transport=polling
+
+Le test Socket.IO doit commencer par quelque chose comme :
+0{"sid":"...","upgrades":["websocket"],...}
+
+IMPORTANT : si le test retourne {"success":false,"message":"Route introuvable."},
+cela signifie que Socket.IO n'intercepte pas le chemin. Vérifier que cPanel démarre bien server.js,
+puis redémarrer l'application après chaque modification.

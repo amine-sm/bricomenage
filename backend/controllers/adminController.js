@@ -114,6 +114,23 @@ function hexToRgbText(hex) {
   return `rgb(${red}, ${green}, ${blue})`;
 }
 
+function normalizeVariantType(value) {
+  const raw = clean(value).toUpperCase();
+
+  const aliases = {
+    COULEUR: "COLOR",
+    COLOR: "COLOR",
+    TAILLE: "SIZE",
+    SIZE: "SIZE",
+    POINTURE: "SHOE_SIZE",
+    SHOE_SIZE: "SHOE_SIZE",
+    PARFUM: "SCENT",
+    SCENT: "SCENT",
+  };
+
+  return aliases[raw] || null;
+}
+
 function parseColors(value) {
   if (!value) {
     return [];
@@ -155,6 +172,7 @@ function parseColors(value) {
       name: clean(source.name) || null,
       hex,
       rgb: hexToRgbText(hex),
+      images: parseArray(source.images).slice(0, 12),
     });
 
     if (colors.length >= 20) {
@@ -163,6 +181,55 @@ function parseColors(value) {
   }
 
   return colors;
+}
+
+function parseVariants(value, variantType) {
+  const type = normalizeVariantType(variantType);
+  if (!type || !value) return [];
+
+  if (type === "COLOR") {
+    return parseColors(value).map((color) => ({
+      ...color,
+      value: clean(color.name) || color.hex,
+      label: clean(color.name) || color.hex,
+    }));
+  }
+
+  let parsed = value;
+  if (!Array.isArray(parsed)) {
+    try {
+      parsed = JSON.parse(value);
+    } catch {
+      parsed = String(value)
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  if (!Array.isArray(parsed)) return [];
+
+  const variants = [];
+  const used = new Set();
+
+  for (const item of parsed) {
+    const source = item && typeof item === "object" ? item : { value: item };
+    const valueText = clean(source.value || source.label || source.name).slice(0, 100);
+    if (!valueText) continue;
+
+    const key = valueText.toLocaleLowerCase("fr");
+    if (used.has(key)) continue;
+    used.add(key);
+
+    variants.push({
+      value: valueText,
+      label: clean(source.label) || valueText,
+    });
+
+    if (variants.length >= 30) break;
+  }
+
+  return variants;
 }
 
 function safeArticle(row) {
@@ -178,6 +245,37 @@ function safeArticle(row) {
     row.image ||
     images[0] ||
     null;
+
+  const legacyColors = parseColors(row.colors);
+  const variantType =
+    normalizeVariantType(row.variant_type) ||
+    (legacyColors.length ? "COLOR" : null);
+  let variants = parseVariants(row.variants, variantType);
+
+  if (variantType === "COLOR" && variants.length === 0) {
+    variants = legacyColors.map((color) => ({
+      ...color,
+      value: clean(color.name) || color.hex,
+      label: clean(color.name) || color.hex,
+    }));
+  }
+
+  const colors =
+    variantType === "COLOR"
+      ? variants.map((variant) => ({
+          name: clean(variant.name || variant.label || variant.value) || null,
+          hex: variant.hex,
+          rgb: variant.rgb,
+          images: parseArray(variant.images).slice(0, 12),
+        }))
+      : [];
+  const mappedImages = new Set(colorImages(colors));
+  const genericImages =
+    images.length > 0
+      ? images
+      : image && !mappedImages.has(image)
+        ? [image]
+        : [];
 
   return {
     ...row,
@@ -222,15 +320,10 @@ function safeArticle(row) {
       row.is_active,
     ),
     image,
-    images:
-      images.length > 0
-        ? images
-        : image
-          ? [image]
-          : [],
-    colors: parseColors(
-      row.colors,
-    ),
+    images: genericImages,
+    colors,
+    variant_type: variantType,
+    variants,
   };
 }
 
@@ -247,24 +340,57 @@ function buildImageUrl(
   )}/uploads/products/${filename}`;
 }
 
-function uploadedImages(req) {
-  const files = Array.isArray(
-    req.files,
-  )
+function requestFiles(req) {
+  return Array.isArray(req.files)
     ? req.files
-    : Object.values(
-        req.files || {},
-      ).flat();
+    : Object.values(req.files || {}).flat();
+}
 
-  return files
-    .slice(0, 10)
-    .map((file) =>
-      buildImageUrl(
-        req,
-        file.filename,
-      ),
+function uploadedImages(req) {
+  return requestFiles(req)
+    .filter((file) =>
+      !String(file.fieldname || "").startsWith("color_images_"),
     )
+    .slice(0, 10)
+    .map((file) => buildImageUrl(req, file.filename))
     .filter(Boolean);
+}
+
+function attachUploadedColorImages(req, colors) {
+  if (!Array.isArray(colors) || colors.length === 0) {
+    return [];
+  }
+
+  const files = requestFiles(req);
+
+  return colors.map((color) => {
+    const fieldName = `color_images_${String(color.hex || "")
+      .replace("#", "")
+      .toUpperCase()}`;
+
+    const uploaded = files
+      .filter((file) => file.fieldname === fieldName)
+      .slice(0, 6)
+      .map((file) => buildImageUrl(req, file.filename))
+      .filter(Boolean);
+
+    return {
+      ...color,
+      images: [
+        ...new Set([...(color.images || []), ...uploaded]),
+      ].slice(0, 12),
+    };
+  });
+}
+
+function colorImages(colors) {
+  return Array.from(
+    new Set(
+      (colors || []).flatMap((color) =>
+        Array.isArray(color.images) ? color.images : [],
+      ),
+    ),
+  );
 }
 
 async function uniqueSlug(
@@ -918,17 +1044,42 @@ async function createArticle(
     ]),
   ].slice(0, 10);
 
+  const variantType =
+    normalizeVariantType(req.body.variant_type) ||
+    (req.body.colors ? "COLOR" : null);
+
+  let variants =
+    variantType === "COLOR"
+      ? attachUploadedColorImages(
+          req,
+          parseColors(req.body.variants || req.body.colors),
+        ).map((color) => ({
+          ...color,
+          value: clean(color.name) || color.hex,
+          label: clean(color.name) || color.hex,
+        }))
+      : parseVariants(req.body.variants, variantType);
+
+  const colors =
+    variantType === "COLOR"
+      ? variants.map((variant) => ({
+          name: clean(variant.name || variant.label || variant.value) || null,
+          hex: variant.hex,
+          rgb: variant.rgb,
+          images: parseArray(variant.images).slice(0, 12),
+        }))
+      : [];
+
+  const mappedColorImages = colorImages(colors);
+
   const mainImage =
     clean(
       req.body.main_image ||
         req.body.image,
     ) ||
     images[0] ||
+    mappedColorImages[0] ||
     null;
-
-  const colors = parseColors(
-    req.body.colors,
-  );
 
   const stockManaged =
     clean(req.body.stock_quantity) !== ""
@@ -962,6 +1113,8 @@ async function createArticle(
           image,
           images,
           colors,
+          variant_type,
+          variants,
           rating,
           reviews,
           is_active
@@ -969,7 +1122,7 @@ async function createArticle(
         VALUES (
           ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?, ?, ?
         )
       `,
       [
@@ -1015,6 +1168,8 @@ async function createArticle(
         JSON.stringify(
           colors,
         ),
+        variantType,
+        JSON.stringify(variants),
         Math.min(
           5,
           Math.max(
@@ -1185,22 +1340,62 @@ async function updateArticle(
       images[0] || null;
   }
 
-  if (
-    mainImage &&
-    images.length > 0 &&
-    !images.includes(mainImage)
-  ) {
-    images.unshift(
-      mainImage,
-    );
-  }
+  const variantType =
+    req.body.variant_type !== undefined
+      ? normalizeVariantType(req.body.variant_type)
+      : normalizeVariantType(existing.variant_type) ||
+        (existing.colors?.length ? "COLOR" : null);
+
+  const rawVariants =
+    req.body.variants !== undefined
+      ? req.body.variants
+      : req.body.colors !== undefined
+        ? req.body.colors
+        : existing.variants;
+
+  let variants =
+    variantType === "COLOR"
+      ? attachUploadedColorImages(
+          req,
+          parseColors(rawVariants || existing.colors),
+        ).map((color) => ({
+          ...color,
+          value: clean(color.name) || color.hex,
+          label: clean(color.name) || color.hex,
+        }))
+      : parseVariants(rawVariants, variantType);
 
   const colors =
-    req.body.colors !== undefined
-      ? parseColors(
-          req.body.colors,
-        )
-      : existing.colors;
+    variantType === "COLOR"
+      ? variants.map((variant) => ({
+          name: clean(variant.name || variant.label || variant.value) || null,
+          hex: variant.hex,
+          rgb: variant.rgb,
+          images: parseArray(variant.images).slice(0, 12),
+        }))
+      : [];
+
+  const mappedColorImages = colorImages(colors);
+  const availableImages = [
+    ...new Set([...images, ...mappedColorImages]),
+  ];
+
+  if (
+    mainImage &&
+    availableImages.length > 0 &&
+    !availableImages.includes(mainImage)
+  ) {
+    mainImage = availableImages[0];
+  }
+
+  if (
+    req.body.existing_images !== undefined &&
+    availableImages.length === 0
+  ) {
+    mainImage = null;
+  } else if (!mainImage) {
+    mainImage = availableImages[0] || null;
+  }
 
   const stockFieldProvided =
     req.body.stock_quantity !== undefined;
@@ -1239,6 +1434,8 @@ async function updateArticle(
         image = ?,
         images = ?,
         colors = ?,
+        variant_type = ?,
+        variants = ?,
         rating = ?,
         reviews = ?,
         is_active = ?
@@ -1308,6 +1505,8 @@ async function updateArticle(
       JSON.stringify(
         colors,
       ),
+      variantType,
+      JSON.stringify(variants),
       req.body.rating !==
       undefined
         ? Math.min(
@@ -1729,6 +1928,8 @@ async function getOrder(
           oi.pack_id,
           oi.item_type,
           oi.designation,
+          oi.variant_type,
+          oi.variant_value,
           oi.color_name,
           oi.color_hex,
           oi.color_rgb,

@@ -1,0 +1,8 @@
+Correction suppression article
+==============================
+
+- DELETE /api/admin/articles/:id effectue maintenant un DELETE réel.
+- Les liens promotion_articles sont supprimés avant l'article.
+- Les liens pack_items sont supprimés avant l'article.
+- Les anciennes commandes restent conservées grâce à ON DELETE SET NULL dans order_items.
+- La route admin DELETE existante est conservée.

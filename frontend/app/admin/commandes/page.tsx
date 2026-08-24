@@ -104,6 +104,8 @@ type OrderItem = {
   item_type?: "ARTICLE" | "PACK";
   designation: string;
   image?: string | null;
+  variant_type?: "COLOR" | "SIZE" | "SHOE_SIZE" | "SCENT" | null;
+  variant_value?: string | null;
   color_name?: string | null;
   color_hex?: string | null;
   color_rgb?: string | null;
@@ -3111,25 +3113,27 @@ function OrderDetailModal({
                               }
                             </h4>
 
-                            {item.item_type !==
-                              "PACK" &&
-                              item.color_hex && (
+                            {item.item_type !== "PACK" &&
+                              (item.variant_value || item.color_name || item.color_hex) && (
                                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                                  <span
-                                    className="h-5 w-5 shrink-0 rounded-full border border-black/10 shadow-sm ring-1 ring-zinc-200 ring-offset-1"
-                                    style={{
-                                      backgroundColor:
-                                        item.color_hex,
-                                    }}
-                                  />
+                                  {(item.variant_type === "COLOR" || (!item.variant_type && item.color_hex)) &&
+                                    item.color_hex && (
+                                      <span
+                                        className="h-5 w-5 shrink-0 rounded-full border border-black/10 shadow-sm ring-1 ring-zinc-200 ring-offset-1"
+                                        style={{ backgroundColor: item.color_hex }}
+                                      />
+                                    )}
 
                                   <span className="text-xs font-black text-zinc-700">
-                                    Couleur : {
-                                      item.color_name ||
-                                      "Sélectionnée"
-                                    }
+                                    {item.variant_type === "SIZE"
+                                      ? "Taille"
+                                      : item.variant_type === "SHOE_SIZE"
+                                        ? "Pointure"
+                                        : item.variant_type === "SCENT"
+                                          ? "Parfum"
+                                          : "Couleur"}
+                                    {" : "}{item.variant_value || item.color_name || item.color_hex}
                                   </span>
-
                                 </div>
                               )}
 

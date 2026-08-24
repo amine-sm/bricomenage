@@ -1,0 +1,21 @@
+BricoMénage - Achat direct + commande mobile
+Date : 15/08/2026
+
+1. Fiche article /article/?slug=...
+- Nouveau bouton principal "Acheter / اشتر الآن".
+- Achat direct vers /commande/?direct=1.
+- Le produit et la quantité sélectionnée sont transmis via sessionStorage.
+- Le panier existant n'est pas modifié par l'achat direct.
+- Le bouton "Ajouter au panier" reste disponible comme action secondaire.
+
+2. Page commande mobile
+- Lecture d'une commande directe sans passer par le panier.
+- Retour vers la fiche article en mode achat direct.
+- Le panier normal n'est pas vidé après une commande directe.
+- Barre mobile fixe en bas avec total + bouton de confirmation.
+- Étapes adaptées aux petits écrans sans défilement horizontal.
+- En-tête, statistiques, espacements et cartes optimisés pour téléphone.
+- Design responsive desktop conservé.
+
+3. Validation
+- Vérification syntaxique TypeScript/TSX réussie sur les fichiers modifiés.

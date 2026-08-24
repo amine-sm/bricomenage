@@ -1,0 +1,29 @@
+BRICOMENAGE - Catalogue mobile V3
+
+Modifications réalisées :
+- Filtres mobiles repliés par défaut derrière une icône.
+- Clic sur l'icône = ouverture/fermeture de la barre de filtres.
+- Indicateur visuel lorsque des filtres sont actifs.
+- Cartes produit mobiles plus compactes et professionnelles.
+- Grille catalogue mobile en 2 colonnes.
+- Pagination publique : 20 éléments par page.
+- Retour automatique à la page 1 après modification des filtres/recherche/tri.
+- Les articles en promotion sont exclus de l'onglet Articles.
+- Les articles en promotion restent dans l'onglet Promotions.
+- La sélection "derniers articles" de l'accueil exclut aussi les promotions.
+- La fiche article n'affiche plus le faux produit/photo de démonstration avant la vraie réponse API.
+- En attente de l'API, affichage d'un squelette neutre.
+- Meilleur fallback d'image : image principale puis première image de galerie.
+
+Fichiers principaux modifiés :
+- app/articles/page.tsx
+- components/ProductCard.tsx
+- app/article/page.tsx
+- app/page.tsx
+
+IMPORTANT :
+Le dossier out/ de l'archive d'origine a été supprimé car il correspondait à un ancien build et n'incluait pas ces changements.
+Après extraction :
+1. npm install
+2. npm run build
+Le nouveau dossier out/ sera alors généréré avec les modifications.

@@ -291,6 +291,12 @@ function articleToProduct(
       undefined,
     images:
       article.images,
+    colors:
+      article.colors,
+    variant_type:
+      article.variant_type,
+    variants:
+      article.variants,
     stock_quantity: Number(
       article.stock_quantity || 0,
     ),

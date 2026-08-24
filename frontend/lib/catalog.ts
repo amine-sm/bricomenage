@@ -26,6 +26,16 @@ export type CatalogArticle = {
     name?: string | null;
     hex: string;
     rgb: string;
+    images?: string[];
+  }[];
+  variant_type?: "COLOR" | "SIZE" | "SHOE_SIZE" | "SCENT" | null;
+  variants?: {
+    value: string;
+    label?: string | null;
+    name?: string | null;
+    hex?: string;
+    rgb?: string | null;
+    images?: string[];
   }[];
   stock_quantity?: number;
   stock_managed?: boolean;

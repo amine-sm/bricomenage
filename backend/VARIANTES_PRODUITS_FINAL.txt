@@ -1,0 +1,21 @@
+BRICOMENAGE - BACKEND VARIANTES PRODUITS (24/08/2026)
+=====================================================
+
+Champs articles ajoutés automatiquement au démarrage :
+- variant_type VARCHAR(20)
+- variants JSON
+
+Types autorisés :
+- COLOR      = Couleur
+- SIZE       = Taille
+- SHOE_SIZE  = Pointure
+- SCENT      = Parfum / senteur
+
+Champs order_items ajoutés automatiquement :
+- variant_type VARCHAR(20)
+- variant_value VARCHAR(100)
+
+Le script scripts/ensureSchema.js réalise la migration automatiquement au démarrage du serveur.
+Une migration manuelle est aussi disponible : sql/ADD_PRODUCT_VARIANTS_2026_08_24.sql
+
+Les anciennes couleurs restent compatibles via articles.colors et order_items.color_*.

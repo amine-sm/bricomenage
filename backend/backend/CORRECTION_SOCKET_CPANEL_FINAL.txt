@@ -1,0 +1,23 @@
+CORRECTION SOCKET.IO CPANEL - 12/08/2026
+
+Modifications appliquées :
+- Backend Socket.IO écoute explicitement sur /api/socket.io
+- Ordre des transports : polling puis websocket
+- Variable SOCKET_IO_PATH=/api/socket.io ajoutée
+- Frontend Socket.IO utilise polling puis upgrade websocket
+- Le dossier out/ fourni a été patché pour fonctionner sans rebuild immédiat
+
+Configuration cPanel recommandée :
+Application URL : https://bricomenage.com/api
+Startup file : server.js
+Mode : Production
+
+Après upload du backend :
+1) npm install --omit=dev
+2) Restart Application
+
+Test :
+https://bricomenage.com/api/socket.io/?EIO=4&transport=polling
+
+Résultat attendu : une réponse qui commence par 0{"sid":...
+Si vous voyez {"success":false,"message":"Route introuvable."}, cPanel ne lance pas server.js corrigé ou l'application n'a pas été redémarrée.

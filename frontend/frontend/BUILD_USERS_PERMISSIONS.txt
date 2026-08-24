@@ -1,0 +1,13 @@
+BRICOMENAGE - BUILD FRONTEND
+============================
+
+La gestion des utilisateurs est dans :
+  app/admin/utilisateurs/page.tsx
+
+Après installation des dépendances :
+  npm install
+  npm run build
+
+Le nouveau dossier out/ contiendra /admin/utilisateurs/.
+
+Le ZIP final ne contient volontairement pas l'ancien dossier out/ afin d'éviter de déployer une ancienne version sans la page Utilisateurs.
