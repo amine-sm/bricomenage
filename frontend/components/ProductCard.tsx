@@ -205,7 +205,7 @@ export default function ProductCard({
     }
 
     addCurrentProductToCart();
-    router.push("/commande");
+    router.push("/panier");
   }
 
   return (

@@ -2132,7 +2132,7 @@ function ArticleContent() {
             </div>
 
             {relatedLoading ? (
-              <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:mt-8 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
                 {Array.from(
                   {
                     length:
@@ -2147,16 +2147,16 @@ function ArticleContent() {
                       key={
                         index
                       }
-                      className="overflow-hidden rounded-[26px] border border-zinc-200 bg-white"
+                      className="overflow-hidden rounded-[18px] border border-zinc-200 bg-white sm:rounded-[24px]"
                     >
-                      <div className="aspect-[4/3] animate-pulse bg-zinc-200" />
+                      <div className="aspect-square animate-pulse bg-zinc-200 sm:aspect-[4/3]" />
 
-                      <div className="space-y-3 p-4">
-                        <div className="h-3 w-20 animate-pulse rounded bg-zinc-200" />
+                      <div className="space-y-2 p-3 sm:space-y-3 sm:p-4">
+                        <div className="h-2.5 w-14 animate-pulse rounded bg-zinc-200 sm:h-3 sm:w-20" />
 
-                        <div className="h-5 w-3/4 animate-pulse rounded bg-zinc-200" />
+                        <div className="h-4 w-4/5 animate-pulse rounded bg-zinc-200 sm:h-5 sm:w-3/4" />
 
-                        <div className="h-6 w-28 animate-pulse rounded bg-zinc-200" />
+                        <div className="h-5 w-20 animate-pulse rounded bg-zinc-200 sm:h-6 sm:w-28" />
                       </div>
                     </div>
                   ),
@@ -2164,7 +2164,7 @@ function ArticleContent() {
               </div>
             ) : relatedProducts.length >
               0 ? (
-              <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-6 grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:mt-8 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
                 {relatedProducts.map(
                   (
                     item,
@@ -2219,9 +2219,9 @@ function ArticleContent() {
                           item.slug ||
                             "",
                         )}`}
-                        className="group overflow-hidden rounded-[26px] border border-zinc-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-orange-200 hover:shadow-xl"
+                        className="group min-w-0 overflow-hidden rounded-[18px] border border-zinc-200 bg-white shadow-[0_4px_18px_rgba(24,24,27,0.06)] transition duration-300 hover:-translate-y-1 hover:border-orange-200 hover:shadow-xl sm:rounded-[24px]"
                       >
-                        <div className="relative aspect-[4/3] overflow-hidden bg-zinc-100">
+                        <div className="relative aspect-square overflow-hidden bg-zinc-100 sm:aspect-[4/3]">
                           {item.image ? (
                             <img
                               src={
@@ -2236,7 +2236,7 @@ function ArticleContent() {
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-zinc-300">
-                              <ShoppingCart className="h-12 w-12" />
+                              <ShoppingCart className="h-9 w-9 sm:h-12 sm:w-12" />
                             </div>
                           )}
 
@@ -2244,7 +2244,7 @@ function ArticleContent() {
                             null &&
                             relatedDiscount >
                               0 && (
-                              <span className="absolute left-3 top-3 rounded-full bg-orange-500 px-3 py-1.5 text-[10px] font-black text-white shadow">
+                              <span className="absolute left-2 top-2 rounded-full bg-orange-500 px-2 py-1 text-[8px] font-black text-white shadow sm:left-3 sm:top-3 sm:px-3 sm:py-1.5 sm:text-[10px]">
                                 -
                                 {
                                   relatedDiscount
@@ -2254,7 +2254,7 @@ function ArticleContent() {
                             )}
 
                           <span
-                            className={`absolute bottom-3 left-3 rounded-full px-3 py-1.5 text-[10px] font-black shadow-sm ${
+                            className={`absolute bottom-2 left-2 rounded-full px-2 py-1 text-[8px] font-black shadow-sm sm:bottom-3 sm:left-3 sm:px-3 sm:py-1.5 sm:text-[10px] ${
                               relatedInStock
                                 ? "bg-emerald-500 text-white"
                                 : "bg-red-500 text-white"
@@ -2268,36 +2268,36 @@ function ArticleContent() {
                           </span>
                         </div>
 
-                        <div className="p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="truncate text-[10px] font-black uppercase tracking-[0.13em] text-orange-500">
+                        <div className="p-3 sm:p-4">
+                          <div className="flex items-center justify-between gap-2 sm:gap-3">
+                            <span className="truncate text-[8px] font-black uppercase tracking-[0.10em] text-orange-500 sm:text-[10px] sm:tracking-[0.13em]">
                               {
                                 item.category
                               }
                             </span>
                           </div>
 
-                          <h3 className="mt-3 min-h-[44px] text-sm font-black leading-5 text-zinc-950 transition group-hover:text-orange-600">
+                          <h3 className="mt-2 line-clamp-2 min-h-[36px] text-[12px] font-black leading-[18px] text-zinc-950 transition group-hover:text-orange-600 sm:mt-3 sm:min-h-[44px] sm:text-sm sm:leading-5">
                             {
                               item.designation
                             }
                           </h3>
 
                           {item.brand && (
-                            <p className="mt-1 truncate text-xs font-semibold text-zinc-400">
+                            <p className="mt-1 truncate text-[10px] font-semibold text-zinc-400 sm:text-xs">
                               {
                                 item.brand
                               }
                             </p>
                           )}
 
-                          <div className="mt-4 flex items-end justify-between gap-3 border-t border-zinc-100 pt-4">
+                          <div className="mt-3 flex items-end justify-between gap-2 border-t border-zinc-100 pt-3 sm:mt-4 sm:gap-3 sm:pt-4">
                             <div>
                               {relatedOldPrice >
                                 Number(
                                   item.price,
                                 ) && (
-                                <span className="block text-[11px] text-zinc-400 line-through">
+                                <span className="block text-[9px] text-zinc-400 line-through sm:text-[11px]">
                                   {formatPrice(
                                     relatedOldPrice,
                                   )}{" "}
@@ -2305,20 +2305,20 @@ function ArticleContent() {
                                 </span>
                               )}
 
-                              <strong className="block text-lg font-black text-zinc-950">
+                              <strong className="block text-[15px] font-black leading-tight text-zinc-950 sm:text-lg">
                                 {formatPrice(
                                   Number(
                                     item.price,
                                   ),
                                 )}{" "}
-                                <span className="text-xs text-orange-500">
+                                <span className="text-[9px] text-orange-500 sm:text-xs">
                                   DA
                                 </span>
                               </strong>
                             </div>
 
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-500 transition group-hover:bg-orange-500 group-hover:text-white">
-                              <ChevronRight className="h-4 w-4" />
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-orange-50 text-orange-500 transition group-hover:bg-orange-500 group-hover:text-white sm:h-10 sm:w-10 sm:rounded-xl">
+                              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                             </span>
                           </div>
                         </div>
