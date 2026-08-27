@@ -27,17 +27,6 @@ function normalizeHexColor(value) {
   return null;
 }
 
-function normalizeVariantType(value) {
-  const raw = String(value || "").trim().toUpperCase();
-  const aliases = {
-    COULEUR: "COLOR", COLOR: "COLOR",
-    TAILLE: "SIZE", SIZE: "SIZE",
-    POINTURE: "SHOE_SIZE", SHOE_SIZE: "SHOE_SIZE",
-    PARFUM: "SCENT", SCENT: "SCENT",
-  };
-  return aliases[raw] || null;
-}
-
 function normalizeColors(value) {
   if (!value) return [];
 
@@ -79,48 +68,6 @@ function normalizeColors(value) {
   }
 
   return colors.slice(0, 20);
-}
-
-function normalizeVariants(value, variantType, legacyColors) {
-  const type = normalizeVariantType(variantType) ||
-    (normalizeColors(legacyColors).length ? "COLOR" : null);
-
-  if (!type) return { variant_type: null, variants: [], colors: [] };
-
-  if (type === "COLOR") {
-    const source = value || legacyColors;
-    const colors = normalizeColors(source);
-    return {
-      variant_type: "COLOR",
-      variants: colors.map((color) => ({
-        ...color,
-        value: color.name || color.hex,
-        label: color.name || color.hex,
-      })),
-      colors,
-    };
-  }
-
-  let parsed = value;
-  if (!Array.isArray(parsed)) {
-    try { parsed = JSON.parse(value || "[]"); } catch { parsed = []; }
-  }
-  if (!Array.isArray(parsed)) parsed = [];
-
-  const used = new Set();
-  const variants = [];
-  for (const item of parsed) {
-    const source = item && typeof item === "object" ? item : { value: item };
-    const variantValue = String(source.value || source.label || source.name || "").trim().slice(0, 100);
-    if (!variantValue) continue;
-    const key = variantValue.toLocaleLowerCase("fr");
-    if (used.has(key)) continue;
-    used.add(key);
-    variants.push({ value: variantValue, label: String(source.label || variantValue).trim() || variantValue });
-    if (variants.length >= 30) break;
-  }
-
-  return { variant_type: type, variants, colors: [] };
 }
 
 const ACTIVE_PROMO_JOIN = `
@@ -210,8 +157,6 @@ async function listArticles({
         a.image,
         a.images,
         a.colors,
-        a.variant_type,
-        a.variants,
         a.stock_quantity,
         a.stock_managed,
         a.rating,
@@ -259,7 +204,7 @@ async function listArticles({
       rating: Number(article.rating || 0),
       reviews: Number(article.reviews || 0),
       images: normalizeImages(article.images),
-      ...normalizeVariants(article.variants, article.variant_type, article.colors),
+      colors: normalizeColors(article.colors),
       inStock: Boolean(article.inStock),
       promotion_id: article.promotion_id == null ? undefined : Number(article.promotion_id),
       discount_value: article.discount_value == null ? undefined : Number(article.discount_value),
@@ -285,8 +230,6 @@ async function findBySlug(slug) {
         a.image,
         a.images,
         a.colors,
-        a.variant_type,
-        a.variants,
         a.stock_quantity,
         a.stock_managed,
         a.rating,
@@ -323,7 +266,7 @@ async function findBySlug(slug) {
     rating: Number(row.rating || 0),
     reviews: Number(row.reviews || 0),
     images: normalizeImages(row.images),
-    ...normalizeVariants(row.variants, row.variant_type, row.colors),
+    colors: normalizeColors(row.colors),
     inStock: Boolean(row.inStock),
     promotion_id: row.promotion_id == null ? undefined : Number(row.promotion_id),
     discount_value: row.discount_value == null ? undefined : Number(row.discount_value),

@@ -114,23 +114,6 @@ function hexToRgbText(hex) {
   return `rgb(${red}, ${green}, ${blue})`;
 }
 
-function normalizeVariantType(value) {
-  const raw = clean(value).toUpperCase();
-
-  const aliases = {
-    COULEUR: "COLOR",
-    COLOR: "COLOR",
-    TAILLE: "SIZE",
-    SIZE: "SIZE",
-    POINTURE: "SHOE_SIZE",
-    SHOE_SIZE: "SHOE_SIZE",
-    PARFUM: "SCENT",
-    SCENT: "SCENT",
-  };
-
-  return aliases[raw] || null;
-}
-
 function parseColors(value) {
   if (!value) {
     return [];
@@ -183,55 +166,6 @@ function parseColors(value) {
   return colors;
 }
 
-function parseVariants(value, variantType) {
-  const type = normalizeVariantType(variantType);
-  if (!type || !value) return [];
-
-  if (type === "COLOR") {
-    return parseColors(value).map((color) => ({
-      ...color,
-      value: clean(color.name) || color.hex,
-      label: clean(color.name) || color.hex,
-    }));
-  }
-
-  let parsed = value;
-  if (!Array.isArray(parsed)) {
-    try {
-      parsed = JSON.parse(value);
-    } catch {
-      parsed = String(value)
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean);
-    }
-  }
-
-  if (!Array.isArray(parsed)) return [];
-
-  const variants = [];
-  const used = new Set();
-
-  for (const item of parsed) {
-    const source = item && typeof item === "object" ? item : { value: item };
-    const valueText = clean(source.value || source.label || source.name).slice(0, 100);
-    if (!valueText) continue;
-
-    const key = valueText.toLocaleLowerCase("fr");
-    if (used.has(key)) continue;
-    used.add(key);
-
-    variants.push({
-      value: valueText,
-      label: clean(source.label) || valueText,
-    });
-
-    if (variants.length >= 30) break;
-  }
-
-  return variants;
-}
-
 function safeArticle(row) {
   if (!row) {
     return null;
@@ -246,29 +180,7 @@ function safeArticle(row) {
     images[0] ||
     null;
 
-  const legacyColors = parseColors(row.colors);
-  const variantType =
-    normalizeVariantType(row.variant_type) ||
-    (legacyColors.length ? "COLOR" : null);
-  let variants = parseVariants(row.variants, variantType);
-
-  if (variantType === "COLOR" && variants.length === 0) {
-    variants = legacyColors.map((color) => ({
-      ...color,
-      value: clean(color.name) || color.hex,
-      label: clean(color.name) || color.hex,
-    }));
-  }
-
-  const colors =
-    variantType === "COLOR"
-      ? variants.map((variant) => ({
-          name: clean(variant.name || variant.label || variant.value) || null,
-          hex: variant.hex,
-          rgb: variant.rgb,
-          images: parseArray(variant.images).slice(0, 12),
-        }))
-      : [];
+  const colors = parseColors(row.colors);
   const mappedImages = new Set(colorImages(colors));
   const genericImages =
     images.length > 0
@@ -322,8 +234,6 @@ function safeArticle(row) {
     image,
     images: genericImages,
     colors,
-    variant_type: variantType,
-    variants,
   };
 }
 
@@ -536,7 +446,13 @@ async function dashboard(
       `
         SELECT
           COALESCE(
-            SUM(total),
+            SUM(
+              COALESCE(
+                subtotal,
+                total - COALESCE(delivery_fee, 0),
+                0
+              )
+            ),
             0
           ) AS total
         FROM orders
@@ -1044,31 +960,10 @@ async function createArticle(
     ]),
   ].slice(0, 10);
 
-  const variantType =
-    normalizeVariantType(req.body.variant_type) ||
-    (req.body.colors ? "COLOR" : null);
-
-  let variants =
-    variantType === "COLOR"
-      ? attachUploadedColorImages(
-          req,
-          parseColors(req.body.variants || req.body.colors),
-        ).map((color) => ({
-          ...color,
-          value: clean(color.name) || color.hex,
-          label: clean(color.name) || color.hex,
-        }))
-      : parseVariants(req.body.variants, variantType);
-
-  const colors =
-    variantType === "COLOR"
-      ? variants.map((variant) => ({
-          name: clean(variant.name || variant.label || variant.value) || null,
-          hex: variant.hex,
-          rgb: variant.rgb,
-          images: parseArray(variant.images).slice(0, 12),
-        }))
-      : [];
+  const colors = attachUploadedColorImages(
+    req,
+    parseColors(req.body.colors),
+  );
 
   const mappedColorImages = colorImages(colors);
 
@@ -1113,8 +1008,6 @@ async function createArticle(
           image,
           images,
           colors,
-          variant_type,
-          variants,
           rating,
           reviews,
           is_active
@@ -1122,7 +1015,7 @@ async function createArticle(
         VALUES (
           ?, ?, ?, ?, ?, ?, ?,
           ?, ?, ?, ?, ?, ?, ?,
-          ?, ?, ?, ?, ?, ?, ?
+          ?, ?, ?, ?, ?
         )
       `,
       [
@@ -1168,8 +1061,6 @@ async function createArticle(
         JSON.stringify(
           colors,
         ),
-        variantType,
-        JSON.stringify(variants),
         Math.min(
           5,
           Math.max(
@@ -1340,40 +1231,12 @@ async function updateArticle(
       images[0] || null;
   }
 
-  const variantType =
-    req.body.variant_type !== undefined
-      ? normalizeVariantType(req.body.variant_type)
-      : normalizeVariantType(existing.variant_type) ||
-        (existing.colors?.length ? "COLOR" : null);
-
-  const rawVariants =
-    req.body.variants !== undefined
-      ? req.body.variants
-      : req.body.colors !== undefined
-        ? req.body.colors
-        : existing.variants;
-
-  let variants =
-    variantType === "COLOR"
-      ? attachUploadedColorImages(
-          req,
-          parseColors(rawVariants || existing.colors),
-        ).map((color) => ({
-          ...color,
-          value: clean(color.name) || color.hex,
-          label: clean(color.name) || color.hex,
-        }))
-      : parseVariants(rawVariants, variantType);
-
-  const colors =
-    variantType === "COLOR"
-      ? variants.map((variant) => ({
-          name: clean(variant.name || variant.label || variant.value) || null,
-          hex: variant.hex,
-          rgb: variant.rgb,
-          images: parseArray(variant.images).slice(0, 12),
-        }))
-      : [];
+  const colors = attachUploadedColorImages(
+    req,
+    req.body.colors !== undefined
+      ? parseColors(req.body.colors)
+      : existing.colors,
+  );
 
   const mappedColorImages = colorImages(colors);
   const availableImages = [
@@ -1434,8 +1297,6 @@ async function updateArticle(
         image = ?,
         images = ?,
         colors = ?,
-        variant_type = ?,
-        variants = ?,
         rating = ?,
         reviews = ?,
         is_active = ?
@@ -1505,8 +1366,6 @@ async function updateArticle(
       JSON.stringify(
         colors,
       ),
-      variantType,
-      JSON.stringify(variants),
       req.body.rating !==
       undefined
         ? Math.min(
@@ -1928,8 +1787,6 @@ async function getOrder(
           oi.pack_id,
           oi.item_type,
           oi.designation,
-          oi.variant_type,
-          oi.variant_value,
           oi.color_name,
           oi.color_hex,
           oi.color_rgb,

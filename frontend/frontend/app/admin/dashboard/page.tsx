@@ -235,14 +235,29 @@ export default function DashboardPage() {
             },
           );
 
-        setStats(
+        const rawStats =
           response.stats || {
             articles: 0,
             categories: 0,
             orders: 0,
             revenue: 0,
-          },
-        );
+            purchaseCost: 0,
+            profit: 0,
+          };
+
+        // Règle métier stricte :
+        // CA ADMIN = coût d'achat + bénéfice.
+        // Les frais de livraison ne sont jamais inclus.
+        setStats({
+          ...rawStats,
+          revenue:
+            Number(
+              rawStats.purchaseCost || 0,
+            ) +
+            Number(
+              rawStats.profit || 0,
+            ),
+        });
 
         setRecentOrders(
           response.recentOrders ||
@@ -320,17 +335,22 @@ export default function DashboardPage() {
           (point) => ({
             label:
               point.label,
-            revenue:
-              Number(
-                point.revenue ||
-                  0,
-              ),
             purchaseCost:
               Number(
                 point.purchaseCost ||
                   0,
               ),
             profit:
+              Number(
+                point.profit ||
+                  0,
+              ),
+            // CA = coût d'achat + bénéfice, sans livraison.
+            revenue:
+              Number(
+                point.purchaseCost ||
+                  0,
+              ) +
               Number(
                 point.profit ||
                   0,
@@ -487,7 +507,7 @@ export default function DashboardPage() {
         stats.revenue,
       )} DA`,
       description:
-        "Hors commandes annulées",
+        "Hors livraison et commandes annulées",
       icon: WalletCards,
       href: "/admin/commandes",
       iconClassName:
@@ -1324,7 +1344,7 @@ function SalesChart({
         ),
       )} DA`,
       helper:
-        "Hors commandes annulées",
+        "Hors livraison et commandes annulées",
       icon: CircleDollarSign,
     },
     {

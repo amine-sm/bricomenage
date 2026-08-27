@@ -209,6 +209,27 @@ function formatPrice(
   ).format(Number(value || 0));
 }
 
+/**
+ * Chiffre d'affaires produits uniquement.
+ * Les frais de livraison ne font jamais partie du CA admin.
+ */
+function orderRevenueExcludingDelivery(
+  order: Order,
+) {
+  if (
+    order.subtotal !== undefined &&
+    order.subtotal !== null
+  ) {
+    return Number(order.subtotal || 0);
+  }
+
+  return Math.max(
+    0,
+    Number(order.total || 0) -
+      Number(order.delivery_fee || 0),
+  );
+}
+
 function formatDate(
   value: string,
 ) {
@@ -749,8 +770,8 @@ export default function OrdersPage() {
         .reduce(
           (sum, order) =>
             sum +
-            Number(
-              order.total || 0,
+            orderRevenueExcludingDelivery(
+              order,
             ),
           0,
         );
@@ -1008,8 +1029,8 @@ export default function OrdersPage() {
           .reduce(
             (sum, order) =>
               sum +
-              Number(
-                order.total || 0,
+              orderRevenueExcludingDelivery(
+                order,
               ),
             0,
           ),
@@ -1362,7 +1383,7 @@ export default function OrdersPage() {
             value={`${formatPrice(
               stats.revenue,
             )} DA`}
-            description="Hors commandes annulées"
+            description="Hors livraison et commandes annulées"
             iconClassName="bg-blue-50 text-blue-600"
           />
         </section>
@@ -1710,7 +1731,7 @@ export default function OrdersPage() {
                 value={`${formatPrice(
                   historyRevenue,
                 )} DA`}
-                description="Hors commandes annulées"
+                description="Hors livraison et commandes annulées"
                 iconClassName="bg-blue-50 text-blue-600"
               />
             </section>

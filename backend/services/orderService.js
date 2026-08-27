@@ -102,110 +102,6 @@ function resolveRequestedColor(articleColors, rawColor) {
   return selected;
 }
 
-function normalizeVariantType(value) {
-  const raw = String(value || "").trim().toUpperCase();
-  const aliases = {
-    COULEUR: "COLOR", COLOR: "COLOR",
-    TAILLE: "SIZE", SIZE: "SIZE",
-    POINTURE: "SHOE_SIZE", SHOE_SIZE: "SHOE_SIZE",
-    PARFUM: "SCENT", SCENT: "SCENT",
-  };
-  return aliases[raw] || null;
-}
-
-function normalizeArticleVariants(article) {
-  const legacyColors = normalizeArticleColors(article.colors);
-  const type = normalizeVariantType(article.variant_type) ||
-    (legacyColors.length ? "COLOR" : null);
-
-  if (!type) return [];
-
-  if (type === "COLOR") {
-    let colors = normalizeArticleColors(article.variants);
-    if (!colors.length) colors = legacyColors;
-    return colors.map((color) => ({
-      type: "COLOR",
-      value: color.name || color.hex,
-      label: color.name || color.hex,
-      name: color.name,
-      hex: color.hex,
-      rgb: color.rgb,
-    }));
-  }
-
-  let parsed = article.variants;
-  if (!Array.isArray(parsed)) {
-    try { parsed = JSON.parse(parsed || "[]"); } catch { parsed = []; }
-  }
-  if (!Array.isArray(parsed)) parsed = [];
-
-  const used = new Set();
-  const variants = [];
-  for (const item of parsed) {
-    const source = item && typeof item === "object" ? item : { value: item };
-    const value = String(source.value || source.label || source.name || "").trim();
-    if (!value) continue;
-    const key = value.toLocaleLowerCase("fr");
-    if (used.has(key)) continue;
-    used.add(key);
-    variants.push({
-      type,
-      value,
-      label: String(source.label || value).trim() || value,
-    });
-    if (variants.length >= 30) break;
-  }
-  return variants;
-}
-
-function resolveRequestedVariant(article, rawVariant) {
-  const available = normalizeArticleVariants(article);
-  if (!available.length) return null;
-
-  if (!rawVariant) return available[0];
-
-  if (available[0].type === "COLOR") {
-    const requestedHex = normalizeHexColor(
-      rawVariant && typeof rawVariant === "object" ? rawVariant.hex : rawVariant,
-    );
-    const requestedValue = String(
-      rawVariant && typeof rawVariant === "object"
-        ? rawVariant.value || rawVariant.name || rawVariant.label || ""
-        : rawVariant || "",
-    ).trim();
-
-    const selected = available.find((variant) =>
-      (requestedHex && variant.hex === requestedHex) ||
-      (requestedValue && String(variant.value).toLocaleLowerCase("fr") === requestedValue.toLocaleLowerCase("fr"))
-    );
-
-    if (!selected) {
-      throw new HttpError(400, "La couleur choisie n'est pas disponible pour cet article.");
-    }
-    return selected;
-  }
-
-  const requestedValue = String(
-    rawVariant && typeof rawVariant === "object"
-      ? rawVariant.value || rawVariant.label || rawVariant.name || ""
-      : rawVariant || "",
-  ).trim();
-
-  if (!requestedValue) return available[0];
-
-  const selected = available.find(
-    (variant) => String(variant.value).toLocaleLowerCase("fr") === requestedValue.toLocaleLowerCase("fr"),
-  );
-
-  if (!selected) {
-    throw new HttpError(
-      400,
-      `La variante ${requestedValue} n'est pas disponible pour cet article.`,
-    );
-  }
-  return selected;
-}
-
 function promotionPriceSql(alias = 'a') {
   return `
     COALESCE((
@@ -324,7 +220,7 @@ async function createOrder(payload) {
 
       if (articleId) {
         const [[article]] = await cn.query(
-          `SELECT a.id,a.designation,a.price,a.purchase_price,a.stock_quantity,a.stock_managed,a.is_active,a.colors,a.variant_type,a.variants,
+          `SELECT a.id,a.designation,a.price,a.purchase_price,a.stock_quantity,a.stock_managed,a.is_active,a.colors,
                   ${promotionPriceSql('a')} AS effective_price
            FROM articles a
            WHERE a.id=?
@@ -342,13 +238,13 @@ async function createOrder(payload) {
         }
 
         const unitPrice = money(article.effective_price);
-        const variant = resolveRequestedVariant(
-          article,
-          raw.variant || raw.selected_variant || raw.color || raw.selected_color || null,
+        const color = resolveRequestedColor(
+          article.colors,
+          raw.color || raw.selected_color || null,
         );
 
         subtotal = money(subtotal + unitPrice * quantity);
-        resolved.push({ type: 'ARTICLE', article, quantity, unitPrice, variant });
+        resolved.push({ type: 'ARTICLE', article, quantity, unitPrice, color });
         continue;
       }
 
@@ -435,8 +331,6 @@ async function createOrder(payload) {
             pack_id,
             item_type,
             designation,
-            variant_type,
-            variant_value,
             color_name,
             color_hex,
             color_rgb,
@@ -445,16 +339,14 @@ async function createOrder(payload) {
             quantity,
             line_total,
             cost_total
-          ) VALUES(?,?,NULL,'ARTICLE',?,?,?,?,?,?,?,?,?,?,?)`,
+          ) VALUES(?,?,NULL,'ARTICLE',?,?,?,?,?,?,?,?,?)`,
           [
             or.insertId,
             item.article.id,
             item.article.designation,
-            item.variant?.type || null,
-            item.variant?.value || null,
-            item.variant?.type === "COLOR" ? (item.variant?.name || item.variant?.value || null) : null,
-            item.variant?.type === "COLOR" ? (item.variant?.hex || null) : null,
-            item.variant?.type === "COLOR" ? (item.variant?.rgb || null) : null,
+            item.color?.name || null,
+            item.color?.hex || null,
+            item.color?.rgb || null,
             item.unitPrice,
             Number(
               item.article.purchase_price ||
@@ -630,7 +522,7 @@ async function trackOrder({ trackingNumber, phone }) {
   );
 
   const [items] = await pool.query(
-    `SELECT id,article_id,pack_id,item_type,designation,variant_type,variant_value,color_name,color_hex,color_rgb,unit_price,quantity,line_total FROM order_items WHERE order_id=? ORDER BY id`,
+    `SELECT id,article_id,pack_id,item_type,designation,color_name,color_hex,color_rgb,unit_price,quantity,line_total FROM order_items WHERE order_id=? ORDER BY id`,
     [order.id],
   );
 
@@ -674,8 +566,6 @@ async function getOrderNotificationData(id) {
       pack_id,
       item_type,
       designation,
-      variant_type,
-      variant_value,
       color_name,
       color_hex,
       color_rgb,
