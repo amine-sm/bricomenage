@@ -11,6 +11,7 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 const articleRoutes = require("./routes/articleRoutes");
 const orderRoutes = require("./routes/orderRoutes");
+const trackingRoutes = require("./routes/trackingRoutes");
 const zrRoutes = require("./routes/zrRoutes");
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
@@ -219,6 +220,7 @@ mountBoth("/articles", articleRoutes);
 mountBoth("/", publicRoutes);
 mountBoth("/", orderRoutes);
 mountBoth("/zr", zrRoutes);
+mountBoth("/tracking", trackingRoutes);
 mountBoth("/auth", authRoutes);
 mountBoth("/admin", adminRoutes);
 

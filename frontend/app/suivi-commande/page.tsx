@@ -56,7 +56,7 @@ interface TrackingOrder {
 }
 
 interface TrackingHistory {
-  id: number;
+  id: string | number;
   label: string;
   description?: string;
   created_at: string;
@@ -112,6 +112,26 @@ function normalizeStatus(
     .toUpperCase();
 }
 
+function isZrTrackingNumber(value: string) {
+  return /^\d+-[A-Z0-9]+-ZR$/i.test(value.trim());
+}
+
+function mapZrStatusToLocal(status?: string) {
+  switch (normalizeStatus(status)) {
+    case "PICKED_UP":
+    case "IN_TRANSIT":
+      return "EXPEDIEE";
+    case "OUT_FOR_DELIVERY":
+      return "EN_LIVRAISON";
+    case "DELIVERED":
+      return "LIVREE";
+    case "CANCELLED":
+      return "ANNULEE";
+    default:
+      return "EN_PREPARATION";
+  }
+}
+
 function getStatusLabel(
   status?: string,
 ) {
@@ -159,6 +179,73 @@ function getStatusLabel(
     status ||
     "Statut indisponible"
   );
+}
+
+function normalizeZrHistoryForPage(
+  history: unknown,
+  fallbackStatus: string,
+  fallbackLabel: string,
+  fallbackDate?: string | null,
+): TrackingHistory[] {
+  const rows = Array.isArray(history) ? history : [];
+
+  return rows
+    .map((event, index) => {
+      const item = event && typeof event === "object"
+        ? event as Record<string, unknown>
+        : {};
+
+      const createdAt = String(
+        item.createdAt ??
+          item.created_at ??
+          item.occurredAt ??
+          item.timestamp ??
+          item.date ??
+          fallbackDate ??
+          new Date().toISOString(),
+      );
+
+      const label = String(
+        item.label ??
+          item.statusLabel ??
+          item.stateName ??
+          item.statusName ??
+          item.name ??
+          fallbackLabel ??
+          "Suivi ZR Express",
+      );
+
+      let descriptionValue =
+        item.description ??
+        item.comment ??
+        item.note ??
+        item.observation ??
+        item.details ??
+        null;
+
+      // Nettoyage pour éviter d'afficher des codes techniques bruts (ex: confirmed_in_validation)
+      const descStr = descriptionValue ? String(descriptionValue).trim() : "";
+      const description = (descStr && !descStr.startsWith("confirmed_in_") && descStr !== label)
+        ? descStr
+        : undefined;
+
+      return {
+        id: String(item.id ?? item.eventId ?? item.stateId ?? `zr-${index}-${createdAt}`),
+        status: item.status
+          ? String(item.status)
+          : fallbackStatus,
+        label,
+        description,
+        created_at: createdAt,
+      };
+    })
+    .sort((a, b) => {
+      const ta = Date.parse(a.created_at);
+      const tb = Date.parse(b.created_at);
+      // Tri antéchronologique : le plus récent en haut (comme sur ZR Express)
+      if (Number.isFinite(ta) && Number.isFinite(tb)) return tb - ta;
+      return 0;
+    });
 }
 
 function getStatusStyle(
@@ -287,18 +374,124 @@ function TrackingContent() {
           "",
       ).trim();
 
-    if (
-      !trackingNumber ||
-      !phone
-    ) {
+    if (!trackingNumber) {
       setError(
-        "Veuillez saisir le numéro de suivi et le téléphone.",
+        "Veuillez saisir un numéro de suivi.",
+      );
+      setLoading(false);
+      return;
+    }
+
+    const isZr = isZrTrackingNumber(trackingNumber);
+
+    if (!isZr && !phone) {
+      setError(
+        "Pour un numéro BricoMénage, le téléphone utilisé lors de la commande est obligatoire.",
       );
       setLoading(false);
       return;
     }
 
     try {
+      if (isZr) {
+        const response = await apiFetch<{
+          success: boolean;
+          data: {
+            trackingNumber: string;
+            status: string;
+            statusLabel: string;
+            rawStatus?: string | null;
+            recipientName?: string | null;
+            toCommune?: string | null;
+            createdAt?: string | null;
+            updatedAt?: string | null;
+            history?: Array<{
+              id: string | number;
+              label: string;
+              description?: string | null;
+              createdAt?: string | null;
+              status?: string | null;
+            }>;
+          };
+        }>(
+          "/zr/track",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              trackingNumber: trackingNumber.toUpperCase(),
+            }),
+          },
+        );
+
+        if (!response.data) {
+          throw new Error(
+            "Tracking ZR Express introuvable.",
+          );
+        }
+
+        const localStatus = mapZrStatusToLocal(
+          response.data.status,
+        );
+
+        setData({
+          order: {
+            tracking_number:
+              response.data.trackingNumber ||
+              trackingNumber.toUpperCase(),
+            status: localStatus,
+            customer_name:
+              response.data.recipientName ||
+              undefined,
+            commune:
+              response.data.toCommune ||
+              undefined,
+            zr_tracking_number:
+              response.data.trackingNumber ||
+              trackingNumber.toUpperCase(),
+            zr_status:
+              response.data.status ||
+              null,
+            zr_status_label:
+              response.data.statusLabel ||
+              null,
+            zr_synced_at:
+              response.data.updatedAt ||
+              new Date().toISOString(),
+          },
+          history: (() => {
+            const normalizedHistory = normalizeZrHistoryForPage(
+              response.data.history,
+              localStatus,
+              response.data.statusLabel || "Suivi ZR Express",
+              response.data.updatedAt || response.data.createdAt,
+            );
+
+            if (normalizedHistory.length) {
+              return normalizedHistory;
+            }
+
+            return [
+              {
+                id: `current-${Date.now()}`,
+                status: localStatus,
+                label:
+                  response.data.statusLabel ||
+                  "Suivi ZR Express",
+                description:
+                  response.data.rawStatus ||
+                  "Statut récupéré directement depuis ZR Express.",
+                created_at:
+                  response.data.updatedAt ||
+                  response.data.createdAt ||
+                  new Date().toISOString(),
+              },
+            ];
+          })(),
+        });
+
+        return;
+      }
+
       const response =
         await apiFetch<TrackingResponse>(
           "/tracking/check",
@@ -379,12 +572,7 @@ function TrackingContent() {
               </span>
             </h1>
 
-            <p className="mt-5 max-w-2xl text-base leading-8 text-zinc-600">
-              Saisissez votre numéro de
-              suivi et le téléphone utilisé
-              lors de la commande pour
-              consulter son état actuel.
-            </p>
+         
           </div>
         </div>
       </section>
@@ -418,9 +606,10 @@ function TrackingContent() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-zinc-500">
-                  Les deux informations sont
-                  nécessaires pour sécuriser
-                  l’accès au suivi.
+                  Pour un tracking ZR Express,
+                  un seul numéro suffit. Pour une
+                  commande BricoMénage, le téléphone
+                  protège l’accès aux informations.
                 </p>
               </div>
             </div>
@@ -433,7 +622,7 @@ function TrackingContent() {
             <div className="grid gap-5 md:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-sm font-black text-zinc-800">
-                  Numéro de suivi
+                  Numéro de suivi BricoMénage ou ZR Express
                 </span>
 
                 <span className="relative block">
@@ -446,7 +635,7 @@ function TrackingContent() {
                     }
                     required
                     autoComplete="off"
-                    placeholder="Ex. CMD-2026-00125"
+                    placeholder="Ex. BRICO-2026-02E031B4 ou 16-XXXXXXXXXXXXX-ZR"
                     className="min-h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-4 text-sm font-semibold uppercase tracking-wide text-zinc-900 outline-none transition-all placeholder:normal-case placeholder:tracking-normal placeholder:text-zinc-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
                   />
                 </span>
@@ -455,6 +644,7 @@ function TrackingContent() {
               <label className="block">
                 <span className="mb-2 block text-sm font-black text-zinc-800">
                   Téléphone
+                  <span className="ml-1 font-medium text-zinc-400">(obligatoire uniquement pour une commande BricoMénage)</span>
                 </span>
 
                 <span className="relative block">
@@ -463,7 +653,6 @@ function TrackingContent() {
                   <input
                     name="phone"
                     type="tel"
-                    required
                     autoComplete="tel"
                     placeholder="Ex. 0550 00 00 00"
                     className="min-h-14 w-full rounded-2xl border border-zinc-200 bg-zinc-50 pl-12 pr-4 text-sm font-semibold text-zinc-900 outline-none transition-all placeholder:text-zinc-400 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
@@ -733,8 +922,7 @@ function TrackingContent() {
                     </h2>
 
                     <p className="mt-2 text-sm leading-6 text-zinc-500">
-                      Consultez les différentes
-                      étapes de votre commande.
+                      Consultez toutes les étapes retournées par ZR Express.
                     </p>
                   </div>
                 </div>
@@ -806,13 +994,13 @@ function TrackingContent() {
               <HelpCard
                 icon={Phone}
                 title="Téléphone"
-                description="Utilisez le même numéro que lors de la commande."
+                description="Obligatoire uniquement pour un numéro BricoMénage."
               />
 
               <HelpCard
                 icon={ShieldCheck}
                 title="Accès sécurisé"
-                description="Les deux informations sont obligatoires."
+                description="ZR Express : tracking seul. BricoMénage : tracking + téléphone."
               />
             </div>
           )}
@@ -862,47 +1050,65 @@ function TimelineItem({
   active,
   isLast,
 }: TimelineItemProps) {
+  const normalized = normalizeStatus(history.status);
+  const label = history.label.toLowerCase();
+
+  const isDelivered =
+    normalized.includes("LIVR") ||
+    label.includes("livré") ||
+    label.includes("livree") ||
+    label.includes("livrée") ||
+    label.includes("encaissé");
+
+  const isCancelled =
+    normalized.includes("ANNU") ||
+    label.includes("annul");
+
+  const isDelivery =
+    normalized.includes("LIVRAISON") ||
+    normalized.includes("EXPED") ||
+    normalized.includes("EXPÉD") ||
+    label.includes("livraison") ||
+    label.includes("dispatch") ||
+    label.includes("sortie");
+
+  // Style visuel fidèle à ZR Express (point jaune/orange pour l'actif, gris/neutre pour le reste)
   return (
-    <div className="relative flex gap-5 pb-8 last:pb-0">
+    <div className="relative flex gap-4 pb-8 last:pb-0">
+      {/* Ligne verticale de liaison */}
       {!isLast && (
-        <span className="absolute left-[21px] top-11 h-[calc(100%-20px)] w-0.5 bg-zinc-200" />
+        <span
+          aria-hidden="true"
+          className="absolute left-[19px] top-10 h-full w-0.5 bg-zinc-200"
+        />
       )}
 
-      <span
-        className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border-4 border-white shadow ${
-          active
-            ? "bg-orange-500 text-white"
-            : "bg-zinc-100 text-zinc-500"
-        }`}
-      >
-        {active ? (
-          <Truck className="h-5 w-5" />
-        ) : (
-          <CheckCircle2 className="h-5 w-5" />
-        )}
-      </span>
+      {/* Point / Icône sur la timeline */}
+      <div className="relative z-10 shrink-0">
+        <span
+          className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-white shadow-sm ${
+            active
+              ? "bg-[#f59e0b] text-white ring-4 ring-[#f59e0b]/20" // Style actif ZR Express (Jaune/Orange)
+              : "bg-zinc-200 text-zinc-600"
+          }`}
+        >
+          <span className={`h-3 w-3 rounded-full ${active ? "bg-white" : "bg-zinc-400"}`} />
+        </span>
+      </div>
 
-      <div
-        className={`min-w-0 flex-1 rounded-[22px] border p-4 sm:p-5 ${
-          active
-            ? "border-orange-200 bg-orange-50/60"
-            : "border-zinc-200 bg-zinc-50"
-        }`}
-      >
-        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-          <strong className="text-sm font-black text-zinc-950 sm:text-base">
+      {/* Contenu de l'étape */}
+      <div className="min-w-0 flex-1 pt-1">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+          <strong className="text-sm font-bold text-zinc-900">
             {history.label}
           </strong>
-
-          <span className="shrink-0 text-xs font-semibold text-zinc-400">
-            {formatDate(
-              history.created_at,
-            )}
+          <span className="text-xs font-medium text-zinc-400">
+            {formatDate(history.created_at)}
           </span>
         </div>
 
         {history.description && (
-          <p className="mt-3 text-sm leading-6 text-zinc-600">
+          <p className="mt-1 text-xs text-zinc-500 leading-relaxed">
             {history.description}
           </p>
         )}

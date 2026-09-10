@@ -858,6 +858,373 @@ function mapZrStatusToLocal(status) {
   }
 }
 
+
+
+function normalizeZrHistoryLabel(value) {
+  const text = clean(value);
+  if (!text) return "";
+  const key = text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  const labels = {
+    commande_recue: "Commande reçue",
+    orderreceived: "Commande reçue",
+    commande_confirmee: "Commande confirmée",
+    orderconfirmed: "Commande confirmée",
+    pret_a_expedier: "Prêt à expédier",
+    readytodispatch: "Prêt à expédier",
+    confirme_au_bureau: "Confirmé au bureau",
+    confirmedatbranch: "Confirmé au bureau",
+    dispatch: "Dispatch dans une autre wilaya",
+    dispatched: "Dispatch dans une autre wilaya",
+    vers_wilaya: "Dispatch dans une autre wilaya",
+    interwilayatransit: "Dispatch dans une autre wilaya",
+    en_livraison: "En livraison",
+    indelivery: "En livraison",
+    sortie_en_livraison: "Sortie en livraison",
+    outfordelivery: "Sortie en livraison",
+    livre: "Livré",
+    delivered: "Livré",
+    encaisse: "Encaissé",
+    collected: "Encaissé",
+    recouvert: "Encaissé",
+    disponible_bureau: "Disponible au bureau",
+    readyforpickup: "Disponible au bureau",
+    retour: "Retour",
+    returning: "Retour",
+    en_retour: "En retour",
+    inreturn: "En retour",
+    retourne: "Retourné",
+    returned: "Retourné",
+    annule: "Annulé",
+    cancelled: "Annulé",
+  };
+
+  return labels[key] || labels[key.replace(/_/g, "")] || text;
+}
+
+function findHistoryArray(raw) {
+  if (!raw || typeof raw !== "object") return [];
+
+  const preferredKeys = [
+    "history", "histories", "stateHistory", "stateHistories",
+    "statusHistory", "statusHistories", "trackingHistory",
+    "trackingHistories", "events", "activities", "stateChanges",
+    "stateChangeHistory", "workflowHistory", "workflowHistories",
+    "transitions", "trackingEvents", "parcelEvents", "shipmentEvents",
+  ];
+
+  const arrays = [];
+  for (const key of preferredKeys) {
+    if (Array.isArray(raw[key])) arrays.push(raw[key]);
+  }
+
+  // Some ZR deployments wrap the same arrays under data/result/items.
+  for (const key of ["data", "result", "parcel", "shipment"]) {
+    const nested = raw[key];
+    if (nested && typeof nested === "object") {
+      const found = findHistoryArray(nested);
+      if (found.length) arrays.push(found);
+    }
+  }
+
+  return arrays.find((arr) => arr.some((item) => {
+    if (!item || typeof item !== "object") return false;
+    return Boolean(
+      item.state || item.status || item.event || item.eventKey ||
+      item.stateName || item.statusName || item.workflowState ||
+      item.createdAt || item.timestamp || item.occurredAt || item.date,
+    );
+  })) || [];
+}
+
+function normalizeZrHistory(raw, current) {
+  const rows = findHistoryArray(raw);
+  if (!rows.length) return [];
+
+  const output = [];
+  const seen = new Set();
+
+  const firstValue = (obj, keys) => {
+    for (const key of keys) {
+      const value = obj?.[key];
+      if (value !== undefined && value !== null && clean(value)) return value;
+    }
+    return null;
+  };
+
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+
+    const stateObject = row.state && typeof row.state === "object" ? row.state : null;
+    const eventObject = row.event && typeof row.event === "object" ? row.event : null;
+    const workflowObject = row.workflowState && typeof row.workflowState === "object" ? row.workflowState : null;
+
+    const rawState = firstValue(row, [
+      "stateName", "statusName", "eventName", "name", "label", "title",
+      "eventKey", "status", "state", "event",
+    ]) || firstValue(stateObject, ["name", "label", "title", "slug", "key"])
+      || firstValue(eventObject, ["name", "label", "title", "slug", "key"])
+      || firstValue(workflowObject, ["name", "label", "title", "slug", "key"]);
+
+    const label = normalizeZrHistoryLabel(rawState || current?.rawStatus || "Suivi ZR Express");
+
+    const description = firstValue(row, [
+      "description", "comment", "note", "observation", "details", "message",
+    ]) || firstValue(eventObject, ["description", "comment", "message"]);
+
+    const location = firstValue(row, [
+      "hubName", "officeName", "branchName", "location", "hub", "office",
+    ]) || firstValue(row.hub, ["name", "label"])
+      || firstValue(row.office, ["name", "label"]);
+
+    const date = firstValue(row, [
+      "createdAt", "updatedAt", "occurredAt", "timestamp", "date", "eventDate",
+      "transitionedAt", "changedAt", "at",
+    ]) || firstValue(row.created, ["at", "date"]);
+
+    const finalDescription = [description, location]
+      .map(clean)
+      .filter(Boolean)
+      .filter((value, index, arr) => arr.indexOf(value) === index)
+      .join(" — ");
+
+    const createdAt = date || current?.updatedAt || current?.createdAt || new Date().toISOString();
+    const dedupe = `${label}|${finalDescription}|${createdAt}`;
+    if (seen.has(dedupe)) continue;
+    seen.add(dedupe);
+
+    output.push({
+      id: clean(row.id || row.eventId || row.stateId) || `${Date.parse(createdAt) || Date.now()}-${output.length}`,
+      label,
+      description: finalDescription || null,
+      createdAt,
+      status: clean(row.status || row.statusKey || stateObject?.slug || stateObject?.key) || null,
+      raw: row,
+    });
+  }
+
+  output.sort((a, b) => {
+    const ta = Date.parse(a.createdAt);
+    const tb = Date.parse(b.createdAt);
+    if (Number.isFinite(ta) && Number.isFinite(tb)) return ta - tb;
+    return 0;
+  });
+
+  return output;
+}
+
+async function fetchZrHistoryFallback(zr, normalized) {
+  const parcelId = clean(normalized.parcelId || normalized.raw?.id);
+  if (!parcelId) return [];
+
+  // ZR's current parcel resource is the primary source. These endpoints are
+  // only fallback attempts for account deployments that expose history as a
+  // separate resource.
+  const candidates = [
+    `api/v1/parcels/${encodeURIComponent(parcelId)}/history`,
+    `api/v1/parcels/${encodeURIComponent(parcelId)}/state-history`,
+    `api/v1/parcels/${encodeURIComponent(parcelId)}/status-history`,
+    `api/v1/parcels/${encodeURIComponent(parcelId)}/events`,
+  ];
+
+  for (const path of candidates) {
+    try {
+      const response = await zr.get(path);
+      const history = normalizeZrHistory(response, normalized);
+      if (history.length) return history;
+    } catch (error) {
+      const status = Number(error?.statusCode || error?.status || 0);
+      // A normal 404 simply means this deployment keeps history inside the
+      // parcel resource. Continue to the next compatible endpoint.
+      if (status && status !== 404) {
+        console.warn(`[ZR Express] Historique ${path}: ${error.message}`);
+      }
+    }
+  }
+
+  return [];
+}
+
+async function trackByTrackingNumber(trackingNumber) {
+  requireConfigured();
+
+  const tracking = clean(trackingNumber).toUpperCase();
+
+  if (!tracking) {
+    throw new HttpError(400, "Le numéro de tracking ZR Express est obligatoire.");
+  }
+
+  const zr = getAdapter();
+
+  try {
+    const result = await zr.getOrder(tracking);
+    const normalized = normalizeProviderOrder(result);
+
+    let history = normalizeZrHistory(normalized.raw, normalized);
+
+    if (!history.length) {
+      history = await fetchZrHistoryFallback(zr, normalized);
+    }
+
+    // If the provider returns only the current state, keep one event so the
+    // customer never sees an empty timeline.
+    if (!history.length) {
+      history = [{
+        id: `current-${Date.now()}`,
+        label: normalized.statusLabel || normalized.rawStatus || "Suivi ZR Express",
+        description: null,
+        createdAt: normalized.updatedAt || normalized.createdAt || new Date().toISOString(),
+        status: normalized.status || null,
+        raw: null,
+      }];
+    }
+
+    return {
+      trackingNumber: normalized.trackingNumber || tracking,
+      status: normalized.status || "unknown",
+      statusLabel: normalized.statusLabel || normalized.rawStatus || "Statut indisponible",
+      rawStatus: normalized.rawStatus || null,
+      recipientName: result?.recipientName || null,
+      phone: result?.phone || null,
+      address: result?.address || null,
+      toWilayaId: result?.toWilayaId || null,
+      toCommune: result?.toCommune || null,
+      price: Number(result?.price || 0),
+      shippingFee: result?.shippingFee == null ? null : Number(result.shippingFee),
+      createdAt: result?.createdAt || null,
+      updatedAt: result?.updatedAt || null,
+      history,
+    };
+  } catch (error) {
+    console.error("[ZR Express] Tracking direct :", error.message);
+
+    const statusCode = Number(
+      error?.statusCode ||
+      error?.status ||
+      error?.response?.status ||
+      0,
+    );
+
+    if (statusCode === 401 || statusCode === 403) {
+      throw new HttpError(
+        502,
+        "ZR Express a refusé l'authentification. Vérifiez ZR_EXPRESS_TENANT_ID et ZR_EXPRESS_SECRET_KEY.",
+        { providerStatus: statusCode },
+      );
+    }
+
+    if (statusCode >= 500) {
+      throw new HttpError(
+        502,
+        "ZR Express est momentanément indisponible. Réessayez dans quelques instants.",
+        { providerStatus: statusCode },
+      );
+    }
+
+    throw new HttpError(
+      404,
+      `Le tracking ZR Express « ${tracking} » est introuvable. Vérifiez le numéro saisi.`,
+    );
+  }
+}
+
+
+async function attachTrackingToOrder(orderId, trackingNumber) {
+  requireConfigured();
+
+  const tracking = clean(trackingNumber).toUpperCase();
+  if (!tracking) {
+    throw new HttpError(400, "Le numéro de tracking ZR Express est obligatoire.");
+  }
+
+  const [[order]] = await pool.query(
+    `SELECT id,status FROM orders WHERE id=? LIMIT 1`,
+    [orderId],
+  );
+
+  if (!order) {
+    throw new HttpError(404, "Commande introuvable.");
+  }
+
+  const zr = getAdapter();
+  let result;
+
+  try {
+    result = await zr.getOrder(tracking);
+  } catch (error) {
+    throw new HttpError(
+      404,
+      `Le tracking ZR Express « ${tracking} » est introuvable. Vérifiez le numéro saisi.`,
+    );
+  }
+
+  const normalized = normalizeProviderOrder(result);
+
+  if (!normalized.trackingNumber) {
+    throw new HttpError(502, "ZR Express n’a pas retourné de numéro de tracking valide.");
+  }
+
+  await pool.query(
+    `UPDATE orders
+     SET zr_parcel_id=?,
+         zr_tracking_number=?,
+         zr_status=?,
+         zr_status_label=?,
+         zr_last_payload=?,
+         zr_synced_at=NOW()
+     WHERE id=?`,
+    [
+      normalized.parcelId || null,
+      normalized.trackingNumber,
+      normalized.status || null,
+      normalized.statusLabel || null,
+      JSON.stringify(normalized.raw || {}),
+      orderId,
+    ],
+  );
+
+  const localStatus = mapZrStatusToLocal(normalized.status);
+  if (
+    localStatus &&
+    String(order.status).toUpperCase() !== "ANNULEE" &&
+    String(order.status).toUpperCase() !== localStatus
+  ) {
+    await pool.query(
+      `UPDATE orders SET status=? WHERE id=?`,
+      [localStatus, orderId],
+    );
+
+    await pool.query(
+      `INSERT INTO order_history(order_id,status,label,description)
+       VALUES(?,?,?,?)`,
+      [
+        orderId,
+        localStatus,
+        `Tracking ZR associé : ${normalized.trackingNumber}`,
+        `Statut ZR : ${normalized.statusLabel || normalized.status}`,
+      ],
+    );
+  } else {
+    await pool.query(
+      `INSERT INTO order_history(order_id,status,label,description)
+       VALUES(?,?,?,?)`,
+      [
+        orderId,
+        order.status,
+        "Tracking ZR associé",
+        `Tracking ZR : ${normalized.trackingNumber} — ${normalized.statusLabel || normalized.status}`,
+      ],
+    );
+  }
+
+  return normalized;
+}
+
 async function syncParcelForOrder(orderId) {
   requireConfigured();
 
@@ -1042,6 +1409,8 @@ module.exports = {
   resolveSourceHub,
   createParcelForOrder,
   syncParcelForOrder,
+  trackByTrackingNumber,
+  attachTrackingToOrder,
   cancelParcelForOrder,
   getLabelForOrder,
   configInfo,

@@ -3011,76 +3011,6 @@ HttpError: Session invalide ou expirée.
   status: 401,
   details: undefined
 }
-Impossible de démarrer le backend : Access denied for user 'root'@'localhost' (using password: NO)
-Impossible de démarrer le backend : Access denied for user 'root'@'localhost' (using password: NO)
-Impossible de démarrer le backend : Access denied for user 'root'@'localhost' (using password: NO)
-Impossible de démarrer le backend : Access denied for user 'root'@'localhost' (using password: NO)
-HttpError: Session invalide ou expirée.
-    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
-    at Layer.handleRequest (/home/bricom57/backend/node_modules/router/lib/layer.js:152:17)
-    at next (/home/bricom57/backend/node_modules/router/lib/route.js:157:13)
-    at Route.dispatch (/home/bricom57/backend/node_modules/router/lib/route.js:117:3)
-    at handle (/home/bricom57/backend/node_modules/router/index.js:435:11)
-    at Layer.handleRequest (/home/bricom57/backend/node_modules/router/lib/layer.js:152:17)
-    at /home/bricom57/backend/node_modules/router/index.js:295:15
-    at processParams (/home/bricom57/backend/node_modules/router/index.js:582:12)
-    at next (/home/bricom57/backend/node_modules/router/index.js:291:5)
-    at Function.handle (/home/bricom57/backend/node_modules/router/index.js:186:3) {
-  status: 401,
-  details: undefined
-}
-HttpError: E-mail ou mot de passe incorrect.
-    at login (/home/bricom57/backend/controllers/authController.js:50:11) {
-  status: 401,
-  details: undefined
-}
-HttpError: E-mail ou mot de passe incorrect.
-    at login (/home/bricom57/backend/controllers/authController.js:50:11) {
-  status: 401,
-  details: undefined
-}
-HttpError: Article introuvable.
-    at getArticleBySlug (/home/bricom57/backend/controllers/articleController.js:51:11)
-    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
-  status: 404,
-  details: undefined
-}
-Error: Duplicate entry '1212' for key 'reference'
-    at createArticle (/home/bricom57/backend/controllers/adminController.js:986:16)
-    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
-  code: 'ER_DUP_ENTRY',
-  errno: 1062,
-  sqlState: '23000',
-  sqlMessage: "Duplicate entry '1212' for key 'reference'",
-  sql: '\n' +
-    '        INSERT INTO articles (\n' +
-    '          category_id,\n' +
-    '          supplier_id,\n' +
-    '          slug,\n' +
-    '          designation,\n' +
-    '          reference,\n' +
-    '          brand,\n' +
-    '          description,\n' +
-    '          price,\n' +
-    '          old_price,\n' +
-    '          purchase_price,\n' +
-    '          stock_quantity,\n' +
-    '          stock_managed,\n' +
-    '          min_stock,\n' +
-    '          image,\n' +
-    '          images,\n' +
-    '          colors,\n' +
-    '          rating,\n' +
-    '          reviews,\n' +
-    '          is_active\n' +
-    '        )\n' +
-    '        VALUES (\n' +
-    "          28, NULL, 'pack-de-4-piles-r06-eveready', 'PACK DE 4 PILES R06 EVEREADY', '1212', 'EVEREADY', 'Eveready Super Heavy Duty AA – Pack de 4 🔋\\r\\nDes piles AA pratiques et fiables pour les appareils du quotidien : horloges, télécommandes, jouets, radios, lampes de poche et bien d’autres équipements domestiques. Un pack de 4 piles idéal à garder à la maison pour toujours avoir des piles de rechange sous la main.',\n" +
-    "          380, NULL, 300, 30, 1, 3, 'https://bricomenage.com/uploads/products/1787671979222-755746361.jpeg',\n" +
-    `          '[\\"https://bricomenage.com/uploads/products/1787671979222-755746361.jpeg\\",\\"https://bricomenage.com/uploads/products/1787671979222-510122699.jpeg\\"]', '[]', 0, 0, 1\n` +
-    '        )\n' +
-    '      '
-}
 node:internal/modules/cjs/loader:1433
   throw err;
   ^
@@ -3107,6 +3037,33 @@ Require stack:
 }
 
 Node.js v22.23.2
+node:internal/modules/cjs/loader:1433
+  throw err;
+  ^
+
+Error: Cannot find module 'dotenv'
+Require stack:
+- /home/bricom57/backend/server.js
+- /usr/local/lsws/fcgi-bin/lsnode.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1430:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1045:22)
+    at Module._load (node:internal/modules/cjs/loader:1216:25)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Module.require (node:internal/modules/cjs/loader:1527:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/home/bricom57/backend/server.js:1:1)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1913:10) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/home/bricom57/backend/server.js',
+    '/usr/local/lsws/fcgi-bin/lsnode.js'
+  ]
+}
+
+Node.js v22.23.2
+Impossible de démarrer le backend : Access denied for user 'root'@'localhost' (using password: NO)
 HttpError: Session invalide ou expirée.
     at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
     at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
@@ -3121,11 +3078,624 @@ HttpError: Session invalide ou expirée.
   status: 401,
   details: undefined
 }
-HttpError: Aucune commande ne correspond à ces informations.
-    at Object.trackOrder (/home/bricom57/backend/services/orderService.js:487:11)
-    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
-    at async checkTracking (/home/bricom57/backend/controllers/orderController.js:94:18) {
-  status: 404,
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
   details: undefined
 }
 [ZR Express] Synchronisation suivi client impossible : Order not found: "36-R9OZV5SYQK-ZR".
+OrderNotFoundError: Order not found: "36-R9OZV5SYQK-ZR".
+    at ZrExpressNewAdapter.getOrder (/home/bricom57/nodevenv/backend/22/lib/node_modules/courier-dz/dist/index.cjs:5485:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Object.syncParcelForOrder (/home/bricom57/backend/services/zrExpressService.js:877:18)
+    at async syncOrder (/home/bricom57/backend/controllers/zrController.js:86:16) {
+  statusCode: 404,
+  cause: CourierError: zrexpress_new API returned HTTP 404: {"type":"https://tools.ietf.org/html/rfc7231#section-6.5.4","title":"ParcelErrors.TrackingNumberNotFound","status":404,"detail":"The parcel with the tracking number 36-R9OZV5SYQK-ZR was not found","traceId":"00-e5282673928fac352f95b2848cc8cdee-86e9f379b65ccea4-00"}
+      at ZrExpressNewAdapter._request (/home/bricom57/nodevenv/backend/22/lib/node_modules/courier-dz/dist/index.cjs:1377:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async ZrExpressNewAdapter.getOrder (/home/bricom57/nodevenv/backend/22/lib/node_modules/courier-dz/dist/index.cjs:5478:24)
+      at async Object.syncParcelForOrder (/home/bricom57/backend/services/zrExpressService.js:877:18)
+      at async syncOrder (/home/bricom57/backend/controllers/zrController.js:86:16) {
+    statusCode: 404
+  },
+  trackingNumber: '36-R9OZV5SYQK-ZR'
+}
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}
+[ZR Express] Synchronisation suivi client impossible : Order not found: "36-R9OZV5SYQK-ZR".
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+    at router (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:60:12)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13) {
+  status: 401,
+  details: undefined
+}
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+    at router (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:60:12)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13) {
+  status: 401,
+  details: undefined
+}
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}
+HttpError: E-mail ou mot de passe incorrect.
+    at login (/home/bricom57/backend/controllers/authController.js:50:11) {
+  status: 401,
+  details: undefined
+}
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://www.bricomenage.com
+Error: Origine CORS non autorisée : http://www.bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+[CORS] Origine refusée : http://bricomenage.com
+Error: Origine CORS non autorisée : http://bricomenage.com
+    at origin (/home/bricom57/backend/app.js:86:21)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:219:13
+    at optionsCallback (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:199:9)
+    at corsMiddleware (/home/bricom57/nodevenv/backend/22/lib/node_modules/cors/lib/index.js:204:7)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at trimPrefix (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:342:13)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:297:9
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3)
+HttpError: E-mail ou mot de passe incorrect.
+    at login (/home/bricom57/backend/controllers/authController.js:50:11) {
+  status: 401,
+  details: undefined
+}
+HttpError: E-mail ou mot de passe incorrect.
+    at login (/home/bricom57/backend/controllers/authController.js:50:11) {
+  status: 401,
+  details: undefined
+}
+HttpError: Session invalide ou expirée.
+    at requireAdmin (/home/bricom57/backend/middlewares/auth.js:72:17)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:157:13)
+    at Route.dispatch (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/route.js:117:3)
+    at handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:435:11)
+    at Layer.handleRequest (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/lib/layer.js:152:17)
+    at /home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:295:15
+    at processParams (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:582:12)
+    at next (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:291:5)
+    at Function.handle (/home/bricom57/nodevenv/backend/22/lib/node_modules/router/index.js:186:3) {
+  status: 401,
+  details: undefined
+}

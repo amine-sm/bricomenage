@@ -2793,6 +2793,47 @@ function OrderDetailModal({
   const [zrMessage, setZrMessage] =
     useState("");
 
+  const [manualZrTracking, setManualZrTracking] =
+    useState(detail.order.zr_tracking_number || "");
+
+  async function attachZrTracking() {
+    const tracking = manualZrTracking.trim().toUpperCase();
+
+    if (!tracking) {
+      setZrError("Saisissez le numéro de tracking ZR Express.");
+      return;
+    }
+
+    setZrWorking(true);
+    setZrError("");
+    setZrMessage("");
+
+    try {
+      const response = await zrApi.attachTracking(
+        detail.order.id,
+        tracking,
+      );
+
+      setManualZrTracking(
+        response.data.trackingNumber || tracking,
+      );
+      setZrMessage(
+        response.message ||
+          "Tracking ZR Express enregistré et vérifié.",
+      );
+
+      await onZrRefresh();
+    } catch (error) {
+      setZrError(
+        error instanceof Error
+          ? error.message
+          : "Tracking ZR Express invalide ou introuvable.",
+      );
+    } finally {
+      setZrWorking(false);
+    }
+  }
+
   async function createZrParcel() {
     setZrWorking(true);
     setZrError("");
@@ -2880,6 +2921,12 @@ function OrderDetailModal({
       setZrWorking(false);
     }
   }
+
+  useEffect(() => {
+    setManualZrTracking(
+      detail.order.zr_tracking_number || "",
+    );
+  }, [detail.order.id, detail.order.zr_tracking_number]);
 
   useEffect(() => {
     function handleEscape(
@@ -3377,6 +3424,45 @@ function OrderDetailModal({
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-500 text-white shadow-lg shadow-orange-500/20">
                   <Truck className="h-5 w-5" />
                 </span>
+              </div>
+
+              <div className="mt-4 rounded-xl border border-orange-200 bg-white p-3">
+                <label className="block text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                  Entrer un tracking ZR Express
+                </label>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={manualZrTracking}
+                    onChange={(event) =>
+                      setManualZrTracking(event.target.value.toUpperCase())
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void attachZrTracking();
+                      }
+                    }}
+                    disabled={zrWorking}
+                    placeholder="Ex. 16-VB8UCZHT2S-ZR"
+                    autoComplete="off"
+                    className="min-h-11 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-black tracking-wide text-zinc-900 outline-none focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10 disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    disabled={zrWorking || !manualZrTracking.trim()}
+                    onClick={() => void attachZrTracking()}
+                    className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-orange-500 px-3 text-[11px] font-black text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {zrWorking ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Vérifier"
+                    )}
+                  </button>
+                </div>
+                <p className="mt-2 text-[10px] leading-4 text-zinc-400">
+                  Exemple : <strong className="text-zinc-600">16-VB8UCZHT2S-ZR</strong>. Le serveur vérifie ce numéro directement chez ZR Express puis enregistre son statut.
+                </p>
               </div>
 
               {detail.order.zr_tracking_number ? (

@@ -58,12 +58,12 @@ type SortOption =
   | "price-asc"
   | "price-desc";
 
-type StockOption =
+type StockFilter =
   | "all"
   | "available"
   | "unavailable";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 30;
 
 type PackWithImages =
   CatalogPack & {
@@ -157,6 +157,8 @@ function rankProductSuggestions(
 
     if (brand.startsWith(term)) {
       total += 35;
+
+      
     } else if (
       brand.includes(term)
     ) {
@@ -263,6 +265,25 @@ function isPromotionProduct(
     Number(product.old_price || 0) >
       Number(product.price || 0)
   );
+}
+
+function isProductInStock(product: Product) {
+  if (typeof product.inStock === "boolean") {
+    return product.inStock;
+  }
+
+  return Number(product.stock_quantity || 0) > 0;
+}
+
+function isPackInStock(pack: PackWithImages) {
+  if (typeof pack.inStock === "boolean") {
+    return pack.inStock;
+  }
+
+  return Number(
+    (pack as PackWithImages & { stock_quantity?: number })
+      .stock_quantity || 0,
+  ) > 0;
 }
 
 function articleToProduct(
@@ -655,7 +676,7 @@ function PackCard({
                 pack.slug,
               )}`}
               aria-label={`Voir ${pack.name}`}
-              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:border-orange-400 hover:bg-orange-500 hover:text-white sm:h-12 sm:w-12"
+              className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-zinc-200/80 bg-white shadow-[0_8px_24px_rgba(24,24,27,0.05)] text-zinc-700 shadow-sm transition hover:border-orange-400 hover:bg-orange-500 hover:text-white sm:h-12 sm:w-12"
             >
               <Eye className="h-5 w-5" />
             </Link>
@@ -699,13 +720,6 @@ function ArticlesPageContent() {
   );
 
   const [
-    stockFilter,
-    setStockFilter,
-  ] = useState<StockOption>(
-    "all",
-  );
-
-  const [
     minPrice,
     setMinPrice,
   ] = useState("");
@@ -716,8 +730,18 @@ function ArticlesPageContent() {
   ] = useState("");
 
   const [
+    stockFilter,
+    setStockFilter,
+  ] = useState<StockFilter>("all");
+
+  const [
     mobileFiltersOpen,
     setMobileFiltersOpen,
+  ] = useState(false);
+
+  const [
+    isScrolled,
+    setIsScrolled,
   ] = useState(false);
 
   const [
@@ -733,6 +757,9 @@ function ArticlesPageContent() {
   const catalogGridRef =
     useRef<HTMLDivElement | null>(null);
 
+  const catalogTitleRef =
+    useRef<HTMLHeadingElement | null>(null);
+
   const catalogSearchRef =
     useRef<HTMLDivElement | null>(null);
 
@@ -742,20 +769,23 @@ function ArticlesPageContent() {
   function scrollToFirstCatalogItem() {
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        const grid =
-          catalogGridRef.current;
+        const title = catalogTitleRef.current;
 
-        if (!grid) {
+        if (!title) {
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+          });
           return;
         }
 
         const headerOffset =
           window.innerWidth < 640
             ? 76
-            : 92;
+            : 100;
 
         const top =
-          grid.getBoundingClientRect().top +
+          title.getBoundingClientRect().top +
           window.scrollY -
           headerOffset;
 
@@ -773,9 +803,9 @@ function ArticlesPageContent() {
 
   useEffect(() => {
     setSortBy("newest");
-    setStockFilter("all");
     setMinPrice("");
     setMaxPrice("");
+    setStockFilter("all");
     setCurrentPage(1);
     setMobileFiltersOpen(false);
     setCatalogSearchOpen(false);
@@ -800,19 +830,9 @@ function ArticlesPageContent() {
       }
     }
 
-    function handleDrawerResize() {
-      if (window.innerWidth >= 1024) {
-        setMobileFiltersOpen(false);
-      }
-    }
-
     window.addEventListener(
       "keydown",
       handleDrawerKeyDown,
-    );
-    window.addEventListener(
-      "resize",
-      handleDrawerResize,
     );
 
     return () => {
@@ -822,12 +842,29 @@ function ArticlesPageContent() {
         "keydown",
         handleDrawerKeyDown,
       );
-      window.removeEventListener(
-        "resize",
-        handleDrawerResize,
-      );
     };
   }, [mobileFiltersOpen]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 100);
+    };
+
+    handleScroll();
+
+    window.addEventListener(
+      "scroll",
+      handleScroll,
+      { passive: true },
+    );
+
+    return () => {
+      window.removeEventListener(
+        "scroll",
+        handleScroll,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     function handleSearchOutsideClick(
@@ -907,7 +944,7 @@ function ArticlesPageContent() {
         if (mode === "packs") {
           const response =
             await catalogApi.packs({
-              limit: "100",
+              limit: "500",
               ...(deferredQuery.trim()
                 ? {
                     search:
@@ -932,7 +969,7 @@ function ArticlesPageContent() {
         ) {
           const response =
             await catalogApi.promotions({
-              limit: "200",
+              limit: "500",
               ...(deferredQuery.trim()
                 ? {
                     search:
@@ -958,7 +995,7 @@ function ArticlesPageContent() {
 
         const response =
           await catalogApi.articles({
-            limit: "100",
+            limit: "500",
             ...(category
               ? {
                   categorie:
@@ -1244,21 +1281,12 @@ function ArticlesPageContent() {
               Number.isNaN(maximum) ||
               price <= maximum;
 
-            const available =
-              Number(
-                article.stock_quantity ||
-                  0,
-              ) > 0 &&
-              article.inStock !== false;
-
             const matchesStock =
               stockFilter === "all" ||
-              (stockFilter ===
-                "available" &&
-                available) ||
-              (stockFilter ===
-                "unavailable" &&
-                !available);
+              (stockFilter === "available" &&
+                isProductInStock(article)) ||
+              (stockFilter === "unavailable" &&
+                !isProductInStock(article));
 
             const hasActivePromotion =
               Boolean(
@@ -1373,21 +1401,12 @@ function ArticlesPageContent() {
               Number.isNaN(maximum) ||
               price <= maximum;
 
-            const available =
-              pack.inStock !== false &&
-              Number(
-                pack.stock_quantity ||
-                  0,
-              ) > 0;
-
             const matchesStock =
               stockFilter === "all" ||
-              (stockFilter ===
-                "available" &&
-                available) ||
-              (stockFilter ===
-                "unavailable" &&
-                !available);
+              (stockFilter === "available" &&
+                isPackInStock(pack)) ||
+              (stockFilter === "unavailable" &&
+                !isPackInStock(pack));
 
             return (
               matchesSearch &&
@@ -1524,9 +1543,9 @@ function ArticlesPageContent() {
   function resetFilters() {
     setQuery("");
     setSortBy("newest");
-    setStockFilter("all");
     setMinPrice("");
     setMaxPrice("");
+    setStockFilter("all");
     setCurrentPage(1);
     setCatalogSearchOpen(false);
   }
@@ -1534,9 +1553,9 @@ function ArticlesPageContent() {
   const activeFilterCount = [
     Boolean(query.trim()),
     sortBy !== "newest",
-    stockFilter !== "all",
     minPrice !== "",
     maxPrice !== "",
+    stockFilter !== "all",
   ].filter(Boolean).length;
 
   const hasActiveFilters =
@@ -1655,7 +1674,7 @@ function ArticlesPageContent() {
           <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-orange-500/25 blur-3xl sm:h-[30rem] sm:w-[30rem]" />
           <div className="pointer-events-none absolute -right-20 top-8 h-72 w-72 rounded-full bg-amber-400/15 blur-3xl sm:h-96 sm:w-96" />
 
-          <div className="relative mx-auto max-w-7xl px-4 pb-20 pt-7 sm:px-6 sm:pb-24 sm:pt-11 lg:px-8 lg:pb-28">
+          <div className="relative mx-auto w-full max-w-none px-4 pb-20 pt-7 sm:px-6 sm:pb-24 sm:pt-11 lg:px-8 lg:pb-28">
             <motion.div
               initial={{
                 opacity: 0,
@@ -1901,18 +1920,59 @@ function ArticlesPageContent() {
           </div>
         </section>
 
+      {/* =========================================================
+          FLOATING FILTER BUTTON — MOBILE + PC
+          Mobile : au-dessus de la bottom navigation.
+          PC : en bas à droite.
+      ========================================================== */}
+      <AnimatePresence>
+        {isScrolled && !mobileFiltersOpen && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.75, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.75, y: 20 }}
+            transition={{
+              type: "spring",
+              stiffness: 420,
+              damping: 28,
+            }}
+            className="fixed bottom-[88px] right-4 z-[9000] sm:right-6 lg:bottom-8 lg:right-8"
+          >
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(true)}
+              aria-label="Ouvrir les filtres"
+              aria-controls="catalog-mobile-filters"
+              className="group relative flex h-14 w-14 items-center justify-center rounded-full bg-orange-500 text-white shadow-[0_12px_30px_rgba(249,115,22,0.38)] ring-4 ring-white transition-all duration-200 hover:scale-105 hover:bg-orange-600 active:scale-90"
+            >
+              <span className="pointer-events-none absolute -inset-1 rounded-full bg-orange-500/25 blur-lg transition-opacity duration-300 group-hover:opacity-100" />
+
+              <SlidersHorizontal className="relative z-10 h-6 w-6 transition-transform duration-200 group-hover:rotate-6" />
+
+              {activeFilterCount > 0 ? (
+                <span className="absolute -right-1 -top-1 z-20 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-950 px-1.5 text-[10px] font-black text-white shadow-lg">
+                  {activeFilterCount}
+                </span>
+              ) : (
+                <span className="absolute right-1 top-1 z-20 h-2.5 w-2.5 rounded-full border-2 border-orange-500 bg-white" />
+              )}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <section
         className={`relative ${
           mobileFiltersOpen
             ? "z-[9999]"
             : "z-20"
-        } mx-auto -mt-11 max-w-7xl px-4 pb-16 sm:-mt-14 sm:px-6 sm:pb-20 lg:-mt-16 lg:px-8`}
+        } mx-auto w-full -mt-11 max-w-none px-4 pb-16 sm:-mt-14 sm:px-6 sm:pb-20 lg:-mt-16 lg:px-8`}
       >
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.45 }}
-          className="overflow-hidden rounded-[28px] border border-white/80 bg-white/95 shadow-[0_30px_90px_rgba(24,24,27,0.12)] ring-1 ring-zinc-950/[0.02] backdrop-blur-xl sm:rounded-[34px] lg:rounded-b-none"
+          className="overflow-hidden rounded-[30px] border border-zinc-200/70 bg-white/95 shadow-[0_30px_100px_rgba(24,24,27,0.13)] ring-1 ring-white backdrop-blur-xl sm:rounded-[34px] lg:rounded-b-none"
         >
           {/* Barre supérieure premium */}
           <div className="relative overflow-hidden border-b border-zinc-100 bg-white px-4 py-4 sm:px-6 sm:py-5">
@@ -1942,10 +2002,10 @@ function ArticlesPageContent() {
                     )}
                   </div>
                   <p className="mt-0.5 hidden text-xs text-zinc-500 sm:block">
-                    Recherchez, affinez le prix, le stock et l’ordre d’affichage.
+                    Recherchez, affinez le prix et l’ordre d’affichage.
                   </p>
                   <p className="mt-0.5 truncate text-[10px] font-semibold text-zinc-400 sm:hidden">
-                    Recherche, prix, stock et tri
+                    Recherche, prix et tri
                   </p>
                 </div>
               </div>
@@ -1997,7 +2057,7 @@ function ArticlesPageContent() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setMobileFiltersOpen(false)}
-              className="fixed inset-0 z-[9998] bg-zinc-950/55 backdrop-blur-[2px] lg:hidden"
+              className="fixed inset-0 z-[9998] bg-zinc-950/60 backdrop-blur-[3px]"
             />
           )}
         </AnimatePresence>
@@ -2005,14 +2065,24 @@ function ArticlesPageContent() {
         <aside
           id="catalog-mobile-filters"
           aria-label="Filtres du catalogue"
-          className={`fixed inset-y-0 right-0 z-[9999] flex h-dvh w-[min(92vw,390px)] flex-col border-l border-zinc-200 bg-white shadow-[-24px_0_70px_rgba(24,24,27,0.22)] transition-transform duration-300 ease-out lg:static lg:z-auto lg:h-auto lg:w-full lg:translate-x-0 lg:border lg:border-t-0 lg:border-white/80 lg:shadow-[0_30px_90px_rgba(24,24,27,0.12)] lg:rounded-b-[34px] ${
-            mobileFiltersOpen
-              ? "translate-x-0 pointer-events-auto"
-              : "translate-x-full pointer-events-none lg:pointer-events-auto"
+          className={`fixed inset-y-0 right-0 z-[9999] flex h-dvh w-[min(94vw,470px)] flex-col
+            border-l border-zinc-200 bg-white
+            shadow-[-24px_0_70px_rgba(24,24,27,0.22)]
+            transition-transform duration-300 ease-out
+            ${
+              mobileFiltersOpen
+                ? "translate-x-0 pointer-events-auto"
+                : "translate-x-full pointer-events-none"
+            }
+            overflow-hidden
           }`}
         >
           {/* En-tête du drawer : mobile uniquement */}
-          <div className="relative shrink-0 overflow-hidden border-b border-zinc-800 bg-zinc-950 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white lg:hidden">
+          <div
+            className={`relative shrink-0 overflow-hidden border-b border-zinc-800 bg-zinc-950 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white ${
+              mobileFiltersOpen ? "flex" : "hidden"
+            }`}
+          >
             <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-500/25 blur-3xl" />
 
             <div className="relative flex items-center justify-between gap-4">
@@ -2030,7 +2100,7 @@ function ArticlesPageContent() {
                   <p className="text-[9px] font-black uppercase tracking-[0.18em] text-orange-300">
                     Catalogue
                   </p>
-                  <h3 className="mt-0.5 truncate text-base font-black tracking-tight text-white">
+                  <h3 className="mt-0.5 truncate text-lg font-black tracking-[-0.02em] text-white">
                     Recherche & filtres
                   </h3>
                   <p className="mt-0.5 text-[10px] font-semibold text-zinc-400">
@@ -2043,14 +2113,14 @@ function ArticlesPageContent() {
                 type="button"
                 onClick={() => setMobileFiltersOpen(false)}
                 aria-label="Fermer"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white transition hover:bg-white/15 active:scale-95"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-sm transition hover:bg-white/15 hover:rotate-90 active:scale-95"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain lg:overflow-visible">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] p-4 pb-28 sm:p-6 sm:pb-28 lg:pb-6">
               {/* Recherche principale */}
               <div
@@ -2096,7 +2166,7 @@ function ArticlesPageContent() {
                     autoComplete="off"
                     autoCorrect="off"
                     spellCheck={false}
-                    className="h-[54px] w-full rounded-2xl border border-zinc-200 bg-white pl-12 pr-12 text-sm font-semibold text-zinc-900 shadow-sm outline-none transition placeholder:font-normal placeholder:text-zinc-400 hover:border-zinc-300 focus:border-orange-400 focus:shadow-[0_10px_30px_rgba(249,115,22,0.10)] focus:ring-4 focus:ring-orange-500/10 sm:h-14"
+                    className="h-[54px] w-full rounded-[18px] border border-zinc-200/80 bg-white shadow-[0_8px_24px_rgba(24,24,27,0.05)] pl-12 pr-12 text-sm font-semibold text-zinc-900 shadow-sm outline-none transition placeholder:font-normal placeholder:text-zinc-400 hover:border-zinc-300 focus:border-orange-400 focus:shadow-[0_10px_30px_rgba(249,115,22,0.10)] focus:ring-4 focus:ring-orange-500/10 sm:h-14"
                   />
 
                   {query && (
@@ -2615,136 +2685,144 @@ function ArticlesPageContent() {
                 </AnimatePresence>
               </div>
 
-              {/* Filtres secondaires premium */}
-              <div className="mt-5 rounded-[26px] border border-zinc-200/80 bg-zinc-50/70 p-2.5 shadow-inner sm:p-3">
-                <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-                  <label className="group rounded-[20px] border border-zinc-200/80 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_12px_30px_rgba(24,24,27,0.07)]">
-                    <span className="mb-2.5 flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
-                        <Tag className="h-3.5 w-3.5" />
-                      </span>
-                      <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
-                        Prix minimum
-                      </span>
+              {/* =========================================================
+                  FILTRES SECONDAIRES PREMIUM
+              ========================================================== */}
+              <div className="mt-5 overflow-hidden rounded-[26px] border border-zinc-200/80 bg-white shadow-[0_14px_40px_rgba(24,24,27,0.06)]">
+                <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/70 px-4 py-3 sm:px-5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-950 text-white">
+                      <SlidersHorizontal className="h-4 w-4" />
                     </span>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.18em] text-orange-500">
+                        Affiner les résultats
+                      </p>
+                      <p className="mt-0.5 text-xs font-bold text-zinc-700">
+                        Prix, disponibilité et tri
+                      </p>
+                    </div>
+                  </div>
 
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-zinc-400">
-                        MIN
+                  {hasActiveFilters && (
+                    <span className="rounded-full bg-orange-500 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-white shadow-sm">
+                      {activeFilterCount} filtre{activeFilterCount > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3 sm:p-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {/* Prix minimum */}
+                    <label className="group rounded-[20px] border border-zinc-200 bg-zinc-50/60 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-300 hover:bg-white hover:shadow-[0_12px_30px_rgba(249,115,22,0.08)]">
+                      <span className="mb-2 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                          <Tag className="h-3.5 w-3.5" />
+                        </span>
+                        <span>
+                          <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                            Prix minimum
+                          </span>
+                          <span className="block text-[10px] font-semibold text-zinc-400">
+                            À partir de
+                          </span>
+                        </span>
                       </span>
                       <input
                         type="number"
                         min="0"
                         value={minPrice}
-                        onChange={(event) =>
-                          setMinPrice(
-                            event.target.value,
-                          )
-                        }
+                        onChange={(event) => setMinPrice(event.target.value)}
                         placeholder="0 DA"
-                        className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/80 pl-12 pr-3 text-sm font-black text-zinc-800 outline-none transition placeholder:font-semibold placeholder:text-zinc-400 hover:border-zinc-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
+                        className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-black text-zinc-900 outline-none transition placeholder:font-semibold placeholder:text-zinc-400 hover:border-orange-300 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
                       />
-                    </div>
-                  </label>
+                    </label>
 
-                  <label className="group rounded-[20px] border border-zinc-200/80 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_12px_30px_rgba(24,24,27,0.07)]">
-                    <span className="mb-2.5 flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-orange-50 text-orange-500">
-                        <Tag className="h-3.5 w-3.5" />
-                      </span>
-                      <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
-                        Prix maximum
-                      </span>
-                    </span>
-
-                    <div className="relative">
-                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[9px] font-black text-zinc-400">
-                        MAX
+                    {/* Prix maximum */}
+                    <label className="group rounded-[20px] border border-zinc-200 bg-zinc-50/60 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-300 hover:bg-white hover:shadow-[0_12px_30px_rgba(249,115,22,0.08)]">
+                      <span className="mb-2 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
+                          <Tag className="h-3.5 w-3.5" />
+                        </span>
+                        <span>
+                          <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                            Prix maximum
+                          </span>
+                          <span className="block text-[10px] font-semibold text-zinc-400">
+                            Jusqu'à
+                          </span>
+                        </span>
                       </span>
                       <input
                         type="number"
                         min="0"
                         value={maxPrice}
-                        onChange={(event) =>
-                          setMaxPrice(
-                            event.target.value,
-                          )
-                        }
-                        placeholder="Tous"
-                        className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/80 pl-12 pr-3 text-sm font-black text-zinc-800 outline-none transition placeholder:font-semibold placeholder:text-zinc-400 hover:border-zinc-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
+                        onChange={(event) => setMaxPrice(event.target.value)}
+                        placeholder="Tous les prix"
+                        className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-black text-zinc-900 outline-none transition placeholder:font-semibold placeholder:text-zinc-400 hover:border-orange-300 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
                       />
-                    </div>
-                  </label>
+                    </label>
 
-                  <label className="group rounded-[20px] border border-zinc-200/80 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_12px_30px_rgba(24,24,27,0.07)]">
-                    <span className="mb-2.5 flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                        <PackageSearch className="h-3.5 w-3.5" />
+                    {/* Disponibilité */}
+                    <label className="group rounded-[20px] border border-zinc-200 bg-zinc-50/60 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-emerald-300 hover:bg-white hover:shadow-[0_12px_30px_rgba(16,185,129,0.08)]">
+                      <span className="mb-2 flex items-center gap-2">
+                        <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${
+                          stockFilter === "available"
+                            ? "bg-emerald-100 text-emerald-600"
+                            : stockFilter === "unavailable"
+                              ? "bg-red-100 text-red-600"
+                              : "bg-zinc-100 text-zinc-600"
+                        }`}>
+                          <PackageSearch className="h-3.5 w-3.5" />
+                        </span>
+                        <span>
+                          <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                            Disponibilité
+                          </span>
+                          <span className="block text-[10px] font-semibold text-zinc-400">
+                            État du stock
+                          </span>
+                        </span>
                       </span>
-                      <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
-                        Disponibilité
-                      </span>
-                    </span>
+                      <select
+                        value={stockFilter}
+                        onChange={(event) => setStockFilter(event.target.value as StockFilter)}
+                        className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-black text-zinc-700 outline-none transition hover:border-emerald-300 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      >
+                        <option value="all">Tous les produits</option>
+                        <option value="available">✓ Disponibles</option>
+                        <option value="unavailable">✕ Indisponibles</option>
+                      </select>
+                    </label>
 
-                    <select
-                      value={stockFilter}
-                      onChange={(event) =>
-                        setStockFilter(
-                          event.target
-                            .value as StockOption,
-                        )
-                      }
-                      className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 text-sm font-black text-zinc-700 outline-none transition hover:border-zinc-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
-                    >
-                      <option value="all">
-                        Tous les stocks
-                      </option>
-                      <option value="available">
-                        Disponible
-                      </option>
-                      <option value="unavailable">
-                        Indisponible
-                      </option>
-                    </select>
-                  </label>
-
-                  <label className="group rounded-[20px] border border-zinc-200/80 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-[0_12px_30px_rgba(24,24,27,0.07)]">
-                    <span className="mb-2.5 flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
-                        <ArrowUpDown className="h-3.5 w-3.5" />
+                    {/* Tri */}
+                    <label className="group rounded-[20px] border border-zinc-200 bg-zinc-50/60 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-orange-300 hover:bg-white hover:shadow-[0_12px_30px_rgba(249,115,22,0.08)]">
+                      <span className="mb-2 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
+                          <ArrowUpDown className="h-3.5 w-3.5" />
+                        </span>
+                        <span>
+                          <span className="block text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
+                            Trier par
+                          </span>
+                          <span className="block text-[10px] font-semibold text-zinc-400">
+                            Ordre d'affichage
+                          </span>
+                        </span>
                       </span>
-                      <span className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-500">
-                        Trier par
-                      </span>
-                    </span>
-
-                    <select
-                      value={sortBy}
-                      onChange={(event) =>
-                        setSortBy(
-                          event.target
-                            .value as SortOption,
-                        )
-                      }
-                      className="h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 text-sm font-black text-zinc-700 outline-none transition hover:border-zinc-300 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
-                    >
-                      <option value="newest">
-                        Plus récents
-                      </option>
-                      <option value="name-asc">
-                        Nom A → Z
-                      </option>
-                      <option value="name-desc">
-                        Nom Z → A
-                      </option>
-                      <option value="price-asc">
-                        Prix croissant
-                      </option>
-                      <option value="price-desc">
-                        Prix décroissant
-                      </option>
-                    </select>
-                  </label>
+                      <select
+                        value={sortBy}
+                        onChange={(event) => setSortBy(event.target.value as SortOption)}
+                        className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-black text-zinc-700 outline-none transition hover:border-zinc-300 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                      >
+                        <option value="newest">Plus récents</option>
+                        <option value="name-asc">Nom A → Z</option>
+                        <option value="name-desc">Nom Z → A</option>
+                        <option value="price-asc">Prix croissant</option>
+                        <option value="price-desc">Prix décroissant</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -2766,17 +2844,6 @@ function ArticlesPageContent() {
                             ? "Prix croissant"
                             : "Prix décroissant"}
                   </span>
-
-                  {stockFilter !==
-                    "all" && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-2 text-[10px] font-black text-emerald-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      {stockFilter ===
-                      "available"
-                        ? "Disponible"
-                        : "Indisponible"}
-                    </span>
-                  )}
 
                   {(minPrice ||
                     maxPrice) && (
@@ -2802,6 +2869,19 @@ function ArticlesPageContent() {
                         : ""}
                     </span>
                   )}
+
+                  {stockFilter !== "all" && (
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-[10px] font-black ${
+                      stockFilter === "available"
+                        ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                        : "border-red-100 bg-red-50 text-red-700"
+                    }`}>
+                      <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                      {stockFilter === "available"
+                        ? "Disponibles uniquement"
+                        : "Indisponibles uniquement"}
+                    </span>
+                  )}
                 </div>
 
                 <button
@@ -2817,14 +2897,18 @@ function ArticlesPageContent() {
             </div>
 
             {/* Action fixe en bas du drawer mobile */}
-            <div className="sticky bottom-0 border-t border-zinc-200 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-14px_35px_rgba(24,24,27,0.08)] backdrop-blur-xl lg:hidden">
+            <div
+              className={`sticky bottom-0 border-t border-zinc-200 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-14px_35px_rgba(24,24,27,0.08)] backdrop-blur-xl ${
+                mobileFiltersOpen ? "block" : "hidden"
+              }`}
+            >
               <div className="grid grid-cols-[auto_1fr] gap-2.5">
                 <button
                   type="button"
                   onClick={resetFilters}
                   disabled={!hasActiveFilters}
                   aria-label="Réinitialiser les filtres"
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-600 shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
+                  className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-zinc-200/80 bg-white shadow-[0_8px_24px_rgba(24,24,27,0.05)] text-zinc-600 shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   <RotateCcw className="h-[18px] w-[18px]" />
                 </button>
@@ -2851,7 +2935,10 @@ function ArticlesPageContent() {
                   Sélection actuelle
                 </span>
               </div>
-              <h2 className="truncate text-xl font-black tracking-[-0.03em] text-zinc-950 sm:text-2xl">
+              <h2
+                ref={catalogTitleRef}
+                className="truncate text-xl font-black tracking-[-0.03em] text-zinc-950 sm:text-2xl"
+              >
                 {mode === "packs"
                   ? "Packs disponibles"
                   : mode === "promotions"
@@ -2910,7 +2997,7 @@ function ArticlesPageContent() {
           0 ? (
             <div
               ref={catalogGridRef}
-              className="mt-8 grid grid-cols-1 gap-5 sm:mt-10 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4"
+              className="mt-8 grid grid-cols-1 gap-5 sm:mt-10 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
             >
               {paginatedPacks.map(
                 (pack) => (
@@ -2930,7 +3017,7 @@ function ArticlesPageContent() {
           0 ? (
           <div
             ref={catalogGridRef}
-            className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-5 md:gap-6 lg:grid-cols-3 xl:grid-cols-4"
+            className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-5 md:gap-6 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6"
           >
             {paginatedArticles.map(
               (article) => (
@@ -2959,7 +3046,18 @@ function ArticlesPageContent() {
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={(page) => {
-                setCurrentPage(page);
+                const nextPage = Math.min(
+                  Math.max(page, 1),
+                  totalPages,
+                );
+
+                if (nextPage === currentPage) {
+                  scrollToFirstCatalogItem();
+                  return;
+                }
+
+                setCurrentPage(nextPage);
+                setMobileFiltersOpen(false);
                 scrollToFirstCatalogItem();
               }}
             />
@@ -3000,7 +3098,7 @@ function CatalogPagination({
           onPageChange(currentPage - 1)
         }
         disabled={currentPage === 1}
-        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
+        className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-zinc-200/80 bg-white shadow-[0_8px_24px_rgba(24,24,27,0.05)] text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
         aria-label="Page précédente"
       >
         <ChevronLeft className="h-5 w-5" />
@@ -3055,7 +3153,7 @@ function CatalogPagination({
         disabled={
           currentPage === totalPages
         }
-        className="flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
+        className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-zinc-200/80 bg-white shadow-[0_8px_24px_rgba(24,24,27,0.05)] text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:translate-y-0"
         aria-label="Page suivante"
       >
         <ChevronRight className="h-5 w-5" />
@@ -3092,7 +3190,7 @@ export default function ArticlesPage() {
 function PageSearchParamsLoading() {
   return (
     <main className="min-h-screen bg-[#fafafa]">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-none px-4 py-12 sm:px-6 lg:px-8">
         <div className="h-8 w-48 animate-pulse rounded-xl bg-zinc-200" />
         <div className="mt-6 h-64 animate-pulse rounded-[28px] bg-zinc-100" />
       </div>

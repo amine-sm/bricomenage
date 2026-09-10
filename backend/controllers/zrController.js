@@ -9,6 +9,17 @@ function required(value, label) {
   return text;
 }
 
+async function ping(req, res) {
+  return res.json({
+    success: true,
+    service: "zr-express",
+    backend: "online",
+    configured: zrExpressService.configured(),
+    enabled: zrExpressService.enabled(),
+    timestamp: new Date().toISOString(),
+  });
+}
+
 async function status(req, res) {
   return res.json({
     success: true,
@@ -82,6 +93,52 @@ async function createForOrder(req, res) {
   });
 }
 
+
+
+async function attachTracking(req, res) {
+  const trackingNumber = required(
+    req.body.trackingNumber,
+    "Le numéro de tracking ZR Express",
+  );
+
+  const data = await zrExpressService.attachTrackingToOrder(
+    Number(req.params.id),
+    trackingNumber,
+  );
+
+  const io = req.app.get("io");
+  if (io) {
+    io.to("admins").emit("order:zr-updated", {
+      id: Number(req.params.id),
+      zr_tracking_number: data.trackingNumber || null,
+      zr_status: data.status || null,
+      zr_status_label: data.statusLabel || null,
+    });
+  }
+
+  return res.json({
+    success: true,
+    message: "Tracking ZR Express enregistré et vérifié.",
+    data,
+  });
+}
+
+async function track(req, res) {
+  const trackingNumber = required(
+    req.body.trackingNumber,
+    "Le numéro de tracking ZR Express",
+  );
+
+  const data = await zrExpressService.trackByTrackingNumber(
+    trackingNumber,
+  );
+
+  return res.json({
+    success: true,
+    data,
+  });
+}
+
 async function syncOrder(req, res) {
   const data = await zrExpressService.syncParcelForOrder(
     Number(req.params.id),
@@ -127,6 +184,7 @@ async function label(req, res) {
 }
 
 module.exports = {
+  ping,
   status,
   wilayas,
   communes,
@@ -135,6 +193,8 @@ module.exports = {
   adminConfig,
   createForOrder,
   syncOrder,
+  track,
+  attachTracking,
   cancelOrder,
   label,
 };

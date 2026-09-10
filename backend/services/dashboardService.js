@@ -304,13 +304,7 @@ async function getSalesChart(periodInfo) {
           FLOOR(HOUR(o.created_at) / 4) * 4 AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(
-              COALESCE(
-                o.subtotal,
-                o.total - COALESCE(o.delivery_fee, 0),
-                0
-              )
-            ),
+            SUM(o.total),
             0
           ) AS revenue,
           COALESCE(
@@ -360,13 +354,7 @@ async function getSalesChart(periodInfo) {
           ) AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(
-              COALESCE(
-                o.subtotal,
-                o.total - COALESCE(o.delivery_fee, 0),
-                0
-              )
-            ),
+            SUM(o.total),
             0
           ) AS revenue,
           COALESCE(
@@ -413,13 +401,7 @@ async function getSalesChart(periodInfo) {
           ) AS bucket_key,
           COUNT(*) AS orders,
           COALESCE(
-            SUM(
-              COALESCE(
-                o.subtotal,
-                o.total - COALESCE(o.delivery_fee, 0),
-                0
-              )
-            ),
+            SUM(o.total),
             0
           ) AS revenue,
           COALESCE(
@@ -481,6 +463,10 @@ async function getSalesChart(periodInfo) {
       row.orders || 0,
     );
 
+    bucket.revenue = Number(
+      row.revenue || 0,
+    );
+
     bucket.purchaseCost =
       Number(
         row.purchase_cost ||
@@ -492,12 +478,6 @@ async function getSalesChart(periodInfo) {
         row.profit ||
           0,
       );
-
-    // CA ADMIN = coût d'achat + bénéfice.
-    // Les frais de livraison sont donc toujours exclus.
-    bucket.revenue =
-      bucket.purchaseCost +
-      bucket.profit;
   });
 
   return Array.from(
@@ -571,13 +551,7 @@ async function getDashboardStats(filters = {}) {
     getSingleValue(
       `
         SELECT COALESCE(
-          SUM(
-            COALESCE(
-              subtotal,
-              total - COALESCE(delivery_fee, 0),
-              0
-            )
-          ),
+          SUM(total),
           0
         ) AS total
         FROM orders
@@ -696,10 +670,7 @@ async function getDashboardStats(filters = {}) {
       categories,
       suppliers,
       orders,
-      // CA ADMIN = coût d'achat + bénéfice, jamais la livraison.
-      revenue:
-        Number(purchaseCost || 0) +
-        Number(profit || 0),
+      revenue,
       purchaseCost,
       profit,
       lowStock,

@@ -226,10 +226,23 @@ export async function apiFetch<T>(
       );
     }
 
+    const message =
+      error instanceof Error ? error.message : "";
+
+    // Les navigateurs remontent souvent simplement "Failed to fetch"
+    // lorsque le backend est arrêté, inaccessible ou bloqué par CORS.
+    if (
+      message.toLowerCase().includes("failed to fetch") ||
+      message.toLowerCase().includes("networkerror") ||
+      message.toLowerCase().includes("load failed")
+    ) {
+      throw new Error(
+        `Impossible de contacter l'API BricoMénage (${API_URL}). Vérifiez que le backend tourne sur le port 5000 et que CORS autorise http://localhost:3000.`,
+      );
+    }
+
     throw new Error(
-      error instanceof Error
-        ? error.message
-        : "Impossible de contacter le backend.",
+      message || "Impossible de contacter le backend.",
     );
   } finally {
     clearTimeout(timeout);

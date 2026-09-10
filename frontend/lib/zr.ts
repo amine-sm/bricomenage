@@ -139,6 +139,31 @@ export const zrApi = {
       },
     ),
 
+  attachTracking: (
+    orderId: number,
+    trackingNumber: string,
+  ) =>
+    apiFetch<{
+      success: boolean;
+      message: string;
+      data: {
+        parcelId?: string;
+        trackingNumber?: string;
+        status?: string;
+        statusLabel?: string;
+      };
+    }>(
+      `/admin/orders/${orderId}/zr/tracking`,
+      {
+        method: "POST",
+        headers: {
+          ...adminHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ trackingNumber }),
+      },
+    ),
+
   createParcel: (
     orderId: number,
   ) =>

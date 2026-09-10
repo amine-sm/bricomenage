@@ -245,6 +245,12 @@ router.post(
 );
 
 router.post(
+  "/orders/:id/zr/tracking",
+  requirePermission("orders.zr"),
+  asyncHandler(zrController.attachTracking),
+);
+
+router.post(
   "/orders/:id/zr/sync",
   requirePermission("orders.zr"),
   asyncHandler(zrController.syncOrder),

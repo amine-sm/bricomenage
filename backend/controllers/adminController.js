@@ -446,13 +446,7 @@ async function dashboard(
       `
         SELECT
           COALESCE(
-            SUM(
-              COALESCE(
-                subtotal,
-                total - COALESCE(delivery_fee, 0),
-                0
-              )
-            ),
+            SUM(total),
             0
           ) AS total
         FROM orders
