@@ -22,13 +22,21 @@ export type CatalogArticle = {
   description?: string | null;
   image?: string | null;
   images?: string[];
+
   colors?: {
     name?: string | null;
     hex: string;
     rgb: string;
     images?: string[];
   }[];
-  variant_type?: "COLOR" | "SIZE" | "SHOE_SIZE" | "SCENT" | null;
+
+  variant_type?:
+    | "COLOR"
+    | "SIZE"
+    | "SHOE_SIZE"
+    | "SCENT"
+    | null;
+
   variants?: {
     value: string;
     label?: string | null;
@@ -37,18 +45,36 @@ export type CatalogArticle = {
     rgb?: string | null;
     images?: string[];
   }[];
+
   stock_quantity?: number;
   stock_managed?: boolean;
+
   rating?: number;
   reviews?: number;
+
   reference?: string | null;
   brand?: string | null;
+
   inStock?: boolean;
+
   item_type?: "ARTICLE";
+
   promotion_id?: number;
   promotion_name?: string;
+
   discount_type?: "PERCENT" | "FIXED";
   discount_value?: number;
+
+  /**
+   * Indique si l'article a été créé/publicé dans les 30 derniers jours.
+   * Cette valeur est calculée côté backend/MySQL.
+   */
+  is_new?: boolean;
+
+  /**
+   * Date de création/publication de l'article.
+   */
+  created_at?: string | null;
 };
 
 export type CatalogPack = {
@@ -59,13 +85,18 @@ export type CatalogPack = {
   price: number;
   old_price?: number | null;
   image?: string | null;
+
   article_count: number;
+
   stock_quantity: number;
   stock_managed?: boolean;
+
   calculated_stock: number;
   inStock: boolean;
+
   item_type: "PACK";
-  created_at?: string;
+
+  created_at?: string | null;
 };
 
 export type ArticleCategory = {
@@ -91,12 +122,8 @@ export const catalogApi = {
       categories: CatalogCategory[];
     }>("/categories"),
 
-
   articles: (
-    params?: Record<
-      string,
-      string
-    >,
+    params?: Record<string, string>,
   ) =>
     apiFetch<{
       success: boolean;
@@ -105,9 +132,7 @@ export const catalogApi = {
     }>(
       `/articles${
         params
-          ? `?${new URLSearchParams(
-              params,
-            )}`
+          ? `?${new URLSearchParams(params)}`
           : ""
       }`,
     ),
@@ -136,10 +161,7 @@ export const catalogApi = {
     ),
 
   packs: (
-    params?: Record<
-      string,
-      string
-    >,
+    params?: Record<string, string>,
   ) =>
     apiFetch<{
       success: boolean;
@@ -148,9 +170,7 @@ export const catalogApi = {
     }>(
       `/packs${
         params
-          ? `?${new URLSearchParams(
-              params,
-            )}`
+          ? `?${new URLSearchParams(params)}`
           : ""
       }`,
     ),
@@ -170,10 +190,7 @@ export const catalogApi = {
     ),
 
   promotions: (
-    params?: Record<
-      string,
-      string
-    >,
+    params?: Record<string, string>,
   ) =>
     apiFetch<{
       success: boolean;
@@ -182,18 +199,12 @@ export const catalogApi = {
     }>(
       `/promotions${
         params
-          ? `?${new URLSearchParams(
-              params,
-            )}`
+          ? `?${new URLSearchParams(params)}`
           : ""
       }`,
     ),
 };
 
-/*
- * Les fonctions admin existantes peuvent rester
- * dans votre version actuelle de catalog.ts.
- */
 export const adminCatalogApi = {
   list: <T>(
     resource: string,
@@ -201,8 +212,7 @@ export const adminCatalogApi = {
     apiFetch<T>(
       `/admin/${resource}`,
       {
-        headers:
-          adminHeaders(),
+        headers: adminHeaders(),
       },
     ),
 };

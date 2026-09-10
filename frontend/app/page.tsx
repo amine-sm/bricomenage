@@ -2482,6 +2482,10 @@ export default function Home() {
                 article.promotion_id,
               promotion_name:
                 article.promotion_name,
+              created_at:
+                article.created_at,
+              is_new:
+                article.is_new,
               item_type: "ARTICLE",
             }),
           );

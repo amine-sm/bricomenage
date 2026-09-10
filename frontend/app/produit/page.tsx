@@ -311,7 +311,7 @@ function ProductContent() {
         product.price,
       ),
       quantity,
-      image: product.image,
+image: product.image ?? undefined,
     });
 
     window.dispatchEvent(

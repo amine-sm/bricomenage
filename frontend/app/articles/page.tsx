@@ -339,6 +339,8 @@ function articleToProduct(
       article.promotion_id,
     promotion_name:
       article.promotion_name,
+    created_at: article.created_at,
+    is_new: article.is_new,
     item_type: "ARTICLE",
   };
 }
@@ -1979,8 +1981,8 @@ function ArticlesPageContent() {
             <div className="pointer-events-none absolute -right-12 -top-16 h-40 w-40 rounded-full bg-orange-100/80 blur-3xl" />
             <div className="pointer-events-none absolute left-0 top-0 h-1 w-full bg-[linear-gradient(90deg,#18181b_0%,#18181b_28%,#f97316_28%,#f97316_64%,#fdba74_100%)]" />
 
-            <div className="relative flex items-center justify-between gap-4 pt-1">
-              <div className="flex min-w-0 items-center gap-3.5">
+            <div className="relative flex w-full items-center justify-between gap-4 pt-1">
+              <div className="flex min-w-0 flex-1 items-center gap-3.5">
                 <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-950 text-white shadow-[0_10px_25px_rgba(24,24,27,0.20)] sm:h-12 sm:w-12">
                   <SlidersHorizontal className="h-5 w-5" />
                   {activeFilterCount > 0 && (
@@ -2062,66 +2064,62 @@ function ArticlesPageContent() {
           )}
         </AnimatePresence>
 
-        <aside
-          id="catalog-mobile-filters"
-          aria-label="Filtres du catalogue"
-          className={`fixed inset-y-0 right-0 z-[9999] flex h-dvh w-[min(94vw,470px)] flex-col
-            border-l border-zinc-200 bg-white
-            shadow-[-24px_0_70px_rgba(24,24,27,0.22)]
-            transition-transform duration-300 ease-out
-            ${
-              mobileFiltersOpen
-                ? "translate-x-0 pointer-events-auto"
-                : "translate-x-full pointer-events-none"
-            }
-            overflow-hidden
-          }`}
-        >
+     <aside
+  id="catalog-mobile-filters"
+  aria-label="Filtres du catalogue"
+  className={`fixed inset-y-0 right-0 z-[9999] flex h-dvh w-[min(94vw,520px)] flex-col
+    border-l border-zinc-200 bg-white
+    shadow-[-30px_0_90px_rgba(24,24,27,0.24)]
+    transition-transform duration-300 ease-out
+    ${
+      mobileFiltersOpen
+        ? "translate-x-0 pointer-events-auto"
+        : "translate-x-full pointer-events-none"
+    }
+    overflow-hidden
+  `}
+>
           {/* En-tête du drawer : mobile uniquement */}
           <div
-            className={`relative shrink-0 overflow-hidden border-b border-zinc-800 bg-zinc-950 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white ${
-              mobileFiltersOpen ? "flex" : "hidden"
-            }`}
+            className="relative flex shrink-0 items-center justify-between gap-4 overflow-hidden border-b border-zinc-800 bg-zinc-950 px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] text-white sm:px-6"
           >
             <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-orange-500/25 blur-3xl" />
 
-            <div className="relative flex items-center justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-500/25">
-                  <SlidersHorizontal className="h-5 w-5" />
-                  {activeFilterCount > 0 && (
-                    <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-zinc-950 bg-white px-1 text-[9px] font-black text-orange-600">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </span>
+            <div className="relative flex min-w-0 items-center gap-3">
+              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-lg shadow-orange-500/25">
+                <SlidersHorizontal className="h-5 w-5" />
+                {activeFilterCount > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-zinc-950 bg-white px-1 text-[9px] font-black text-orange-600">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </span>
 
-                <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-[0.18em] text-orange-300">
-                    Catalogue
-                  </p>
-                  <h3 className="mt-0.5 truncate text-lg font-black tracking-[-0.02em] text-white">
-                    Recherche & filtres
-                  </h3>
-                  <p className="mt-0.5 text-[10px] font-semibold text-zinc-400">
-                    {count} résultat{count > 1 ? "s" : ""}
-                  </p>
-                </div>
+              <div className="min-w-0">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-orange-300">
+                  Catalogue
+                </p>
+                <h3 className="mt-0.5 truncate text-lg font-black tracking-[-0.02em] text-white">
+                  Recherche & filtres
+                </h3>
+                <p className="mt-0.5 text-[10px] font-semibold text-zinc-400">
+                  {count} résultat{count > 1 ? "s" : ""}
+                </p>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setMobileFiltersOpen(false)}
-                aria-label="Fermer"
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white shadow-sm transition hover:bg-white/15 hover:rotate-90 active:scale-95"
-              >
-                <X className="h-5 w-5" />
-              </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(false)}
+              aria-label="Fermer"
+              className="group relative z-20 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/20 bg-zinc-900/85 text-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md transition-all duration-200 hover:rotate-90 hover:border-orange-400 hover:bg-orange-500 hover:shadow-[0_10px_28px_rgba(249,115,22,0.35)] active:scale-90 sm:h-12 sm:w-12"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-            <div className="bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] p-4 pb-28 sm:p-6 sm:pb-28 lg:pb-6">
+            <div className="bg-[linear-gradient(180deg,#ffffff_0%,#fffdfa_100%)] p-4 pb-6 sm:p-6">
               {/* Recherche principale */}
               <div
                 ref={catalogSearchRef}
@@ -2896,11 +2894,11 @@ function ArticlesPageContent() {
               </div>
             </div>
 
+          </div>
+
             {/* Action fixe en bas du drawer mobile */}
             <div
-              className={`sticky bottom-0 border-t border-zinc-200 bg-white/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-14px_35px_rgba(24,24,27,0.08)] backdrop-blur-xl ${
-                mobileFiltersOpen ? "block" : "hidden"
-              }`}
+              className="shrink-0 border-t border-zinc-200 bg-white/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-14px_35px_rgba(24,24,27,0.10)] backdrop-blur-xl sm:p-4"
             >
               <div className="grid grid-cols-[auto_1fr] gap-2.5">
                 <button
@@ -2908,7 +2906,7 @@ function ArticlesPageContent() {
                   onClick={resetFilters}
                   disabled={!hasActiveFilters}
                   aria-label="Réinitialiser les filtres"
-                  className="flex h-12 w-12 items-center justify-center rounded-[18px] border border-zinc-200/80 bg-white shadow-[0_8px_24px_rgba(24,24,27,0.05)] text-zinc-600 shadow-sm transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200/80 bg-white text-zinc-600 shadow-sm transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   <RotateCcw className="h-[18px] w-[18px]" />
                 </button>
@@ -2923,7 +2921,6 @@ function ArticlesPageContent() {
                 </button>
               </div>
             </div>
-          </div>
         </aside>
 
         {!loading && !error && count > 0 && (

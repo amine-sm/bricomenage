@@ -2,13 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import {
+  AnimatePresence,
+  motion,
+} from "framer-motion";
+
 import {
   ArrowRight,
   Check,
   ShoppingBag,
   ShoppingCart,
 } from "lucide-react";
+
 import {
   type MouseEvent,
   useEffect,
@@ -45,24 +50,49 @@ export interface Product {
   slug: string;
   designation: string;
   price: number;
-  old_price?: number;
+
+  old_price?: number | null;
+
   category: string;
-  description?: string;
-  image?: string;
+
+  description?: string | null;
+
+  image?: string | null;
   images?: string[];
+
   colors?: ProductColor[];
-  variant_type?: ProductVariantType | null;
+
+  variant_type?:
+    | ProductVariantType
+    | null;
+
   variants?: ProductVariant[];
+
   stock_quantity?: number;
   stock_managed?: boolean;
+
   rating?: number;
   reviews?: number;
+
   inStock?: boolean;
-  reference?: string;
-  brand?: string;
+
+  reference?: string | null;
+  brand?: string | null;
+
   item_type?: "ARTICLE" | "PACK";
+
   promotion_id?: number;
   promotion_name?: string;
+
+  /**
+   * Date de création/publication.
+   *
+   * Le badge "Nouveau" est affiché
+   * uniquement pendant 30 jours.
+   */
+  created_at?: string | null;
+
+  is_new?: boolean;
 }
 
 interface ProductCardProps {
@@ -70,7 +100,9 @@ interface ProductCardProps {
 }
 
 function formatPrice(price: number) {
-  return new Intl.NumberFormat("fr-DZ").format(price);
+  return new Intl.NumberFormat(
+    "fr-DZ",
+  ).format(price);
 }
 
 export default function ProductCard({
@@ -85,6 +117,10 @@ export default function ProductCard({
     useRef<ReturnType<typeof setTimeout> | null>(
       null,
     );
+
+  /* =========================
+     STOCK
+  ========================== */
 
   const stockQuantity = Number(
     p.stock_quantity ?? 0,
@@ -102,8 +138,13 @@ export default function ProductCard({
           ? stockQuantity > 0
           : true;
 
+  /* =========================
+     PROMOTION
+  ========================== */
+
   const promotion =
-    p.old_price && p.old_price > p.price
+    p.old_price &&
+    p.old_price > p.price
       ? Math.round(
           ((p.old_price - p.price) /
             p.old_price) *
@@ -111,34 +152,70 @@ export default function ProductCard({
         )
       : null;
 
+  /* =========================
+     PRODUIT NOUVEAU
+
+     Le backend MySQL calcule directement
+     si le produit a moins de 30 jours.
+  ========================== */
+
+  const isNewProduct = p.is_new === true;
+
+  /* =========================
+     IMAGE PRINCIPALE
+  ========================== */
+
   const primaryImage =
     p.colors?.[0]?.images?.find(Boolean) ||
     p.image ||
     p.images?.find(Boolean) ||
     "";
 
+  /* =========================
+     LIEN DETAIL
+  ========================== */
+
   const detailHref =
-    `/article?slug=${encodeURIComponent(p.slug)}`;
+    `/article?slug=${encodeURIComponent(
+      p.slug,
+    )}`;
+
+  /* =========================
+     CLEANUP TIMER
+  ========================== */
 
   useEffect(() => {
     return () => {
       if (resetTimer.current) {
-        clearTimeout(resetTimer.current);
+        clearTimeout(
+          resetTimer.current,
+        );
       }
     };
   }, []);
 
+  /* =========================
+     AJOUT PANIER
+  ========================== */
+
   function addCurrentProductToCart() {
     addToCart({
       id: p.id,
+
       item_type:
-        p.item_type ||
-        "ARTICLE",
+        p.item_type || "ARTICLE",
+
       slug: p.slug,
+
       designation: p.designation,
+
       price: Number(p.price),
+
       quantity: 1,
-      image: primaryImage || undefined,
+
+      image:
+        primaryImage || undefined,
+
       selected_color:
         p.item_type !== "PACK" &&
         p.colors?.[0]?.hex
@@ -146,8 +223,10 @@ export default function ProductCard({
               name:
                 p.colors[0].name ||
                 null,
+
               hex:
                 p.colors[0].hex,
+
               rgb:
                 p.colors[0].rgb ||
                 null,
@@ -159,6 +238,10 @@ export default function ProductCard({
       new Event("cart-change"),
     );
   }
+
+  /* =========================
+     BOUTON AJOUTER AU PANIER
+  ========================== */
 
   function handleAddToCart(
     event: MouseEvent<HTMLButtonElement>,
@@ -172,7 +255,10 @@ export default function ProductCard({
 
     if (
       p.item_type !== "PACK" &&
-      ((p.variants?.length || 0) > 0 || (p.colors?.length || 0) > 0)
+      (
+        (p.variants?.length || 0) > 0 ||
+        (p.colors?.length || 0) > 0
+      )
     ) {
       router.push(detailHref);
       return;
@@ -183,13 +269,20 @@ export default function ProductCard({
     setIsAdded(true);
 
     if (resetTimer.current) {
-      clearTimeout(resetTimer.current);
+      clearTimeout(
+        resetTimer.current,
+      );
     }
 
-    resetTimer.current = setTimeout(() => {
-      setIsAdded(false);
-    }, 1600);
+    resetTimer.current =
+      setTimeout(() => {
+        setIsAdded(false);
+      }, 1600);
   }
+
+  /* =========================
+     ACHETER MAINTENANT
+  ========================== */
 
   function handleBuyNow() {
     if (!inStock) {
@@ -198,15 +291,23 @@ export default function ProductCard({
 
     if (
       p.item_type !== "PACK" &&
-      ((p.variants?.length || 0) > 0 || (p.colors?.length || 0) > 0)
+      (
+        (p.variants?.length || 0) > 0 ||
+        (p.colors?.length || 0) > 0
+      )
     ) {
       router.push(detailHref);
       return;
     }
 
     addCurrentProductToCart();
+
     router.push("/panier");
   }
+
+  /* =========================
+     RENDER
+  ========================== */
 
   return (
     <motion.article
@@ -251,9 +352,35 @@ export default function ProductCard({
       {/* =========================
           PHOTO
       ========================== */}
-      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-zinc-50 via-white to-zinc-100">
-        {/* Badge promotion / nouveau */}
-        <div className="absolute left-2.5 top-2.5 z-30 flex flex-wrap gap-1.5 sm:left-4 sm:top-4">
+
+      <div className="
+        relative
+        aspect-square
+        overflow-hidden
+        bg-gradient-to-br
+        from-zinc-50
+        via-white
+        to-zinc-100
+      ">
+
+        {/* =========================
+            BADGE PROMOTION / NOUVEAU
+        ========================== */}
+
+        <div className="
+          absolute
+          left-2.5
+          top-2.5
+          z-30
+          flex
+          flex-wrap
+          gap-1.5
+          sm:left-4
+          sm:top-4
+        ">
+
+          {/* PROMOTION PRIORITAIRE */}
+
           {promotion ? (
             <motion.span
               initial={{
@@ -280,8 +407,19 @@ export default function ProductCard({
             >
               -{promotion}%
             </motion.span>
-          ) : (
-            <span
+          ) : isNewProduct ? (
+
+            /* NOUVEAU UNIQUEMENT 30 JOURS */
+
+            <motion.span
+              initial={{
+                opacity: 0,
+                x: -10,
+              }}
+              animate={{
+                opacity: 1,
+                x: 0,
+              }}
               className="
                 rounded-full
                 border
@@ -302,11 +440,15 @@ export default function ProductCard({
               "
             >
               Nouveau
-            </span>
-          )}
+            </motion.span>
+
+          ) : null}
         </div>
 
-        {/* Bouton panier premium */}
+        {/* =========================
+            BOUTON PANIER
+        ========================== */}
+
         <AnimatePresence
           mode="wait"
           initial={false}
@@ -319,7 +461,9 @@ export default function ProductCard({
                   : "cart"
               }
               type="button"
-              onClick={handleAddToCart}
+              onClick={
+                handleAddToCart
+              }
               initial={{
                 opacity: 0,
                 scale: 0.82,
@@ -378,46 +522,64 @@ export default function ProductCard({
               `}
             >
               {isAdded ? (
-                <Check className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+                <Check className="
+                  h-4.5
+                  w-4.5
+                  sm:h-5
+                  sm:w-5
+                " />
               ) : (
-                <ShoppingCart className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+                <ShoppingCart className="
+                  h-4.5
+                  w-4.5
+                  sm:h-5
+                  sm:w-5
+                " />
               )}
             </motion.button>
           ) : (
-            <span
-              className="
-                absolute
-                right-2.5
-                top-2.5
-                z-40
-                rounded-full
-                border
-                border-red-100
-                bg-white/95
-                px-2.5
-                py-1.5
-                text-[8px]
-                font-black
-                uppercase
-                text-red-500
-                shadow-lg
-                backdrop-blur
-                sm:right-4
-                sm:top-4
-                sm:px-3
-                sm:text-[10px]
-              "
-            >
+            <span className="
+              absolute
+              right-2.5
+              top-2.5
+              z-40
+              rounded-full
+              border
+              border-red-100
+              bg-white/95
+              px-2.5
+              py-1.5
+              text-[8px]
+              font-black
+              uppercase
+              text-red-500
+              shadow-lg
+              backdrop-blur
+              sm:right-4
+              sm:top-4
+              sm:px-3
+              sm:text-[10px]
+            ">
               Indispo
             </span>
           )}
         </AnimatePresence>
 
-        {/* Image cliquable */}
+        {/* =========================
+            IMAGE CLIQUABLE
+        ========================== */}
+
         <Link
           href={detailHref}
-          aria-label={`Voir l’article ${p.designation}`}
-          className="absolute inset-0 z-10 block"
+          aria-label={
+            `Voir l’article ${p.designation}`
+          }
+          className="
+            absolute
+            inset-0
+            z-10
+            block
+          "
         >
           {primaryImage ? (
             <motion.img
@@ -426,7 +588,11 @@ export default function ProductCard({
               loading="lazy"
               decoding="async"
               draggable={false}
-              className="h-full w-full object-cover"
+              className="
+                h-full
+                w-full
+                object-cover
+              "
               whileHover={{
                 scale: 1.055,
               }}
@@ -436,102 +602,207 @@ export default function ProductCard({
               }}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <ShoppingCart className="h-14 w-14 text-zinc-300 sm:h-16 sm:w-16" />
+            <div className="
+              flex
+              h-full
+              w-full
+              items-center
+              justify-center
+            ">
+              <ShoppingCart className="
+                h-14
+                w-14
+                text-zinc-300
+                sm:h-16
+                sm:w-16
+              " />
             </div>
           )}
 
-          <div
-            className="
-              absolute
-              inset-0
-              bg-gradient-to-t
-              from-black/20
-              via-transparent
-              to-transparent
-              opacity-0
-              transition-opacity
-              duration-300
-              group-hover:opacity-100
-            "
-          />
+          <div className="
+            absolute
+            inset-0
+            bg-gradient-to-t
+            from-black/20
+            via-transparent
+            to-transparent
+            opacity-0
+            transition-opacity
+            duration-300
+            group-hover:opacity-100
+          " />
         </Link>
 
-        {/* petit halo visuel en bas */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-16 bg-gradient-to-t from-white/10 to-transparent" />
+        {/* Halo */}
+
+        <div className="
+          pointer-events-none
+          absolute
+          inset-x-0
+          bottom-0
+          z-20
+          h-16
+          bg-gradient-to-t
+          from-white/10
+          to-transparent
+        " />
       </div>
 
       {/* =========================
           CONTENU
       ========================== */}
-      <div className="flex flex-1 flex-col p-3.5 sm:p-5">
-        <div className="flex items-center justify-between gap-2">
-          <span
-            className="
-              truncate
-              text-[8px]
-              font-black
-              uppercase
-              tracking-[0.13em]
-              text-orange-500
-              sm:text-[10px]
-              sm:tracking-[0.18em]
-            "
-          >
+
+      <div className="
+        flex
+        flex-1
+        flex-col
+        p-3.5
+        sm:p-5
+      ">
+
+        {/* CATEGORIE */}
+
+        <div className="
+          flex
+          items-center
+          justify-between
+          gap-2
+        ">
+          <span className="
+            truncate
+            text-[8px]
+            font-black
+            uppercase
+            tracking-[0.13em]
+            text-orange-500
+            sm:text-[10px]
+            sm:tracking-[0.18em]
+          ">
             {p.category}
           </span>
 
-          {promotion && p.promotion_name ? (
-            <span className="max-w-[46%] truncate rounded-full bg-orange-50 px-2 py-1 text-[8px] font-black text-orange-600 sm:text-[9px]">
+          {/* NOM PROMOTION */}
+
+          {promotion &&
+          p.promotion_name ? (
+            <span className="
+              max-w-[46%]
+              truncate
+              rounded-full
+              bg-orange-50
+              px-2
+              py-1
+              text-[8px]
+              font-black
+              text-orange-600
+              sm:text-[9px]
+            ">
               {p.promotion_name}
             </span>
           ) : null}
         </div>
 
+        {/* =========================
+            NOM PRODUIT
+        ========================== */}
+
         <Link
           href={detailHref}
-          className="mt-2.5 sm:mt-3"
+          className="
+            mt-2.5
+            sm:mt-3
+          "
         >
-          <h3
-            className="
-              line-clamp-2
-              min-h-10
-              text-[13px]
-              font-black
-              leading-5
-              text-zinc-950
-              transition-colors
-              group-hover:text-orange-600
-              sm:min-h-12
-              sm:text-base
-              sm:font-bold
-              sm:leading-6
-            "
-          >
+          <h3 className="
+            line-clamp-2
+            min-h-10
+            text-[13px]
+            font-black
+            leading-5
+            text-zinc-950
+            transition-colors
+            group-hover:text-orange-600
+            sm:min-h-12
+            sm:text-base
+            sm:font-bold
+            sm:leading-6
+          ">
             {p.designation}
           </h3>
         </Link>
 
-        {/* Prix + détails */}
-        <div className="mt-auto flex items-end justify-between gap-2 pt-3.5 sm:gap-4 sm:pt-5">
-          <div className="min-w-0">
-            {p.old_price &&
-              p.old_price > p.price && (
-                <span className="mb-0.5 block text-[9px] font-semibold text-zinc-400 line-through sm:text-xs">
-                  {formatPrice(p.old_price)} DA
-                </span>
-              )}
+        {/* =========================
+            PRIX
+        ========================== */}
 
-            <div className="flex flex-wrap items-baseline gap-1">
-              <strong className="text-[17px] font-black tracking-tight text-zinc-950 sm:text-xl">
-                {formatPrice(p.price)}
+        <div className="
+          mt-auto
+          flex
+          items-end
+          justify-between
+          gap-2
+          pt-3.5
+          sm:gap-4
+          sm:pt-5
+        ">
+          <div className="
+            min-w-0
+          ">
+
+            {/* ANCIEN PRIX */}
+
+            {p.old_price &&
+            p.old_price > p.price ? (
+              <span className="
+                mb-0.5
+                block
+                text-[9px]
+                font-semibold
+                text-zinc-400
+                line-through
+                sm:text-xs
+              ">
+                {formatPrice(
+                  p.old_price,
+                )}{" "}
+                DA
+              </span>
+            ) : null}
+
+            {/* PRIX ACTUEL */}
+
+            <div className="
+              flex
+              flex-wrap
+              items-baseline
+              gap-1
+            ">
+              <strong className="
+                text-[17px]
+                font-black
+                tracking-tight
+                text-zinc-950
+                sm:text-xl
+              ">
+                {formatPrice(
+                  p.price,
+                )}
               </strong>
 
-              <span className="text-[10px] font-black text-orange-500 sm:text-sm">
+              <span className="
+                text-[10px]
+                font-black
+                text-orange-500
+                sm:text-sm
+              ">
                 DA
               </span>
             </div>
           </div>
+
+          {/* =========================
+              DETAILS
+          ========================== */}
 
           <motion.div
             whileHover={{
@@ -543,7 +814,9 @@ export default function ProductCard({
           >
             <Link
               href={detailHref}
-              aria-label={`Voir les détails de ${p.designation}`}
+              aria-label={
+                `Voir les détails de ${p.designation}`
+              }
               className="
                 flex
                 h-8
@@ -565,18 +838,41 @@ export default function ProductCard({
                 sm:rounded-2xl
               "
             >
-              <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <ArrowRight className="
+                h-3.5
+                w-3.5
+                sm:h-4
+                sm:w-4
+              " />
             </Link>
           </motion.div>
         </div>
 
-        {/* Stock */}
-        <div className="mt-2.5 flex items-center gap-1.5 text-[9px] font-bold sm:mt-3 sm:gap-2 sm:text-[11px] sm:font-medium">
+        {/* =========================
+            STOCK
+        ========================== */}
+
+        <div className="
+          mt-2.5
+          flex
+          items-center
+          gap-1.5
+          text-[9px]
+          font-bold
+          sm:mt-3
+          sm:gap-2
+          sm:text-[11px]
+          sm:font-medium
+        ">
           <motion.span
             animate={
               inStock
                 ? {
-                    scale: [1, 1.18, 1],
+                    scale: [
+                      1,
+                      1.18,
+                      1,
+                    ],
                   }
                 : {
                     scale: 1,
@@ -589,11 +885,16 @@ export default function ProductCard({
                 : 0,
               ease: "easeInOut",
             }}
-            className={`h-2 w-2 rounded-full ${
-              inStock
-                ? "bg-emerald-500"
-                : "bg-red-500"
-            }`}
+            className={`
+              h-2
+              w-2
+              rounded-full
+              ${
+                inStock
+                  ? "bg-emerald-500"
+                  : "bg-red-500"
+              }
+            `}
           />
 
           <span
@@ -603,7 +904,9 @@ export default function ProductCard({
                 : "text-red-600"
             }
           >
-            <span className="sm:hidden">
+            <span className="
+              sm:hidden
+            ">
               {!stockManaged
                 ? "Disponible"
                 : inStock
@@ -611,7 +914,10 @@ export default function ProductCard({
                   : "Indisponible"}
             </span>
 
-            <span className="hidden sm:inline">
+            <span className="
+              hidden
+              sm:inline
+            ">
               {!stockManaged
                 ? "Disponible"
                 : inStock
@@ -621,10 +927,15 @@ export default function ProductCard({
           </span>
         </div>
 
-        {/* Acheter */}
+        {/* =========================
+            ACHETER
+        ========================== */}
+
         <motion.button
           type="button"
-          onClick={handleBuyNow}
+          onClick={
+            handleBuyNow
+          }
           disabled={!inStock}
           whileHover={
             inStock
@@ -640,14 +951,40 @@ export default function ProductCard({
                 }
               : undefined
           }
-          className={`mt-3.5 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl px-3 text-[10px] font-black transition-all sm:mt-4 sm:min-h-11 sm:gap-2 sm:rounded-2xl sm:px-4 sm:text-sm ${
-            inStock
-              ? "bg-orange-500 text-white shadow-[0_8px_22px_rgba(249,115,22,0.24)] hover:bg-orange-600 hover:shadow-[0_10px_28px_rgba(249,115,22,0.32)]"
-              : "cursor-not-allowed bg-zinc-100 text-zinc-400"
-          }`}
+          className={`
+            mt-3.5
+            flex
+            min-h-10
+            w-full
+            items-center
+            justify-center
+            gap-1.5
+            rounded-xl
+            px-3
+            text-[10px]
+            font-black
+            transition-all
+            sm:mt-4
+            sm:min-h-11
+            sm:gap-2
+            sm:rounded-2xl
+            sm:px-4
+            sm:text-sm
+            ${
+              inStock
+                ? "bg-orange-500 text-white shadow-[0_8px_22px_rgba(249,115,22,0.24)] hover:bg-orange-600 hover:shadow-[0_10px_28px_rgba(249,115,22,0.32)]"
+                : "cursor-not-allowed bg-zinc-100 text-zinc-400"
+            }
+          `}
         >
-          <ShoppingBag className="h-4 w-4" />
-          <span>Acheter / شراء</span>
+          <ShoppingBag className="
+            h-4
+            w-4
+          " />
+
+          <span>
+            Acheter / شراء
+          </span>
         </motion.button>
       </div>
     </motion.article>
