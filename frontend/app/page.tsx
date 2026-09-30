@@ -818,94 +818,60 @@ function CategoryCarousel({
 }: {
   categories: Category[];
 }) {
-  const [activeIndex, setActiveIndex] =
-    useState(0);
-  const [paused, setPaused] =
-    useState(false);
-  const [direction, setDirection] =
-    useState<1 | -1>(1);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [direction, setDirection] = useState<1 | -1>(1);
 
   useEffect(() => {
-    if (
-      paused ||
-      categories.length <= 1
-    ) {
-      return;
-    }
+    if (paused || categories.length <= 1) return;
 
-    const intervalId =
-      window.setInterval(() => {
-        setDirection(1);
-        setActiveIndex((current) =>
-          (current + 1) %
-          categories.length,
-        );
-      }, 5200);
+    const timer = window.setInterval(() => {
+      setDirection(1);
+      setActiveIndex((current) => (current + 1) % categories.length);
+    }, 5500);
 
-    return () => {
-      window.clearInterval(intervalId);
-    };
+    return () => window.clearInterval(timer);
   }, [paused, categories.length]);
 
   useEffect(() => {
-    if (
-      activeIndex >= categories.length &&
-      categories.length > 0
-    ) {
+    if (activeIndex >= categories.length && categories.length > 0) {
       setActiveIndex(0);
     }
   }, [activeIndex, categories.length]);
 
-  if (categories.length === 0) {
-    return null;
-  }
+  if (!categories.length) return null;
 
-  function previousCategory() {
-    setDirection(-1);
-    setActiveIndex((current) =>
-      current === 0
-        ? categories.length - 1
-        : current - 1,
-    );
-  }
-
-  function nextCategory() {
-    setDirection(1);
-    setActiveIndex((current) =>
-      (current + 1) %
-      categories.length,
-    );
-  }
-
-  function selectCategory(index: number) {
-    if (index === activeIndex) {
-      return;
-    }
-
-    setDirection(
-      index > activeIndex ? 1 : -1,
-    );
-    setActiveIndex(index);
-  }
-
-  const activeCategory =
-    categories[activeIndex];
+  const activeCategory = categories[activeIndex];
   const ActiveIcon = activeCategory.icon;
 
   const previousIndex =
-    activeIndex === 0
-      ? categories.length - 1
-      : activeIndex - 1;
+    activeIndex === 0 ? categories.length - 1 : activeIndex - 1;
 
-  const nextIndex =
-    (activeIndex + 1) %
-    categories.length;
+  const nextIndex = (activeIndex + 1) % categories.length;
 
-  const previousCategoryItem =
-    categories[previousIndex];
+  const previousCategory = categories[previousIndex];
+  const nextCategory = categories[nextIndex];
 
-  const nextCategoryItem =
-    categories[nextIndex];
+  function previousCategoryAction() {
+    setDirection(-1);
+
+    setActiveIndex((current) =>
+      current === 0 ? categories.length - 1 : current - 1,
+    );
+  }
+
+  function nextCategoryAction() {
+    setDirection(1);
+
+    setActiveIndex((current) => (current + 1) % categories.length);
+  }
+
+  function selectCategory(index: number) {
+    if (index === activeIndex) return;
+
+    setDirection(index > activeIndex ? 1 : -1);
+    setActiveIndex(index);
+  }
 
   return (
     <div
@@ -913,9 +879,11 @@ function CategoryCarousel({
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      {/* Sélecteur rapide des catégories */}
-      <div className="-mx-4 mb-6 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0">
-        <div className="mx-auto flex w-max items-center gap-2 sm:w-auto sm:flex-wrap sm:justify-center">
+      {/* =====================================================
+          CATÉGORIES — NAVIGATION PREMIUM
+      ====================================================== */}
+      <div className="mb-7 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="mx-auto flex w-max items-center justify-center gap-2.5 sm:w-auto sm:flex-wrap">
           {categories.map((category, index) => {
             const Icon = category.icon;
             const active = index === activeIndex;
@@ -924,87 +892,113 @@ function CategoryCarousel({
               <motion.button
                 key={category.id}
                 type="button"
+                onClick={() => selectCategory(index)}
+                whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.96 }}
-                onClick={() =>
-                  selectCategory(index)
-                }
-                className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-2.5 text-xs font-black transition-all duration-300 sm:px-4 sm:text-sm ${
+                className={`group relative flex shrink-0 items-center gap-2.5 overflow-hidden rounded-full px-4 py-2.5 text-xs font-black transition-all duration-300 sm:px-5 sm:py-3 sm:text-sm ${
                   active
-                    ? "border-orange-500 bg-orange-500 text-white shadow-lg shadow-orange-500/20"
-                    : "border-orange-200 bg-orange-50 text-orange-600 hover:border-orange-400 hover:bg-orange-100"
+                    ? "bg-zinc-950 text-white shadow-xl shadow-zinc-950/15"
+                    : "bg-white text-zinc-600 shadow-sm ring-1 ring-zinc-200 hover:bg-orange-50 hover:text-orange-600 hover:ring-orange-200"
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                {category.name}
+                {active && (
+                  <motion.span
+                    layoutId="categoryActiveDot"
+                    className="absolute inset-0 bg-gradient-to-r from-orange-500 to-orange-600"
+                  />
+                )}
+
+                <span className="relative z-10 flex items-center gap-2.5">
+                  <span
+                    className={`flex h-7 w-7 items-center justify-center rounded-full transition ${
+                      active
+                        ? "bg-white/20 text-white"
+                        : "bg-orange-50 text-orange-500 group-hover:bg-orange-100"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+
+                  {category.name}
+                </span>
               </motion.button>
             );
           })}
         </div>
       </div>
 
-      <div className="relative mx-auto max-w-7xl">
-        {/* halo décoratif */}
+      {/* =====================================================
+          CAROUSEL
+      ====================================================== */}
+      <div className="relative mx-auto max-w-[1320px]">
+        {/* Halo décoratif */}
         <motion.div
           aria-hidden="true"
           animate={{
             scale: [1, 1.08, 1],
-            opacity: [0.28, 0.5, 0.28],
+            opacity: [0.18, 0.32, 0.18],
           }}
           transition={{
             duration: 5,
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="pointer-events-none absolute left-1/2 top-1/2 h-[72%] w-[72%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-300/20 blur-3xl"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[65%] w-[65%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-400/20 blur-[90px]"
         />
 
-        <div className="relative flex min-h-[430px] items-center justify-center sm:min-h-[540px] lg:min-h-[590px]">
-          {/* aperçu gauche desktop */}
+        <div className="relative flex min-h-[430px] items-center justify-center sm:min-h-[540px] lg:min-h-[610px]">
+          {/* =================================================
+              CARTE GAUCHE
+          ================================================== */}
           {categories.length > 1 && (
             <motion.button
               type="button"
-              onClick={previousCategory}
+              onClick={previousCategoryAction}
               whileHover={{
-                x: 8,
+                x: 10,
                 scale: 1.02,
-                opacity: 0.9,
+                opacity: 0.85,
               }}
-              aria-label={`Afficher ${previousCategoryItem.name}`}
-              className="absolute left-0 z-10 hidden w-[34%] max-w-[390px] -translate-x-[45%] overflow-hidden rounded-[34px] border border-white/70 bg-white text-left opacity-55 shadow-[0_24px_70px_rgba(24,24,27,0.16)] lg:block"
+              className="absolute left-0 z-10 hidden h-[410px] w-[31%] max-w-[390px] -translate-x-[48%] overflow-hidden rounded-[34px] bg-zinc-900 shadow-2xl lg:block"
+              aria-label={`Afficher ${previousCategory.name}`}
             >
-              <div className="relative h-[360px]">
-                {previousCategoryItem.image ? (
-                  <img
-                    src={previousCategoryItem.image}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
-                    {(() => {
-                      const Icon =
-                        previousCategoryItem.icon;
-                      return (
-                        <Icon className={`h-20 w-20 ${previousCategoryItem.iconClassName}`} />
-                      );
-                    })()}
-                  </div>
-                )}
+              {previousCategory.image ? (
+                <img
+                  src={previousCategory.image}
+                  alt={previousCategory.name}
+                  className="h-full w-full object-cover opacity-65"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-zinc-100">
+                  {(() => {
+                    const Icon = previousCategory.icon;
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-
-                <div className="absolute inset-x-0 bottom-0 p-7 text-white">
-                  <span className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">
-                    Précédent
-                  </span>
-                  <h3 className="mt-2 text-3xl font-black">
-                    {previousCategoryItem.name}
-                  </h3>
+                    return (
+                      <Icon
+                        className={`h-20 w-20 ${previousCategory.iconClassName}`}
+                      />
+                    );
+                  })()}
                 </div>
+              )}
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40" />
+
+              <div className="absolute inset-x-0 bottom-0 p-7 text-left text-white">
+                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-300">
+                  Précédent
+                </span>
+
+                <h3 className="mt-2 text-2xl font-black">
+                  {previousCategory.name}
+                </h3>
               </div>
             </motion.button>
           )}
 
+          {/* =================================================
+              CARTE PRINCIPALE
+          ================================================== */}
           <AnimatePresence
             initial={false}
             mode="wait"
@@ -1015,32 +1009,24 @@ function CategoryCarousel({
               custom={direction}
               initial={{
                 opacity: 0,
-                x: direction > 0 ? 90 : -90,
-                y: 18,
+                x: direction > 0 ? 100 : -100,
                 scale: 0.94,
-                rotateY:
-                  direction > 0 ? 5 : -5,
-                filter: "blur(7px)",
+                filter: "blur(8px)",
               }}
               animate={{
                 opacity: 1,
                 x: 0,
-                y: 0,
                 scale: 1,
-                rotateY: 0,
                 filter: "blur(0px)",
               }}
               exit={{
                 opacity: 0,
-                x: direction > 0 ? -90 : 90,
-                y: -12,
-                scale: 0.95,
-                rotateY:
-                  direction > 0 ? -4 : 4,
-                filter: "blur(6px)",
+                x: direction > 0 ? -100 : 100,
+                scale: 0.96,
+                filter: "blur(7px)",
               }}
               transition={{
-                duration: 0.62,
+                duration: 0.65,
                 ease: [0.22, 1, 0.36, 1],
               }}
               drag="x"
@@ -1049,9 +1035,7 @@ function CategoryCarousel({
                 right: 0,
               }}
               dragElastic={0.15}
-              onDragStart={() =>
-                setPaused(true)
-              }
+              onDragStart={() => setPaused(true)}
               onDragEnd={(_event, info) => {
                 setPaused(false);
 
@@ -1059,7 +1043,7 @@ function CategoryCarousel({
                   info.offset.x < -55 ||
                   info.velocity.x < -420
                 ) {
-                  nextCategory();
+                  nextCategoryAction();
                   return;
                 }
 
@@ -1067,35 +1051,35 @@ function CategoryCarousel({
                   info.offset.x > 55 ||
                   info.velocity.x > 420
                 ) {
-                  previousCategory();
+                  previousCategoryAction();
                 }
               }}
-              className="relative z-20 w-full max-w-[720px] cursor-grab active:cursor-grabbing"
+              className="relative z-20 w-full max-w-[760px] cursor-grab active:cursor-grabbing"
             >
               <Link
                 href={activeCategory.href}
-                className="group relative block overflow-hidden rounded-[28px] border border-white bg-white shadow-[0_30px_100px_rgba(24,24,27,0.20)] sm:rounded-[38px]"
+                className="group relative block overflow-hidden rounded-[30px] bg-white shadow-[0_35px_100px_rgba(24,24,27,0.22)] ring-1 ring-black/5 sm:rounded-[40px]"
               >
-                {/* image */}
-                <div className="relative h-[300px] overflow-hidden sm:h-[420px] lg:h-[465px]">
+                {/* IMAGE */}
+                <div className="relative h-[400px] overflow-hidden sm:h-[500px] lg:h-[540px]">
                   {activeCategory.image ? (
                     <motion.img
                       key={activeCategory.image}
                       src={activeCategory.image}
                       alt={activeCategory.name}
-                      initial={{ scale: 1.08 }}
+                      initial={{ scale: 1.12 }}
                       animate={{ scale: 1 }}
                       transition={{
-                        duration: 1.1,
+                        duration: 1.2,
                         ease: "easeOut",
                       }}
-                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                      className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-[1.045]"
                     />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
-                      <motion.span
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-50 via-white to-zinc-100">
+                      <motion.div
                         animate={{
-                          y: [0, -8, 0],
+                          y: [0, -10, 0],
                           rotate: [0, 2, 0],
                         }}
                         transition={{
@@ -1103,74 +1087,95 @@ function CategoryCarousel({
                           repeat: Infinity,
                           ease: "easeInOut",
                         }}
-                        className={`flex h-28 w-28 items-center justify-center rounded-[34px] sm:h-36 sm:w-36 ${activeCategory.iconBackground} ${activeCategory.iconClassName}`}
+                        className={`flex h-36 w-36 items-center justify-center rounded-[40px] shadow-xl ${activeCategory.iconBackground}`}
                       >
-                        <ActiveIcon className="h-14 w-14 sm:h-20 sm:w-20" />
-                      </motion.span>
+                        <ActiveIcon
+                          className={`h-20 w-20 ${activeCategory.iconClassName}`}
+                        />
+                      </motion.div>
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/5" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent" />
+                  {/* Overlay principal */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/5" />
 
-                  {/* badge compteur */}
-                  <motion.span
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/35 via-transparent to-transparent" />
+
+                  {/* Ligne lumineuse */}
+                  <div className="absolute inset-x-8 top-7 h-px bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+
+                  {/* =================================================
+                      COMPTEUR
+                  ================================================== */}
+                  <motion.div
                     initial={{
                       opacity: 0,
-                      y: -12,
+                      y: -15,
                     }}
                     animate={{
                       opacity: 1,
                       y: 0,
                     }}
                     transition={{
-                      delay: 0.18,
+                      delay: 0.2,
                     }}
-                    className="absolute right-4 top-4 rounded-full border border-white/20 bg-black/35 px-3 py-2 text-[11px] font-black text-white backdrop-blur-md sm:right-6 sm:top-6 sm:px-4 sm:text-xs"
+                    className="absolute right-5 top-5 sm:right-7 sm:top-7"
                   >
-                    {activeCategory.articleCount}{" "}
-                    {activeCategory.articleCount > 1
-                      ? "articles"
-                      : "article"}
-                  </motion.span>
+                    <div className="flex items-center gap-2 rounded-full border border-white/20 bg-black/35 px-3.5 py-2.5 text-xs font-black text-white shadow-xl backdrop-blur-xl">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-orange-400" />
 
-                  {/* contenu */}
-                  <div className="absolute inset-x-0 bottom-0 p-5 text-white sm:p-9">
-                    <motion.span
+                      {activeCategory.articleCount}{" "}
+                      {activeCategory.articleCount > 1
+                        ? "articles"
+                        : "article"}
+                    </div>
+                  </motion.div>
+
+                  {/* =================================================
+                      CONTENU
+                  ================================================== */}
+                  <div className="absolute inset-x-0 bottom-0 p-6 sm:p-9 lg:p-10">
+                    {/* Icône */}
+                    <motion.div
                       initial={{
-                        scale: 0.8,
                         opacity: 0,
+                        y: 15,
+                        scale: 0.85,
                       }}
                       animate={{
-                        scale: 1,
                         opacity: 1,
+                        y: 0,
+                        scale: 1,
                       }}
                       transition={{
-                        delay: 0.12,
+                        delay: 0.1,
+                        duration: 0.5,
                       }}
-                      className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-500 shadow-xl shadow-orange-950/30 sm:h-14 sm:w-14"
+                      className="flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-500 text-white shadow-2xl shadow-orange-950/30 sm:h-16 sm:w-16"
                     >
-                      <ActiveIcon className="h-6 w-6 sm:h-7 sm:w-7" />
-                    </motion.span>
+                      <ActiveIcon className="h-7 w-7 sm:h-8 sm:w-8" />
+                    </motion.div>
 
+                    {/* Titre */}
                     <motion.h3
                       initial={{
                         opacity: 0,
-                        y: 24,
+                        y: 25,
                       }}
                       animate={{
                         opacity: 1,
                         y: 0,
                       }}
                       transition={{
-                        delay: 0.12,
-                        duration: 0.5,
+                        delay: 0.15,
+                        duration: 0.55,
                       }}
-                      className="mt-4 text-3xl font-black tracking-tight sm:mt-5 sm:text-5xl"
+                      className="mt-5 max-w-[650px] text-4xl font-black leading-[0.95] tracking-tight text-white sm:text-5xl lg:text-6xl"
                     >
                       {activeCategory.name}
                     </motion.h3>
 
+                    {/* Description */}
                     <motion.p
                       initial={{
                         opacity: 0,
@@ -1181,146 +1186,169 @@ function CategoryCarousel({
                         y: 0,
                       }}
                       transition={{
-                        delay: 0.2,
+                        delay: 0.22,
                         duration: 0.5,
                       }}
-                      className="mt-2 max-w-xl line-clamp-2 text-sm leading-6 text-zinc-200 sm:mt-3 sm:text-base sm:leading-7"
+                      className="mt-4 max-w-xl text-sm leading-6 text-white/75 sm:text-base"
                     >
                       {activeCategory.description}
                     </motion.p>
-                  </div>
-                </div>
 
-                {/* barre action */}
-                <div className="flex items-center justify-between gap-3 px-5 py-4 sm:px-9 sm:py-5">
-                  <div>
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
-                      Explorer l’univers
-                    </span>
-                    <span className="mt-1 block text-sm font-black text-orange-600 sm:text-base">
-                      Découvrir {activeCategory.name}
-                    </span>
-                  </div>
+                    {/* CTA */}
+                    <motion.div
+                      initial={{
+                        opacity: 0,
+                        y: 15,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                      }}
+                      transition={{
+                        delay: 0.3,
+                        duration: 0.5,
+                      }}
+                      className="mt-6"
+                    >
+                      <span className="inline-flex items-center gap-3 rounded-2xl bg-white px-5 py-3.5 text-sm font-black text-zinc-950 shadow-xl transition-all duration-300 group-hover:bg-orange-500 group-hover:text-white sm:px-6 sm:py-4"
+                      >
+                        Explorer la catégorie
 
-                  <motion.span
-                    whileHover={{
-                      x: 4,
-                      scale: 1.05,
-                    }}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-orange-500 text-white transition-colors group-hover:bg-orange-600 sm:h-12 sm:w-12"
-                  >
-                    <ArrowRight className="h-5 w-5" />
-                  </motion.span>
+                        <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                      </span>
+                    </motion.div>
+                  </div>
                 </div>
               </Link>
             </motion.div>
           </AnimatePresence>
 
-          {/* aperçu droite desktop */}
+          {/* =================================================
+              CARTE DROITE
+          ================================================== */}
           {categories.length > 1 && (
             <motion.button
               type="button"
-              onClick={nextCategory}
+              onClick={nextCategoryAction}
               whileHover={{
-                x: -8,
+                x: -10,
                 scale: 1.02,
-                opacity: 0.9,
+                opacity: 0.85,
               }}
-              aria-label={`Afficher ${nextCategoryItem.name}`}
-              className="absolute right-0 z-10 hidden w-[34%] max-w-[390px] translate-x-[45%] overflow-hidden rounded-[34px] border border-white/70 bg-white text-left opacity-55 shadow-[0_24px_70px_rgba(24,24,27,0.16)] lg:block"
+              className="absolute right-0 z-10 hidden h-[410px] w-[31%] max-w-[390px] translate-x-[48%] overflow-hidden rounded-[34px] bg-zinc-900 shadow-2xl lg:block"
+              aria-label={`Afficher ${nextCategory.name}`}
             >
-              <div className="relative h-[360px]">
-                {nextCategoryItem.image ? (
-                  <img
-                    src={nextCategoryItem.image}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-orange-50">
-                    {(() => {
-                      const Icon =
-                        nextCategoryItem.icon;
-                      return (
-                        <Icon className={`h-20 w-20 ${nextCategoryItem.iconClassName}`} />
-                      );
-                    })()}
-                  </div>
-                )}
+              {nextCategory.image ? (
+                <img
+                  src={nextCategory.image}
+                  alt={nextCategory.name}
+                  className="h-full w-full object-cover opacity-65"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-zinc-100">
+                  {(() => {
+                    const Icon = nextCategory.icon;
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-
-                <div className="absolute inset-x-0 bottom-0 p-7 text-white">
-                  <span className="text-xs font-black uppercase tracking-[0.18em] text-orange-300">
-                    Suivant
-                  </span>
-                  <h3 className="mt-2 text-3xl font-black">
-                    {nextCategoryItem.name}
-                  </h3>
+                    return (
+                      <Icon
+                        className={`h-20 w-20 ${nextCategory.iconClassName}`}
+                      />
+                    );
+                  })()}
                 </div>
+              )}
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40" />
+
+              <div className="absolute inset-x-0 bottom-0 p-7 text-right text-white">
+                <span className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-300">
+                  Suivant
+                </span>
+
+                <h3 className="mt-2 text-2xl font-black">
+                  {nextCategory.name}
+                </h3>
               </div>
             </motion.button>
           )}
-
-          {/* Flèches - très lisibles mobile/tablette */}
-          {categories.length > 1 && (
-            <>
-              <motion.button
-                type="button"
-                whileTap={{
-                  scale: 0.9,
-                }}
-                onClick={previousCategory}
-                aria-label="Catégorie précédente"
-                className="absolute left-2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-orange-400 bg-orange-500 text-white shadow-xl shadow-orange-500/20 backdrop-blur transition hover:bg-orange-600 sm:left-4 sm:h-12 sm:w-12 lg:left-[8%]"
-              >
-                <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
-              </motion.button>
-
-              <motion.button
-                type="button"
-                whileTap={{
-                  scale: 0.9,
-                }}
-                onClick={nextCategory}
-                aria-label="Catégorie suivante"
-                className="absolute right-2 z-30 flex h-11 w-11 items-center justify-center rounded-full border border-orange-400 bg-orange-500 text-white shadow-xl shadow-orange-500/20 backdrop-blur transition hover:bg-orange-600 sm:right-4 sm:h-12 sm:w-12 lg:right-[8%]"
-              >
-                <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
-              </motion.button>
-            </>
-          )}
         </div>
-      </div>
 
-      {/* Pagination */}
-      <div className="mt-4 flex items-center justify-center gap-2 sm:mt-6">
-        {categories.map((category, index) => (
-          <button
-            key={category.id}
-            type="button"
-            onClick={() =>
-              selectCategory(index)
-            }
-            aria-label={`Afficher ${category.name}`}
-            className={`h-2.5 rounded-full transition-all duration-300 ${
-              index === activeIndex
-                ? "w-10 bg-orange-500"
-                : "w-2.5 bg-zinc-300 hover:bg-orange-300"
-            }`}
-          />
-        ))}
-      </div>
+        {/* =====================================================
+            CONTRÔLES
+        ====================================================== */}
+        {categories.length > 1 && (
+          <div className="relative z-30 mt-5 flex items-center justify-center gap-4">
+            {/* précédent */}
+            <motion.button
+              type="button"
+              whileHover={{
+                scale: 1.08,
+                x: -2,
+              }}
+              whileTap={{
+                scale: 0.92,
+              }}
+              onClick={previousCategoryAction}
+              aria-label="Catégorie précédente"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-800 shadow-lg ring-1 ring-zinc-200 transition-colors hover:bg-orange-500 hover:text-white hover:ring-orange-500"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </motion.button>
 
-      {/* Astuce swipe mobile */}
-      {categories.length > 1 && (
-        <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 sm:hidden">
-          Glissez à gauche ou à droite
-        </p>
-      )}
+            {/* pagination */}
+            <div className="flex items-center gap-2">
+              {categories.map((category, index) => {
+                const active = index === activeIndex;
+
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => selectCategory(index)}
+                    aria-label={`Afficher ${category.name}`}
+                    className={`h-2.5 rounded-full transition-all duration-300 ${
+                      active
+                        ? "w-10 bg-orange-500"
+                        : "w-2.5 bg-zinc-300 hover:w-5 hover:bg-orange-300"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+
+            {/* suivant */}
+            <motion.button
+              type="button"
+              whileHover={{
+                scale: 1.08,
+                x: 2,
+              }}
+              whileTap={{
+                scale: 0.92,
+              }}
+              onClick={nextCategoryAction}
+              aria-label="Catégorie suivante"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-800 shadow-lg ring-1 ring-zinc-200 transition-colors hover:bg-orange-500 hover:text-white hover:ring-orange-500"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </motion.button>
+          </div>
+        )}
+
+        {/* =====================================================
+            INDICATEUR MOBILE
+        ====================================================== */}
+        {categories.length > 1 && (
+          <p className="mt-4 text-center text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400 sm:hidden">
+            Glissez pour découvrir les catégories
+          </p>
+        )}
+      </div>
     </div>
   );
 }
+
+
 
 function SectionHeading({
   eyebrow,
