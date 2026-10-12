@@ -13,6 +13,7 @@ const packController = require("../controllers/packController");
 const dashboardController = require("../controllers/dashboardController");
 const zrController = require("../controllers/zrController");
 const userController = require("../controllers/userController");
+const articleAiController = require("../controllers/articleAiController");
 
 const router = express.Router();
 
@@ -106,6 +107,12 @@ const canReadArticles = requirePermission(
   "articles.view",
   "promotions.view",
   "packs.view",
+);
+
+router.post(
+  "/articles/ai-generate",
+  requirePermission("articles.create", "articles.update"),
+  asyncHandler(articleAiController.generateArticleContent),
 );
 
 router.get(

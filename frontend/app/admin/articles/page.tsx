@@ -27,6 +27,7 @@ import {
   RefreshCcw,
   Search,
   SlidersHorizontal,
+  Sparkles,
   Star,
   Trash2,
   X,
@@ -928,6 +929,29 @@ export default function ArticlesPage() {
     event.target.value = "";
   }
 
+  function addGeneratedFiles(files: File[]) {
+    const availableSlots = Math.max(
+      0,
+      10 - existingImages.length - selectedFiles.length,
+    );
+    const acceptedFiles = files.slice(0, availableSlots);
+
+    if (acceptedFiles.length === 0) {
+      setError("La limite de 10 images est déjà atteinte.");
+      return;
+    }
+
+    setSelectedFiles((current) => [...current, ...acceptedFiles]);
+    setSelectedFilePreviews((current) => [
+      ...current,
+      ...acceptedFiles.map((file) => URL.createObjectURL(file)),
+    ]);
+
+    if (acceptedFiles.length < files.length) {
+      setError(`Seules ${acceptedFiles.length} image(s) ont été ajoutées : la limite est de 10 images au total.`);
+    }
+  }
+
   function removeExistingImage(
     image: string,
   ) {
@@ -1672,6 +1696,7 @@ export default function ArticlesPage() {
           onFilesChange={
             handleFilesChange
           }
+          onGeneratedFiles={addGeneratedFiles}
         />
       )}
 
@@ -2504,6 +2529,7 @@ interface ArticleModalProps {
   onFilesChange: (
     event: ChangeEvent<HTMLInputElement>,
   ) => void;
+  onGeneratedFiles: (files: File[]) => void;
 }
 
 function ArticleModal({
@@ -2519,6 +2545,7 @@ function ArticleModal({
   onClose,
   onSubmit,
   onFilesChange,
+  onGeneratedFiles,
 }: ArticleModalProps) {
   /*
    * Le slug est généré automatiquement
@@ -2546,6 +2573,71 @@ function ArticleModal({
           "",
       ),
   );
+
+  const [descriptionValue, setDescriptionValue] = useState(
+    editing?.description || "",
+  );
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiMessage, setAiMessage] = useState("");
+
+  useEffect(() => {
+    setDescriptionValue(editing?.description || "");
+    setAiMessage("");
+  }, [editing?.id, editing?.description]);
+
+  async function generateWithAI(button: HTMLButtonElement) {
+    const formElement = button.form;
+    if (!formElement) return;
+
+    const formData = new FormData(formElement);
+    const designation = String(formData.get("designation") || "").trim();
+    const brand = String(formData.get("brand") || "").trim();
+    const reference = String(formData.get("reference") || "").trim();
+
+    if (!designation) {
+      setAiMessage("Saisissez d’abord la désignation du produit.");
+      return;
+    }
+
+    const availableSlots = 10 - existingImages.length - previews.length;
+    if (availableSlots <= 0) {
+      setAiMessage("La limite de 10 images est déjà atteinte. Retirez une image avant de générer les visuels.");
+      return;
+    }
+
+    setAiGenerating(true);
+    setAiMessage("Génération de la description et des visuels en cours…");
+
+    try {
+      const result = await apiFetch<{
+        success: boolean;
+        description: string;
+        images: { mimeType: string; base64: string; name: string }[];
+      }>("/admin/articles/ai-generate", {
+        method: "POST",
+        headers: adminHeaders(),
+        body: JSON.stringify({ designation, brand, reference }),
+      });
+
+      if (result.description) setDescriptionValue(result.description);
+
+      const generatedFiles = (result.images || []).slice(0, Math.min(3, availableSlots)).map((image, index) => {
+        const binary = atob(image.base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+        const mimeType = image.mimeType || "image/jpeg";
+        const extension = mimeType.includes("png") ? "png" : mimeType.includes("webp") ? "webp" : "jpg";
+        return new File([bytes], image.name || `visuel-ia-${index + 1}.${extension}`, { type: mimeType });
+      });
+
+      if (generatedFiles.length) onGeneratedFiles(generatedFiles);
+      setAiMessage(`Description générée. ${generatedFiles.length} visuel(s) ajouté(s) à l’aperçu. Vérifiez le contenu avant d’enregistrer.`);
+    } catch (requestError) {
+      setAiMessage(requestError instanceof Error ? requestError.message : "La génération IA a échoué.");
+    } finally {
+      setAiGenerating(false);
+    }
+  }
 
   const [
     colors,
@@ -3629,18 +3721,38 @@ function ArticleModal({
               </div>
             )}
 
+            <div className="sm:col-span-2 rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-white p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-black text-zinc-900">
+                    <Sparkles className="h-4 w-4 text-orange-500" />
+                    Assistant IA du catalogue
+                  </div>
+                  <p className="mt-1 text-xs leading-5 text-zinc-500">Propose une description et 3 visuels originaux. Les prix ne sont jamais générés ni modifiés.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={aiGenerating || saving}
+                  onClick={(event) => generateWithAI(event.currentTarget)}
+                  className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-3 text-xs font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {aiGenerating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {aiGenerating ? "Génération en cours…" : "Générer avec l’IA"}
+                </button>
+              </div>
+              {aiMessage && <p className="mt-3 rounded-xl bg-white/80 p-3 text-xs font-semibold leading-5 text-zinc-600" aria-live="polite">{aiMessage}</p>}
+            </div>
+
             <label className="sm:col-span-2 text-sm font-black text-zinc-700">
               Description
-
               <textarea
                 name="description"
-                defaultValue={
-                  editing?.description ||
-                  ""
-                }
+                value={descriptionValue}
+                onChange={(event) => setDescriptionValue(event.target.value)}
                 placeholder="Décrivez les caractéristiques principales de l’article..."
-                className="mt-2 min-h-32 w-full resize-y rounded-2xl border border-zinc-200 p-4 text-sm outline-none transition transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
+                className="mt-2 min-h-32 w-full resize-y rounded-2xl border border-zinc-200 p-4 text-sm outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-500/10"
               />
+              <span className="mt-1 block text-xs font-medium text-zinc-400">La description reste modifiable avant l’enregistrement.</span>
             </label>
           </div>
         </div>
