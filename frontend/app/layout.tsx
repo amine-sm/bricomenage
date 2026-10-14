@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import SiteChrome from "@/components/SiteChrome";
 import MobilePerformance from "@/components/MobilePerformance";
+import FloatingSocials from "@/components/FloatingSocials";
 import {
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -171,6 +172,7 @@ export default function RootLayout({
 
         <MobilePerformance>
           <SiteChrome>{children}</SiteChrome>
+            <FloatingSocials />
         </MobilePerformance>
       </body>
     </html>
