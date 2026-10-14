@@ -1,4 +1,5 @@
 const express = require("express");
+const multer = require("multer");
 const asyncHandler = require("../utils/asyncHandler");
 const { requireAdmin } = require("../middlewares/auth");
 const {
@@ -18,6 +19,19 @@ const articleAiController = require("../controllers/articleAiController");
 const router = express.Router();
 
 router.use(requireAdmin);
+
+/* =========================================================
+   UPLOAD IA (mémoire, pour Cloudflare / Gemini)
+========================================================= */
+
+const aiImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    files: 10,
+    fileSize: 8 * 1024 * 1024, // 8 Mo par fichier
+    fieldSize: 1 * 1024 * 1024, // 1 Mo par champ texte
+  },
+});
 
 /* =========================================================
    UTILISATEURS - SUPER ADMIN UNIQUEMENT
@@ -109,11 +123,23 @@ const canReadArticles = requirePermission(
   "packs.view",
 );
 
+/* --------- Route IA : multer AVANT le handler --------- */
+
 router.post(
   "/articles/ai-generate",
   requirePermission("articles.create", "articles.update"),
+  aiImageUpload.array("sourceImages", 10),
+  (req, res, next) => {
+    console.log("[AI DEBUG] Content-Type :", req.headers["content-type"]);
+    console.log("[AI DEBUG] Body keys :", Object.keys(req.body || {}));
+    console.log("[AI DEBUG] Body :", req.body);
+    console.log("[AI DEBUG] Fichiers :", req.files?.length || 0);
+    next();
+  },
   asyncHandler(articleAiController.generateArticleContent),
 );
+
+/* ------------------------------------------------------- */
 
 router.get(
   "/articles/references",

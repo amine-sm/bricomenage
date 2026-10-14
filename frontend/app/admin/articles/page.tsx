@@ -1682,6 +1682,7 @@ export default function ArticlesPage() {
           previews={
             selectedFilePreviews
           }
+          selectedFiles={selectedFiles}
           existingImages={
             existingImages
           }
@@ -2515,6 +2516,7 @@ interface ArticleModalProps {
   saving: boolean;
   error: string;
   previews: string[];
+  selectedFiles: File[];
   existingImages: string[];
   onRemoveExistingImage: (
     image: string,
@@ -2539,6 +2541,7 @@ function ArticleModal({
   saving,
   error,
   previews,
+  selectedFiles,
   existingImages,
   onRemoveExistingImage,
   onRemoveSelectedImage,
@@ -2599,29 +2602,52 @@ function ArticleModal({
       return;
     }
 
-    const availableSlots = 10 - existingImages.length - previews.length;
-    if (availableSlots <= 0) {
+    // Les images déjà générées ne doivent pas servir de sources lors d'une nouvelle tentative.
+    const sourceFiles = selectedFiles.filter(
+      (file) => !/^visuel-ia-/i.test(file.name),
+    );
+    if (sourceFiles.length === 0) {
+      setAiMessage("Importez au moins une photo du produit avant de lancer la retouche IA.");
+      return;
+    }
+
+    const availableSlots = Math.max(0, 10 - existingImages.length - selectedFiles.length);
+    const outputCount = Math.min(3, availableSlots);
+    if (outputCount <= 0) {
       setAiMessage("La limite de 10 images est déjà atteinte. Retirez une image avant de générer les visuels.");
       return;
     }
 
     setAiGenerating(true);
-    setAiMessage("Génération de la description et des visuels en cours…");
+    setAiMessage(`Retouche professionnelle de ${outputCount} image(s) en cours…`);
 
     try {
+      // Ne pas définir Content-Type : le navigateur doit créer la boundary multipart.
+      const headers = { ...adminHeaders() } as Record<string, string>;
+      for (const key of Object.keys(headers)) {
+        if (key.toLowerCase() === "content-type") delete headers[key];
+      }
+
+      const requestData = new FormData();
+      requestData.append("designation", designation);
+      requestData.append("brand", brand);
+      requestData.append("reference", reference);
+      requestData.append("count", String(outputCount));
+      sourceFiles.slice(0, 10).forEach((file) => requestData.append("sourceImages", file, file.name));
+
       const result = await apiFetch<{
         success: boolean;
-        description: string;
+        description?: string;
         images: { mimeType: string; base64: string; name: string }[];
       }>("/admin/articles/ai-generate", {
         method: "POST",
-        headers: adminHeaders(),
-        body: JSON.stringify({ designation, brand, reference }),
+        headers,
+        body: requestData,
       });
 
       if (result.description) setDescriptionValue(result.description);
 
-      const generatedFiles = (result.images || []).slice(0, Math.min(3, availableSlots)).map((image, index) => {
+      const generatedFiles = (result.images || []).slice(0, outputCount).map((image, index) => {
         const binary = atob(image.base64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
@@ -2631,9 +2657,9 @@ function ArticleModal({
       });
 
       if (generatedFiles.length) onGeneratedFiles(generatedFiles);
-      setAiMessage(`Description générée. ${generatedFiles.length} visuel(s) ajouté(s) à l’aperçu. Vérifiez le contenu avant d’enregistrer.`);
+      setAiMessage(`${generatedFiles.length} image(s) retouchée(s) avec un fond blanc professionnel et ajoutée(s) à l’aperçu. Vérifiez les résultats avant d’enregistrer.`);
     } catch (requestError) {
-      setAiMessage(requestError instanceof Error ? requestError.message : "La génération IA a échoué.");
+      setAiMessage(requestError instanceof Error ? requestError.message : "La retouche IA a échoué.");
     } finally {
       setAiGenerating(false);
     }
@@ -3728,7 +3754,7 @@ function ArticleModal({
                     <Sparkles className="h-4 w-4 text-orange-500" />
                     Assistant IA du catalogue
                   </div>
-                  <p className="mt-1 text-xs leading-5 text-zinc-500">Propose une description et 3 visuels originaux. Les prix ne sont jamais générés ni modifiés.</p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-500">Retouche jusqu’à 3 photos importées : fond blanc professionnel, lumière studio et ombres naturelles. Les prix ne sont jamais générés ni modifiés.</p>
                 </div>
                 <button
                   type="button"
@@ -3737,7 +3763,7 @@ function ArticleModal({
                   className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-3 text-xs font-black text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {aiGenerating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {aiGenerating ? "Génération en cours…" : "Générer avec l’IA"}
+                  {aiGenerating ? "Retouche en cours…" : "Retoucher avec l’IA"}
                 </button>
               </div>
               {aiMessage && <p className="mt-3 rounded-xl bg-white/80 p-3 text-xs font-semibold leading-5 text-zinc-600" aria-live="polite">{aiMessage}</p>}
