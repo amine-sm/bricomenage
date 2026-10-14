@@ -1925,7 +1925,7 @@ function ArticlesPageContent() {
       {/* =========================================================
           FLOATING FILTER BUTTON — MOBILE + PC
           Mobile : au-dessus de la bottom navigation.
-          PC : en bas à droite.
+          PC : en bas à gauche, sans chevauchement avec les réseaux sociaux.
       ========================================================== */}
       <AnimatePresence>
         {isScrolled && !mobileFiltersOpen && (
@@ -1938,7 +1938,7 @@ function ArticlesPageContent() {
               stiffness: 420,
               damping: 28,
             }}
-            className="fixed bottom-[88px] right-4 z-[9000] sm:right-6 lg:bottom-8 lg:right-8"
+            className="fixed bottom-[88px] left-4 z-[9000] sm:left-6 lg:bottom-8 lg:left-8"
           >
             <button
               type="button"
