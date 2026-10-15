@@ -8,7 +8,7 @@ import {
   Instagram,
   MessageCircle,
   Music2,
-Radio,
+  Radio,
   X,
 } from "lucide-react";
 
@@ -19,15 +19,16 @@ const socials = [
     color: "bg-[#25D366] hover:bg-[#20bd5b]",
     Icon: MessageCircle,
   },
+ {
+  label: "Facebook Messenger",
+  href: "https://m.me/BricoMenage.dz",
+  color: "bg-[#1877F2] hover:bg-[#0866dd]",
+  Icon: Facebook,
+},
   {
-    label: "Facebook",
-    href: "https://www.facebook.com/share/18wbQ77V1V/?mibextid=wwXIfr",
-    color: "bg-[#1877F2] hover:bg-[#0866dd]",
-    Icon: Facebook,
-  },
-  {
-    label: "Instagram",
-    href: "https://www.instagram.com/brico_menagedz?igsh=aTl5dWI5MHBodHBx",
+    label: "Instagram Direct",
+    // Ouvre directement les messages du compte Instagram.
+    href: "https://ig.me/m/brico_menagedz",
     color:
       "bg-gradient-to-br from-[#833AB4] via-[#E1306C] to-[#FCAF45]",
     Icon: Instagram,
@@ -44,15 +45,19 @@ export default function FloatingSocials() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
+  // Fermer le menu lors du changement de page.
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
+  // Fermer le menu avec la touche Escape.
   useEffect(() => {
     if (!open) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
     };
 
     window.addEventListener("keydown", closeOnEscape);
@@ -67,6 +72,7 @@ export default function FloatingSocials() {
       className="pointer-events-none fixed bottom-[88px] right-4 z-[9100] flex flex-col items-end gap-3 sm:right-6 lg:bottom-8 lg:right-8"
       aria-label="Réseaux sociaux BricoMénage"
     >
+      {/* Liens des réseaux sociaux */}
       <div
         id="floating-social-links"
         className={`flex flex-col items-end gap-2.5 transition-all duration-300 ${
@@ -92,6 +98,7 @@ export default function FloatingSocials() {
         ))}
       </div>
 
+      {/* Bouton flottant principal */}
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
